@@ -79,7 +79,7 @@ select{
 .view-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .chk{display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;color:var(--muted)}
 .chk input{accent-color:var(--accent-2)}
-.chk.inline{padding:0;margin-left:4px}
+.chk.inline{padding:0;margin-left:4px;white-space:nowrap;font-size:12px}
 .squad-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;color:var(--muted)}
 .squad-row select{flex:1;max-width:110px}
 .colors{display:flex;gap:4px}

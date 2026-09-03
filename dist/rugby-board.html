@@ -86,7 +86,7 @@ select{
 .view-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .chk{display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;color:var(--muted)}
 .chk input{accent-color:var(--accent-2)}
-.chk.inline{padding:0;margin-left:4px}
+.chk.inline{padding:0;margin-left:4px;white-space:nowrap;font-size:12px}
 .squad-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;color:var(--muted)}
 .squad-row select{flex:1;max-width:110px}
 .colors{display:flex;gap:4px}
@@ -203,6 +203,7 @@ body.presenting .stage{background:#000}
     <div class="spacer"></div>
     <div class="group">
       <select id="presetSelect" title="Formaciones"></select>
+      <label class="chk inline" title="Si lo destildás, la formación trae sólo tu equipo"><input type="checkbox" id="optWithB" checked> con rival</label>
       <button id="btnPreset" class="btn">Aplicar</button>
     </div>
     <div class="group">
@@ -272,7 +273,6 @@ body.presenting .stage{background:#000}
           <input type="color" id="colorB" value="#3f7fe0" title="Color rival">
         </div>
       </div>
-      <label class="chk"><input type="checkbox" id="optWithB" checked> Con equipo rival</label>
       <div class="squad-row">
         <label>Agregar al</label>
         <div class="team-toggle">
