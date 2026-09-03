@@ -181,8 +181,8 @@ RG.input = (function () {
     app.refreshAll();
   }
 
-  function downText(w) {
-    const txt = window.prompt('Texto de la anotación:', '');
+  async function downText(w) {
+    const txt = await RG.ui.askText('Texto de la anotación:', '');
     if (!txt) return;
     M.commit();
     const a = M.addAnnotation(app.frameIdx, { type: 'text', x: w.x, y: w.y, text: txt, size: 2.2, color: '#ffffff' });

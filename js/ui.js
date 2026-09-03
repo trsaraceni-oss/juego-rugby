@@ -22,6 +22,46 @@ RG.ui = (function () {
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1900);
   }
 
+  /* El visor de artifacts corre la página en un iframe sandbox: alert, confirm
+     y prompt del navegador se ignoran en silencio. Estos los reemplazan. */
+  function dialog(opts) {
+    return new Promise((resolve) => {
+      const back = document.createElement('div');
+      back.className = 'modal-back';
+      const field = opts.kind === 'text'
+        ? '<input type="text" id="mdIn" value="' + escapeAttr(opts.value || '') + '" spellcheck="false">'
+        : opts.kind === 'copy'
+          ? '<textarea id="mdIn" readonly>' + escapeAttr(opts.value || '') + '</textarea>'
+          : '';
+      back.innerHTML =
+        '<div class="modal" role="dialog" aria-modal="true">' +
+        '<p>' + escapeAttr(opts.message) + '</p>' + field +
+        '<div class="modal-actions">' +
+        (opts.kind === 'copy' ? '' : '<button class="btn" id="mdNo">' + (opts.cancel || 'Cancelar') + '</button>') +
+        '<button class="btn primary" id="mdYes">' + (opts.ok || 'Aceptar') + '</button>' +
+        '</div></div>';
+      document.body.appendChild(back);
+      const input = back.querySelector('#mdIn');
+      const close = (val) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(val); };
+      const accept = () => close(opts.kind === 'text' ? (input.value || null) : true);
+      function onKey(ev) {
+        ev.stopPropagation();
+        if (ev.key === 'Escape') { ev.preventDefault(); close(opts.kind === 'text' ? null : false); }
+        if (ev.key === 'Enter' && opts.kind !== 'copy') { ev.preventDefault(); accept(); }
+      }
+      document.addEventListener('keydown', onKey, true);
+      back.querySelector('#mdYes').addEventListener('click', accept);
+      const no = back.querySelector('#mdNo');
+      if (no) no.addEventListener('click', () => close(opts.kind === 'text' ? null : false));
+      back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(opts.kind === 'text' ? null : false); });
+      if (input) { input.focus(); input.select(); }
+    });
+  }
+
+  const askConfirm = (message, ok) => dialog({ message, ok: ok || 'Sí, seguir' });
+  const askText = (message, value) => dialog({ kind: 'text', message, value, ok: 'Agregar' });
+  const showCopy = (message, value) => dialog({ kind: 'copy', message, value, ok: 'Listo' });
+
   const HINTS = {
     select: 'Arrastrá jugadores. Doble click le da la pelota. Arrastrá el fondo para mover la vista.',
     run: 'Dibujá desde un jugador el recorrido que hace en este frame.',
@@ -233,10 +273,10 @@ RG.ui = (function () {
 
     $('playName').addEventListener('change', (e) => { M.state.name = e.target.value.trim() || 'Jugada sin nombre'; });
 
-    $('btnPreset').addEventListener('click', () => {
+    $('btnPreset').addEventListener('click', async () => {
       const val = presets.value || '';
       const kind = val.slice(0, 2), key = val.slice(2);
-      if (M.state.frames.length > 1 && !confirm('Esto reemplaza la jugada actual. ¿Seguir?')) return;
+      if (M.state.frames.length > 1 && !(await askConfirm('Esto reemplaza la jugada que tenés armada. ¿Seguir?', 'Reemplazar'))) return;
       if (kind === 'd:') {
         RG.demos.load(key);
         app.frameIdx = 0; app.time = 0; app.selection = null;
@@ -344,10 +384,11 @@ RG.ui = (function () {
       if (!id) return toast('No hay jugadas guardadas');
       if (M.loadPlay(id)) { app.frameIdx = 0; app.time = 0; app.selection = null; app.refreshAll(); toast('Jugada abierta'); }
     });
-    $('btnDeletePlay').addEventListener('click', () => {
+    $('btnDeletePlay').addEventListener('click', async () => {
       const id = $('savedPlays').value;
       if (!id) return;
-      if (!confirm('¿Borrar la jugada guardada?')) return;
+      const name = $('savedPlays').selectedOptions[0].textContent;
+      if (!(await askConfirm('¿Borrar la jugada guardada "' + name + '"?', 'Borrar'))) return;
       M.deletePlay(id); refreshSaved(); toast('Jugada borrada');
     });
 
@@ -355,7 +396,7 @@ RG.ui = (function () {
       M.state.name = $('playName').value.trim() || 'Jugada sin nombre';
       const json = JSON.stringify(M.serialize(), null, 2);
       const ok = await saveFile(slug(M.state.name) + '.json', 'application/json', json);
-      if (!ok) window.prompt('Copiá el JSON de la jugada:', json);
+      if (!ok) showCopy('No se pudo bajar el archivo. Copiá el contenido de la jugada:', json);
     });
     $('btnImport').addEventListener('click', () => $('fileInput').click());
     $('fileInput').addEventListener('change', (e) => {
@@ -397,5 +438,5 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askText, showCopy, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();

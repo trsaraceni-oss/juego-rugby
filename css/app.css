@@ -146,6 +146,26 @@ kbd{
 .frame-chip.active{border-color:var(--accent-2);background:#16301f}
 .frame-chip.active b{color:var(--accent)}
 
+/* ---------- diálogos propios (los del navegador están bloqueados
+   dentro del visor de artifacts, que corre la página en un iframe sandbox) ---------- */
+.modal-back{
+  position:fixed;inset:0;background:rgba(6,9,13,.68);z-index:80;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.modal{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:18px 18px 14px;min-width:300px;max-width:440px;
+  box-shadow:0 18px 50px rgba(0,0,0,.6);
+}
+.modal p{margin:0 0 12px;line-height:1.5}
+.modal input[type=text],.modal textarea{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:7px;padding:8px 10px;font:inherit;margin-bottom:12px;
+}
+.modal textarea{height:150px;resize:vertical;font:12px ui-monospace,monospace}
+.modal input[type=text]:focus,.modal textarea:focus{outline:none;border-color:var(--accent-2)}
+.modal-actions{display:flex;justify-content:flex-end;gap:7px}
+
 .toast{
   position:fixed;left:50%;bottom:118px;transform:translateX(-50%);
   background:var(--panel-2);border:1px solid var(--accent-2);color:var(--text);
