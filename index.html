@@ -48,6 +48,7 @@
         <button class="tool" data-tool="arrow" title="Flecha libre (A)"><b>↗</b><span>Flecha</span></button>
         <button class="tool" data-tool="cone" title="Cono / marcador (C)"><b>▲</b><span>Cono</span></button>
         <button class="tool" data-tool="text" title="Texto (T)"><b>T</b><span>Texto</span></button>
+        <button class="tool" data-tool="add" title="Agregar jugador (J)"><b>＋</b><span>Jugador</span></button>
         <button class="tool" data-tool="erase" title="Borrar elemento (E)"><b>✕</b><span>Borrar</span></button>
       </div>
 
@@ -77,13 +78,20 @@
         </select>
       </div>
       <div class="squad-row">
-        <label>Equipos</label>
+        <label>Colores</label>
         <div class="colors">
           <input type="color" id="colorA" value="#e8503a" title="Color equipo propio">
           <input type="color" id="colorB" value="#3f7fe0" title="Color rival">
         </div>
       </div>
-      <label class="chk"><input type="checkbox" id="optShowB" checked> Mostrar rival</label>
+      <label class="chk"><input type="checkbox" id="optWithB" checked> Con equipo rival</label>
+      <div class="squad-row">
+        <label>Agregar al</label>
+        <div class="team-toggle">
+          <button class="btn sm active" data-team="a">Propio</button>
+          <button class="btn sm" data-team="b">Rival</button>
+        </div>
+      </div>
     </aside>
 
     <section class="stage">

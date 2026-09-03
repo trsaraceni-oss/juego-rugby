@@ -20,6 +20,7 @@
     hover: null,
     draft: null,
     spaceDown: false,
+    addTeam: 'a',
     options: { onion: true, routes: true, labels: false, grid: false, numbers: true }
   };
 
@@ -175,7 +176,7 @@
 
   /* ---------- teclado ---------- */
 
-  const TOOL_KEYS = { v: 'select', r: 'run', p: 'pass', k: 'kick', a: 'arrow', c: 'cone', t: 'text', e: 'erase' };
+  const TOOL_KEYS = { v: 'select', r: 'run', p: 'pass', k: 'kick', a: 'arrow', c: 'cone', t: 'text', e: 'erase', j: 'add' };
 
   document.addEventListener('keydown', (ev) => {
     const tag = (ev.target.tagName || '').toLowerCase();

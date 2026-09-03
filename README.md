@@ -27,6 +27,7 @@ el recorrido dibujado cuando hay uno, o en línea recta cuando no.
 | `A` | Flecha | Flecha de referencia. |
 | `C` | Cono | Marcador fijo (se mantiene en los frames siguientes). |
 | `T` | Texto | Nota sobre la cancha. |
+| `J` | Jugador | Click en la cancha suma un jugador al equipo elegido en el panel. |
 | `E` | Borrar | Click sobre una ruta, flecha, cono o jugador para borrar su marca. |
 
 Si dibujás un movimiento estando en el frame 1, se crea el frame 2 automáticamente: el primero
@@ -37,8 +38,16 @@ guarda solo la posición de partida.
 (`Esc` sale). La rueda del mouse hace zoom.
 
 **Formaciones y ejemplos**: el selector de arriba trae tres jugadas armadas (line-out, scrum al
-lado ciego, contraataque desde patada) y cinco formaciones de partida (ataque en fase, scrum,
-line-out, salida, defensa en 22). Cargar una reemplaza la jugada actual.
+lado ciego, contraataque desde patada), seis formaciones completas (ataque en fase, scrum,
+line-out, salida, defensa en 22, equipos alineados) y cuatro parciales para trabajar una unidad
+sola: line-out, scrum, línea de tres cuartos y cancha vacía. Cargar una reemplaza la jugada actual.
+
+**Sin rival**: destildando *Con equipo rival* la formación que apliques trae sólo tu equipo, y el
+rival que hubiera sale de la cancha. Volviendo a tildarlo reaparece según la última formación.
+
+**Plantel a mano**: partiendo de *Cancha vacía*, la herramienta Jugador suma los que quieras, con
+el número corregible desde el panel derecho, que también los quita de a uno. Las formaciones
+parciales definen su propio plantel; el selector de formato sólo manda en las completas.
 
 **Formatos**: XV, 13, ten-a-side y seven. Cambia el plantel manteniendo la numeración real de
 cada puesto.

@@ -124,6 +124,57 @@ RG.model = (function () {
       ballCarrier: null,
       a: lineUp(30),
       b: lineUp(70)
+    },
+
+    /* Parciales: el plantel lo define la formación, no el formato de juego.
+       Sirven para practicar una unidad sola, con o sin rival. */
+    unit_lineout: {
+      name: 'Line-out solo (7 + lanzador + 9)',
+      only: true,
+      ballCarrier: 'a2',
+      a: {
+        2: [50, 0.6], 1: [49.4, 5.5], 3: [49.4, 8], 4: [49.4, 10.5], 5: [49.4, 13],
+        6: [49.4, 15.5], 7: [49.4, 18], 8: [49.4, 20.5], 9: [47.6, 9]
+      },
+      b: {
+        2: [51.8, 3], 1: [51.2, 5.5], 3: [51.2, 8], 4: [51.2, 10.5], 5: [51.2, 13],
+        6: [51.2, 15.5], 7: [51.2, 18], 8: [51.2, 20.5], 9: [53, 9]
+      }
+    },
+    unit_scrum: {
+      name: 'Scrum solo (pack + 9)',
+      only: true,
+      ballCarrier: 'a9',
+      a: {
+        1: [48.5, 37.2], 2: [48.5, 35], 3: [48.5, 32.8],
+        4: [47.2, 36.1], 5: [47.2, 33.9], 6: [47.2, 38.7], 7: [47.2, 31.3], 8: [45.9, 35],
+        9: [44.8, 32.6]
+      },
+      b: {
+        1: [51.5, 32.8], 2: [51.5, 35], 3: [51.5, 37.2],
+        4: [52.8, 33.9], 5: [52.8, 36.1], 6: [52.8, 31.3], 7: [52.8, 38.7], 8: [54.1, 35],
+        9: [55.2, 37.4]
+      }
+    },
+    unit_backline: {
+      name: 'Línea de tres cuartos sola',
+      only: true,
+      ballCarrier: 'a9',
+      a: {
+        9: [44, 35], 10: [40, 41], 12: [37, 47], 13: [34, 53], 11: [30, 64],
+        14: [37, 12], 15: [28, 40]
+      },
+      b: {
+        9: [48, 35], 10: [49, 42], 12: [49, 48], 13: [49, 54], 11: [49, 64],
+        14: [48, 14], 15: [42, 46]
+      }
+    },
+    empty: {
+      name: 'Cancha vacía (agregar jugadores)',
+      only: true,
+      ballCarrier: null,
+      a: {},
+      b: {}
     }
   };
 
@@ -137,6 +188,7 @@ RG.model = (function () {
     id: uid(),
     name: 'Jugada sin nombre',
     squad: 15,
+    lastFormation: 'attack',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
     players: [],
@@ -162,10 +214,27 @@ RG.model = (function () {
     return team === 'a' ? { x: 4 + i * 3, y: -4 } : { x: 96 - i * 3, y: 74 };
   }
 
-  function applyFormation(key, frameIdx) {
+  /* Arma el plantel que pide la formación: las parciales traen su propia lista
+     de camisetas; las completas usan el formato de juego elegido. */
+  function rosterFor(f, withB) {
+    const teams = withB ? ['a', 'b'] : ['a'];
+    const out = [];
+    for (const team of teams) {
+      const nums = f.only
+        ? Object.keys(f[team] || {}).map(Number).sort((x, y) => x - y)
+        : (SQUADS[state.squad] || SQUADS[15]);
+      for (const num of nums) out.push({ id: team + num, team, num, label: POSITION_NAMES[num] || ('#' + num) });
+    }
+    return out;
+  }
+
+  function applyFormation(key, frameIdx, withB) {
     const f = FORMATIONS[key];
     if (!f) return;
+    state.lastFormation = key;
+    state.players = rosterFor(f, withB !== false);
     const fr = frame(frameIdx);
+    fr.pos = {};
     let benchA = 0, benchB = 0;
     for (const p of state.players) {
       const table = f[p.team];
@@ -180,6 +249,38 @@ RG.model = (function () {
     }
     fr.routes = {};
     fr.ballRoute = null;
+  }
+
+  /* ---------- plantel a mano ---------- */
+
+  function nextNumber(team) {
+    const used = new Set(state.players.filter((p) => p.team === team).map((p) => p.num));
+    for (let n = 1; n <= 99; n++) if (!used.has(n)) return n;
+    return 99;
+  }
+
+  function addPlayer(team, at, num) {
+    const n = num || nextNumber(team);
+    const id = team + n + (state.players.some((p) => p.id === team + n) ? '_' + uid().slice(0, 3) : '');
+    const p = { id, team, num: n, label: POSITION_NAMES[n] || ('#' + n) };
+    state.players.push(p);
+    for (const fr of state.frames) fr.pos[id] = { x: at.x, y: at.y };
+    return p;
+  }
+
+  function removePlayer(id) {
+    const i = state.players.findIndex((p) => p.id === id);
+    if (i < 0) return false;
+    state.players.splice(i, 1);
+    state.frames.forEach((fr, idx) => {
+      if (fr.ball.carrier === id) {
+        const b = ballStatic(idx);
+        fr.ball = { carrier: null, x: b.x, y: b.y };
+      }
+      delete fr.pos[id];
+      delete fr.routes[id];
+    });
+    return true;
   }
 
   function rebuildSquad(size, formationKey) {
@@ -394,11 +495,11 @@ RG.model = (function () {
 
   const history = { undo: [], redo: [], limit: 80 };
 
-  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, colors: state.colors, players: state.players, frames: state.frames }); }
+  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, lastFormation: state.lastFormation, colors: state.colors, players: state.players, frames: state.frames }); }
 
   function restore(json) {
     const s = JSON.parse(json);
-    state.name = s.name; state.squad = s.squad; state.showB = s.showB;
+    state.name = s.name; state.squad = s.squad; state.showB = s.showB; state.lastFormation = s.lastFormation;
     state.colors = s.colors; state.players = s.players; state.frames = s.frames;
   }
 
@@ -489,7 +590,7 @@ RG.model = (function () {
   return {
     state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
     blankFrame, frame, frameCount, player, activePlayers, pos,
-    newPlay, rebuildSquad, applyFormation,
+    newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,

@@ -30,6 +30,7 @@ RG.ui = (function () {
     arrow: 'Arrastrá para dibujar una flecha de referencia.',
     cone: 'Click para poner un cono o marcador.',
     text: 'Click para escribir una nota sobre la cancha.',
+    add: 'Click en la cancha para sumar un jugador al equipo elegido abajo a la izquierda.',
     erase: 'Click sobre una ruta, flecha, cono o jugador para borrar su marca.'
   };
 
@@ -89,6 +90,7 @@ RG.ui = (function () {
         row('Número', '<input type="number" id="ipNum" min="1" max="99" value="' + p.num + '">') +
         row('Puesto', '<input type="text" id="ipLabel" value="' + escapeAttr(p.label) + '">') +
         row('Pelota', '<button class="btn sm" id="ipBall">' + (isCarrier ? 'Soltar' : 'Dársela') + '</button>') +
+        row('', '<button class="btn sm danger" id="ipDelPlayer">Quitar de la cancha</button>') +
         (route
           ? row('Ruta', '<select id="ipKind"><option value="run">Carrera</option><option value="pass">Pase</option><option value="kick">Patada</option><option value="block">Bloqueo</option></select>') +
             row('', '<button class="btn sm danger" id="ipDelRoute">Borrar ruta</button>')
@@ -101,6 +103,10 @@ RG.ui = (function () {
       $('ipLabel').addEventListener('change', (e) => { M.commit(); p.label = e.target.value; app.refreshAll(); });
       $('ipBall').addEventListener('click', () => {
         M.commit(); M.setCarrier(app.frameIdx, isCarrier ? null : p.id); app.refreshAll();
+      });
+      $('ipDelPlayer').addEventListener('click', () => {
+        M.commit(); M.removePlayer(p.id); app.selection = null; app.refreshAll();
+        toast('#' + p.num + ' sacado de la cancha');
       });
       if (route) {
         $('ipKind').value = route.kind;
@@ -210,8 +216,12 @@ RG.ui = (function () {
     presets.innerHTML =
       '<optgroup label="Jugadas de ejemplo">' +
       RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-      '</optgroup><optgroup label="Formaciones">' +
-      M.formationList().map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
+      '</optgroup><optgroup label="Formaciones completas">' +
+      M.formationList().filter((f) => !M.FORMATIONS[f.key].only)
+        .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
+      '</optgroup><optgroup label="Una unidad sola">' +
+      M.formationList().filter((f) => M.FORMATIONS[f.key].only)
+        .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
       '</optgroup>';
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -240,7 +250,7 @@ RG.ui = (function () {
       M.state.id = RG.geom.uid();
       M.state.name = 'Jugada sin nombre';
       app.frameIdx = 0; app.time = 0;
-      M.applyFormation(key, 0);
+      M.applyFormation(key, 0, $('optWithB').checked);
       app.selection = null;
       app.fitPlay();
       app.refreshAll();
@@ -251,14 +261,33 @@ RG.ui = (function () {
       M.commit();
       M.rebuildSquad(parseInt(e.target.value, 10), null);
       const val = presets.value || '';
-      M.applyFormation(val.slice(0, 2) === 'f:' ? val.slice(2) : 'attack', app.frameIdx);
+      M.applyFormation(val.slice(0, 2) === 'f:' ? val.slice(2) : 'attack', app.frameIdx, $('optWithB').checked);
       app.selection = null;
       app.refreshAll();
     });
 
     $('colorA').addEventListener('input', (e) => { M.state.colors.a = e.target.value; app.requestDraw(); });
     $('colorB').addEventListener('input', (e) => { M.state.colors.b = e.target.value; app.requestDraw(); });
-    $('optShowB').addEventListener('change', (e) => { M.state.showB = e.target.checked; app.requestDraw(); });
+    $('optWithB').addEventListener('change', (e) => {
+      const on = e.target.checked;
+      M.commit();
+      M.state.showB = on;
+      if (!on) {
+        for (const p of M.state.players.filter((x) => x.team === 'b')) M.removePlayer(p.id);
+        toast('Rival sacado de la cancha');
+      } else if (!M.state.players.some((p) => p.team === 'b')) {
+        M.applyFormation(M.state.lastFormation || 'attack', app.frameIdx, true);
+        toast('Rival agregado según la formación');
+      }
+      app.selection = null;
+      app.refreshAll();
+    });
+
+    document.querySelectorAll('.team-toggle .btn').forEach((btn) => btn.addEventListener('click', () => {
+      app.addTeam = btn.dataset.team;
+      document.querySelectorAll('.team-toggle .btn').forEach((b) => b.classList.toggle('active', b === btn));
+      if (app.addTeam === 'b' && !$('optWithB').checked) { $('optWithB').checked = true; $('optWithB').dispatchEvent(new Event('change')); }
+    }));
 
     $('btnUndo').addEventListener('click', () => app.undo());
     $('btnRedo').addEventListener('click', () => app.redo());
@@ -363,7 +392,7 @@ RG.ui = (function () {
     $('squadSize').value = String(M.state.squad);
     $('colorA').value = M.state.colors.a;
     $('colorB').value = M.state.colors.b;
-    $('optShowB').checked = M.state.showB;
+    $('optWithB').checked = M.state.showB;
     $('btnUndo').disabled = !M.history.undo.length;
     $('btnRedo').disabled = !M.history.redo.length;
   }

@@ -90,6 +90,8 @@ select{
 .squad-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;color:var(--muted)}
 .squad-row select{flex:1;max-width:110px}
 .colors{display:flex;gap:4px}
+.team-toggle{display:flex;gap:3px}
+.team-toggle .btn.active{background:#173a26;border-color:var(--accent-2);color:var(--accent)}
 input[type=color]{
   width:30px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;
   background:var(--panel-2);cursor:pointer;
@@ -234,6 +236,7 @@ body.presenting .stage{background:#000}
         <button class="tool" data-tool="arrow" title="Flecha libre (A)"><b>↗</b><span>Flecha</span></button>
         <button class="tool" data-tool="cone" title="Cono / marcador (C)"><b>▲</b><span>Cono</span></button>
         <button class="tool" data-tool="text" title="Texto (T)"><b>T</b><span>Texto</span></button>
+        <button class="tool" data-tool="add" title="Agregar jugador (J)"><b>＋</b><span>Jugador</span></button>
         <button class="tool" data-tool="erase" title="Borrar elemento (E)"><b>✕</b><span>Borrar</span></button>
       </div>
 
@@ -263,13 +266,20 @@ body.presenting .stage{background:#000}
         </select>
       </div>
       <div class="squad-row">
-        <label>Equipos</label>
+        <label>Colores</label>
         <div class="colors">
           <input type="color" id="colorA" value="#e8503a" title="Color equipo propio">
           <input type="color" id="colorB" value="#3f7fe0" title="Color rival">
         </div>
       </div>
-      <label class="chk"><input type="checkbox" id="optShowB" checked> Mostrar rival</label>
+      <label class="chk"><input type="checkbox" id="optWithB" checked> Con equipo rival</label>
+      <div class="squad-row">
+        <label>Agregar al</label>
+        <div class="team-toggle">
+          <button class="btn sm active" data-team="a">Propio</button>
+          <button class="btn sm" data-team="b">Rival</button>
+        </div>
+      </div>
     </aside>
 
     <section class="stage">
@@ -596,6 +606,57 @@ RG.model = (function () {
       ballCarrier: null,
       a: lineUp(30),
       b: lineUp(70)
+    },
+
+    /* Parciales: el plantel lo define la formación, no el formato de juego.
+       Sirven para practicar una unidad sola, con o sin rival. */
+    unit_lineout: {
+      name: 'Line-out solo (7 + lanzador + 9)',
+      only: true,
+      ballCarrier: 'a2',
+      a: {
+        2: [50, 0.6], 1: [49.4, 5.5], 3: [49.4, 8], 4: [49.4, 10.5], 5: [49.4, 13],
+        6: [49.4, 15.5], 7: [49.4, 18], 8: [49.4, 20.5], 9: [47.6, 9]
+      },
+      b: {
+        2: [51.8, 3], 1: [51.2, 5.5], 3: [51.2, 8], 4: [51.2, 10.5], 5: [51.2, 13],
+        6: [51.2, 15.5], 7: [51.2, 18], 8: [51.2, 20.5], 9: [53, 9]
+      }
+    },
+    unit_scrum: {
+      name: 'Scrum solo (pack + 9)',
+      only: true,
+      ballCarrier: 'a9',
+      a: {
+        1: [48.5, 37.2], 2: [48.5, 35], 3: [48.5, 32.8],
+        4: [47.2, 36.1], 5: [47.2, 33.9], 6: [47.2, 38.7], 7: [47.2, 31.3], 8: [45.9, 35],
+        9: [44.8, 32.6]
+      },
+      b: {
+        1: [51.5, 32.8], 2: [51.5, 35], 3: [51.5, 37.2],
+        4: [52.8, 33.9], 5: [52.8, 36.1], 6: [52.8, 31.3], 7: [52.8, 38.7], 8: [54.1, 35],
+        9: [55.2, 37.4]
+      }
+    },
+    unit_backline: {
+      name: 'Línea de tres cuartos sola',
+      only: true,
+      ballCarrier: 'a9',
+      a: {
+        9: [44, 35], 10: [40, 41], 12: [37, 47], 13: [34, 53], 11: [30, 64],
+        14: [37, 12], 15: [28, 40]
+      },
+      b: {
+        9: [48, 35], 10: [49, 42], 12: [49, 48], 13: [49, 54], 11: [49, 64],
+        14: [48, 14], 15: [42, 46]
+      }
+    },
+    empty: {
+      name: 'Cancha vacía (agregar jugadores)',
+      only: true,
+      ballCarrier: null,
+      a: {},
+      b: {}
     }
   };
 
@@ -609,6 +670,7 @@ RG.model = (function () {
     id: uid(),
     name: 'Jugada sin nombre',
     squad: 15,
+    lastFormation: 'attack',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
     players: [],
@@ -634,10 +696,27 @@ RG.model = (function () {
     return team === 'a' ? { x: 4 + i * 3, y: -4 } : { x: 96 - i * 3, y: 74 };
   }
 
-  function applyFormation(key, frameIdx) {
+  /* Arma el plantel que pide la formación: las parciales traen su propia lista
+     de camisetas; las completas usan el formato de juego elegido. */
+  function rosterFor(f, withB) {
+    const teams = withB ? ['a', 'b'] : ['a'];
+    const out = [];
+    for (const team of teams) {
+      const nums = f.only
+        ? Object.keys(f[team] || {}).map(Number).sort((x, y) => x - y)
+        : (SQUADS[state.squad] || SQUADS[15]);
+      for (const num of nums) out.push({ id: team + num, team, num, label: POSITION_NAMES[num] || ('#' + num) });
+    }
+    return out;
+  }
+
+  function applyFormation(key, frameIdx, withB) {
     const f = FORMATIONS[key];
     if (!f) return;
+    state.lastFormation = key;
+    state.players = rosterFor(f, withB !== false);
     const fr = frame(frameIdx);
+    fr.pos = {};
     let benchA = 0, benchB = 0;
     for (const p of state.players) {
       const table = f[p.team];
@@ -652,6 +731,38 @@ RG.model = (function () {
     }
     fr.routes = {};
     fr.ballRoute = null;
+  }
+
+  /* ---------- plantel a mano ---------- */
+
+  function nextNumber(team) {
+    const used = new Set(state.players.filter((p) => p.team === team).map((p) => p.num));
+    for (let n = 1; n <= 99; n++) if (!used.has(n)) return n;
+    return 99;
+  }
+
+  function addPlayer(team, at, num) {
+    const n = num || nextNumber(team);
+    const id = team + n + (state.players.some((p) => p.id === team + n) ? '_' + uid().slice(0, 3) : '');
+    const p = { id, team, num: n, label: POSITION_NAMES[n] || ('#' + n) };
+    state.players.push(p);
+    for (const fr of state.frames) fr.pos[id] = { x: at.x, y: at.y };
+    return p;
+  }
+
+  function removePlayer(id) {
+    const i = state.players.findIndex((p) => p.id === id);
+    if (i < 0) return false;
+    state.players.splice(i, 1);
+    state.frames.forEach((fr, idx) => {
+      if (fr.ball.carrier === id) {
+        const b = ballStatic(idx);
+        fr.ball = { carrier: null, x: b.x, y: b.y };
+      }
+      delete fr.pos[id];
+      delete fr.routes[id];
+    });
+    return true;
   }
 
   function rebuildSquad(size, formationKey) {
@@ -866,11 +977,11 @@ RG.model = (function () {
 
   const history = { undo: [], redo: [], limit: 80 };
 
-  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, colors: state.colors, players: state.players, frames: state.frames }); }
+  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, lastFormation: state.lastFormation, colors: state.colors, players: state.players, frames: state.frames }); }
 
   function restore(json) {
     const s = JSON.parse(json);
-    state.name = s.name; state.squad = s.squad; state.showB = s.showB;
+    state.name = s.name; state.squad = s.squad; state.showB = s.showB; state.lastFormation = s.lastFormation;
     state.colors = s.colors; state.players = s.players; state.frames = s.frames;
   }
 
@@ -961,7 +1072,7 @@ RG.model = (function () {
   return {
     state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
     blankFrame, frame, frameCount, player, activePlayers, pos,
-    newPlay, rebuildSquad, applyFormation,
+    newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,
@@ -1720,6 +1831,7 @@ RG.input = (function () {
       case 'arrow': return downArrow(w);
       case 'cone': return downCone(w);
       case 'text': return downText(w);
+      case 'add': return downAddPlayer(w);
       case 'erase': return downErase(w);
     }
   }
@@ -1814,6 +1926,14 @@ RG.input = (function () {
     M.commit();
     const a = M.addAnnotation(app.frameIdx, { type: 'text', x: w.x, y: w.y, text: txt, size: 2.2, color: '#ffffff' });
     app.selection = { type: 'ann', id: a.id };
+    app.refreshAll();
+  }
+
+  function downAddPlayer(w) {
+    M.commit();
+    const p = M.addPlayer(app.addTeam || 'a', w);
+    app.selection = { type: 'player', id: p.id };
+    app.toast('#' + p.num + ' agregado — cambiale el número en el panel derecho');
     app.refreshAll();
   }
 
@@ -2027,6 +2147,7 @@ RG.ui = (function () {
     arrow: 'Arrastrá para dibujar una flecha de referencia.',
     cone: 'Click para poner un cono o marcador.',
     text: 'Click para escribir una nota sobre la cancha.',
+    add: 'Click en la cancha para sumar un jugador al equipo elegido abajo a la izquierda.',
     erase: 'Click sobre una ruta, flecha, cono o jugador para borrar su marca.'
   };
 
@@ -2086,6 +2207,7 @@ RG.ui = (function () {
         row('Número', '<input type="number" id="ipNum" min="1" max="99" value="' + p.num + '">') +
         row('Puesto', '<input type="text" id="ipLabel" value="' + escapeAttr(p.label) + '">') +
         row('Pelota', '<button class="btn sm" id="ipBall">' + (isCarrier ? 'Soltar' : 'Dársela') + '</button>') +
+        row('', '<button class="btn sm danger" id="ipDelPlayer">Quitar de la cancha</button>') +
         (route
           ? row('Ruta', '<select id="ipKind"><option value="run">Carrera</option><option value="pass">Pase</option><option value="kick">Patada</option><option value="block">Bloqueo</option></select>') +
             row('', '<button class="btn sm danger" id="ipDelRoute">Borrar ruta</button>')
@@ -2098,6 +2220,10 @@ RG.ui = (function () {
       $('ipLabel').addEventListener('change', (e) => { M.commit(); p.label = e.target.value; app.refreshAll(); });
       $('ipBall').addEventListener('click', () => {
         M.commit(); M.setCarrier(app.frameIdx, isCarrier ? null : p.id); app.refreshAll();
+      });
+      $('ipDelPlayer').addEventListener('click', () => {
+        M.commit(); M.removePlayer(p.id); app.selection = null; app.refreshAll();
+        toast('#' + p.num + ' sacado de la cancha');
       });
       if (route) {
         $('ipKind').value = route.kind;
@@ -2207,8 +2333,12 @@ RG.ui = (function () {
     presets.innerHTML =
       '<optgroup label="Jugadas de ejemplo">' +
       RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-      '</optgroup><optgroup label="Formaciones">' +
-      M.formationList().map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
+      '</optgroup><optgroup label="Formaciones completas">' +
+      M.formationList().filter((f) => !M.FORMATIONS[f.key].only)
+        .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
+      '</optgroup><optgroup label="Una unidad sola">' +
+      M.formationList().filter((f) => M.FORMATIONS[f.key].only)
+        .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
       '</optgroup>';
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -2237,7 +2367,7 @@ RG.ui = (function () {
       M.state.id = RG.geom.uid();
       M.state.name = 'Jugada sin nombre';
       app.frameIdx = 0; app.time = 0;
-      M.applyFormation(key, 0);
+      M.applyFormation(key, 0, $('optWithB').checked);
       app.selection = null;
       app.fitPlay();
       app.refreshAll();
@@ -2248,14 +2378,33 @@ RG.ui = (function () {
       M.commit();
       M.rebuildSquad(parseInt(e.target.value, 10), null);
       const val = presets.value || '';
-      M.applyFormation(val.slice(0, 2) === 'f:' ? val.slice(2) : 'attack', app.frameIdx);
+      M.applyFormation(val.slice(0, 2) === 'f:' ? val.slice(2) : 'attack', app.frameIdx, $('optWithB').checked);
       app.selection = null;
       app.refreshAll();
     });
 
     $('colorA').addEventListener('input', (e) => { M.state.colors.a = e.target.value; app.requestDraw(); });
     $('colorB').addEventListener('input', (e) => { M.state.colors.b = e.target.value; app.requestDraw(); });
-    $('optShowB').addEventListener('change', (e) => { M.state.showB = e.target.checked; app.requestDraw(); });
+    $('optWithB').addEventListener('change', (e) => {
+      const on = e.target.checked;
+      M.commit();
+      M.state.showB = on;
+      if (!on) {
+        for (const p of M.state.players.filter((x) => x.team === 'b')) M.removePlayer(p.id);
+        toast('Rival sacado de la cancha');
+      } else if (!M.state.players.some((p) => p.team === 'b')) {
+        M.applyFormation(M.state.lastFormation || 'attack', app.frameIdx, true);
+        toast('Rival agregado según la formación');
+      }
+      app.selection = null;
+      app.refreshAll();
+    });
+
+    document.querySelectorAll('.team-toggle .btn').forEach((btn) => btn.addEventListener('click', () => {
+      app.addTeam = btn.dataset.team;
+      document.querySelectorAll('.team-toggle .btn').forEach((b) => b.classList.toggle('active', b === btn));
+      if (app.addTeam === 'b' && !$('optWithB').checked) { $('optWithB').checked = true; $('optWithB').dispatchEvent(new Event('change')); }
+    }));
 
     $('btnUndo').addEventListener('click', () => app.undo());
     $('btnRedo').addEventListener('click', () => app.redo());
@@ -2360,7 +2509,7 @@ RG.ui = (function () {
     $('squadSize').value = String(M.state.squad);
     $('colorA').value = M.state.colors.a;
     $('colorB').value = M.state.colors.b;
-    $('optShowB').checked = M.state.showB;
+    $('optWithB').checked = M.state.showB;
     $('btnUndo').disabled = !M.history.undo.length;
     $('btnRedo').disabled = !M.history.redo.length;
   }
@@ -2391,6 +2540,7 @@ RG.ui = (function () {
     hover: null,
     draft: null,
     spaceDown: false,
+    addTeam: 'a',
     options: { onion: true, routes: true, labels: false, grid: false, numbers: true }
   };
 
@@ -2546,7 +2696,7 @@ RG.ui = (function () {
 
   /* ---------- teclado ---------- */
 
-  const TOOL_KEYS = { v: 'select', r: 'run', p: 'pass', k: 'kick', a: 'arrow', c: 'cone', t: 'text', e: 'erase' };
+  const TOOL_KEYS = { v: 'select', r: 'run', p: 'pass', k: 'kick', a: 'arrow', c: 'cone', t: 'text', e: 'erase', j: 'add' };
 
   document.addEventListener('keydown', (ev) => {
     const tag = (ev.target.tagName || '').toLowerCase();

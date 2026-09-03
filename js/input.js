@@ -92,6 +92,7 @@ RG.input = (function () {
       case 'arrow': return downArrow(w);
       case 'cone': return downCone(w);
       case 'text': return downText(w);
+      case 'add': return downAddPlayer(w);
       case 'erase': return downErase(w);
     }
   }
@@ -186,6 +187,14 @@ RG.input = (function () {
     M.commit();
     const a = M.addAnnotation(app.frameIdx, { type: 'text', x: w.x, y: w.y, text: txt, size: 2.2, color: '#ffffff' });
     app.selection = { type: 'ann', id: a.id };
+    app.refreshAll();
+  }
+
+  function downAddPlayer(w) {
+    M.commit();
+    const p = M.addPlayer(app.addTeam || 'a', w);
+    app.selection = { type: 'player', id: p.id };
+    app.toast('#' + p.num + ' agregado — cambiale el número en el panel derecho');
     app.refreshAll();
   }
 
