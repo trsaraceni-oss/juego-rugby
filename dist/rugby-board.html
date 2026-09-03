@@ -1,0 +1,2583 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rugby Board</title>
+<style>
+:root{
+  --bg:#0f1216;
+  --panel:#161b22;
+  --panel-2:#1c222c;
+  --line:#2a323f;
+  --text:#e6ebf2;
+  --muted:#8b97a8;
+  --accent:#4ade80;
+  --accent-2:#2f9e57;
+  --danger:#e2554a;
+  --radius:8px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overflow:hidden;
+}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+/* ---------- topbar ---------- */
+.topbar{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;
+}
+.brand{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.brand .ball{font-size:15px}
+.spacer{flex:1}
+.name-input{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:var(--radius);padding:6px 10px;min-width:200px;font:inherit;
+}
+.name-input:focus{outline:none;border-color:var(--accent-2)}
+.group{display:flex;gap:4px;align-items:center}
+
+button.btn,select,input[type=text],input[type=file]{font:inherit}
+.btn{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  padding:6px 10px;border-radius:var(--radius);cursor:pointer;white-space:nowrap;
+}
+.btn:hover{background:#242c38;border-color:#3a4553}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent-2);border-color:var(--accent-2);color:#04140a;font-weight:600}
+.btn.primary:hover{background:var(--accent);border-color:var(--accent)}
+.btn.danger:hover{background:#3a1f1d;border-color:var(--danger);color:#ff9b91}
+.btn.icon{padding:6px 9px;line-height:1}
+.btn.sm{padding:4px 8px;font-size:12px}
+select{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  padding:6px 8px;border-radius:var(--radius);cursor:pointer;max-width:200px;
+}
+
+/* ---------- layout ---------- */
+.body{display:flex;flex:1;min-height:0}
+.panel{
+  background:var(--panel);border-right:1px solid var(--line);
+  width:196px;flex:0 0 196px;padding:10px;overflow-y:auto;
+}
+.panel.inspector{border-right:none;border-left:1px solid var(--line);width:216px;flex-basis:216px}
+.panel h3{
+  margin:14px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
+  border-bottom:1px solid var(--line);padding-bottom:5px;
+}
+.panel h3:first-child{margin-top:0}
+
+.tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.tool{
+  display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);
+  color:var(--text);cursor:pointer;font:inherit;
+}
+.tool b{font-size:15px;line-height:1}
+.tool span{font-size:10.5px;color:var(--muted)}
+.tool:hover{background:#242c38}
+.tool.active{background:#173a26;border-color:var(--accent-2)}
+.tool.active span{color:var(--accent)}
+
+.view-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.chk{display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;color:var(--muted)}
+.chk input{accent-color:var(--accent-2)}
+.chk.inline{padding:0;margin-left:4px}
+.squad-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;color:var(--muted)}
+.squad-row select{flex:1;max-width:110px}
+.colors{display:flex;gap:4px}
+input[type=color]{
+  width:30px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel-2);cursor:pointer;
+}
+
+/* ---------- stage ---------- */
+.stage{position:relative;flex:1;min-width:0;background:#0b0e12;overflow:hidden}
+#cv{display:block;width:100%;height:100%;cursor:default;touch-action:none}
+.hint{
+  position:absolute;left:12px;bottom:12px;background:rgba(12,16,22,.82);border:1px solid var(--line);
+  padding:5px 9px;border-radius:6px;color:var(--muted);pointer-events:none;font-size:12px;max-width:60%;
+}
+.zoom-controls{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:4px}
+.zoom-controls .btn{background:rgba(22,27,34,.9)}
+
+/* ---------- inspector ---------- */
+.insp-empty{color:var(--muted);font-size:12px;line-height:1.6}
+.insp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0}
+.insp-row label{color:var(--muted);font-size:12px}
+.insp-row input[type=text],.insp-row input[type=number]{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:6px;padding:4px 7px;width:98px;font:inherit;
+}
+.insp-title{font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.55)}
+.frame-props label{display:block;color:var(--muted);font-size:12px;margin:8px 0}
+.frame-props input[type=range]{width:100%;accent-color:var(--accent-2);margin-top:3px}
+.frame-props input[type=text]{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:6px;padding:5px 7px;margin-top:3px;font:inherit;
+}
+.shortcuts{list-style:none;margin:0;padding:0;color:var(--muted);font-size:11.5px}
+.shortcuts li{padding:2.5px 0}
+kbd{
+  background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:4px;padding:1px 5px;font:11px ui-monospace,monospace;color:var(--text);
+}
+
+/* ---------- timeline ---------- */
+.timeline{
+  background:var(--panel);border-top:1px solid var(--line);
+  padding:8px 12px;display:flex;flex-direction:column;gap:7px;flex:0 0 auto;
+}
+.transport{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.btn.play{background:var(--accent-2);border-color:var(--accent-2);color:#04140a;min-width:36px;font-size:14px}
+.btn.play:hover{background:var(--accent)}
+.scrub{width:100%;accent-color:var(--accent-2);margin:0}
+.frames{display:flex;align-items:center;gap:6px}
+.frame-list{display:flex;gap:5px;overflow-x:auto;flex:1;padding-bottom:2px}
+.frame-chip{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:5px 11px;cursor:pointer;white-space:nowrap;color:var(--muted);font-size:12px;
+  display:flex;flex-direction:column;line-height:1.25;min-width:58px;
+}
+.frame-chip b{color:var(--text);font-size:12px;font-weight:600}
+.frame-chip small{font-size:10px;opacity:.8}
+.frame-chip.active{border-color:var(--accent-2);background:#16301f}
+.frame-chip.active b{color:var(--accent)}
+
+.toast{
+  position:fixed;left:50%;bottom:118px;transform:translateX(-50%);
+  background:var(--panel-2);border:1px solid var(--accent-2);color:var(--text);
+  padding:8px 16px;border-radius:20px;z-index:50;pointer-events:none;
+  opacity:0;transition:opacity .18s ease;box-shadow:0 6px 22px rgba(0,0,0,.5);
+}
+.toast.show{opacity:1}
+
+/* ---------- modo presentacion ---------- */
+body.presenting .topbar,
+body.presenting .panel,
+body.presenting .frames,
+body.presenting .hint,
+body.presenting .zoom-controls{display:none}
+body.presenting .timeline{background:transparent;border-top:none;padding:6px 12px}
+body.presenting .transport{justify-content:center}
+body.presenting .stage{background:#000}
+
+@media (max-width:1100px){
+  .panel{width:158px;flex-basis:158px;padding:8px}
+  .panel.inspector{width:190px;flex-basis:190px}
+  .view-grid{grid-template-columns:1fr}
+  .tool span{font-size:10px}
+  .shortcuts{display:none}
+}
+@media (max-width:900px){
+  .panel.inspector{display:none}
+  .hint{display:none}
+  .squad-row{flex-direction:column;align-items:flex-start;gap:3px}
+  .squad-row select{max-width:100%;width:100%}
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="ball">🏉</span> Rugby Board</div>
+    <input id="playName" class="name-input" type="text" value="Jugada sin nombre" spellcheck="false">
+    <div class="spacer"></div>
+    <div class="group">
+      <select id="presetSelect" title="Formaciones"></select>
+      <button id="btnPreset" class="btn">Aplicar</button>
+    </div>
+    <div class="group">
+      <button id="btnUndo" class="btn icon" title="Deshacer (Ctrl+Z)">↶</button>
+      <button id="btnRedo" class="btn icon" title="Rehacer (Ctrl+Y)">↷</button>
+    </div>
+    <div class="group">
+      <select id="savedPlays" title="Jugadas guardadas"></select>
+      <button id="btnLoad" class="btn">Abrir</button>
+      <button id="btnSave" class="btn primary">Guardar</button>
+      <button id="btnDeletePlay" class="btn icon danger" title="Borrar jugada guardada">🗑</button>
+    </div>
+    <div class="group">
+      <button id="btnExport" class="btn" title="Descargar JSON">Exportar</button>
+      <button id="btnImport" class="btn" title="Cargar JSON">Importar</button>
+      <button id="btnPng" class="btn" title="Imagen del frame actual">PNG</button>
+      <button id="btnPresent" class="btn" title="Modo presentación (F)">Presentar</button>
+      <input id="fileInput" type="file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main class="body">
+
+    <aside class="panel tools">
+      <h3>Herramientas</h3>
+      <div class="tool-grid">
+        <button class="tool" data-tool="select" title="Mover jugadores (V)"><b>↖</b><span>Mover</span></button>
+        <button class="tool" data-tool="run" title="Dibujar carrera (R)"><b>➜</b><span>Carrera</span></button>
+        <button class="tool" data-tool="pass" title="Pase: click jugador con pelota, luego receptor (P)"><b>⇢</b><span>Pase</span></button>
+        <button class="tool" data-tool="kick" title="Patada desde el portador (K)"><b>⤴</b><span>Patada</span></button>
+        <button class="tool" data-tool="arrow" title="Flecha libre (A)"><b>↗</b><span>Flecha</span></button>
+        <button class="tool" data-tool="cone" title="Cono / marcador (C)"><b>▲</b><span>Cono</span></button>
+        <button class="tool" data-tool="text" title="Texto (T)"><b>T</b><span>Texto</span></button>
+        <button class="tool" data-tool="erase" title="Borrar elemento (E)"><b>✕</b><span>Borrar</span></button>
+      </div>
+
+      <h3>Vista</h3>
+      <div class="view-grid">
+        <button class="btn sm" data-view="full">Completa</button>
+        <button class="btn sm" data-view="attack">22 ataque</button>
+        <button class="btn sm" data-view="mid">Mitad</button>
+        <button class="btn sm" data-view="defend">22 defensa</button>
+      </div>
+
+      <h3>Opciones</h3>
+      <label class="chk"><input type="checkbox" id="optOnion" checked> Estela de frames</label>
+      <label class="chk"><input type="checkbox" id="optRoutes" checked> Mostrar rutas</label>
+      <label class="chk"><input type="checkbox" id="optLabels"> Nombres de puesto</label>
+      <label class="chk"><input type="checkbox" id="optGrid"> Grilla de 5 m</label>
+      <label class="chk"><input type="checkbox" id="optNumbers" checked> Números</label>
+
+      <h3>Plantel</h3>
+      <div class="squad-row">
+        <label>Formato</label>
+        <select id="squadSize">
+          <option value="15">XV (15)</option>
+          <option value="13">M18 / 13</option>
+          <option value="10">Ten-a-side</option>
+          <option value="7">Seven (7)</option>
+        </select>
+      </div>
+      <div class="squad-row">
+        <label>Equipos</label>
+        <div class="colors">
+          <input type="color" id="colorA" value="#e8503a" title="Color equipo propio">
+          <input type="color" id="colorB" value="#3f7fe0" title="Color rival">
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox" id="optShowB" checked> Mostrar rival</label>
+    </aside>
+
+    <section class="stage">
+      <canvas id="cv"></canvas>
+      <div id="hint" class="hint"></div>
+      <div class="zoom-controls">
+        <button class="btn icon" id="btnZoomIn" title="Acercar">+</button>
+        <button class="btn icon" id="btnZoomOut" title="Alejar">−</button>
+        <button class="btn icon" id="btnZoomFit" title="Encuadrar">⤢</button>
+      </div>
+    </section>
+
+    <aside class="panel inspector">
+      <h3>Selección</h3>
+      <div id="inspector-body" class="insp-empty">Nada seleccionado.<br><small>Click en un jugador, una ruta o una anotación.</small></div>
+
+      <h3>Frame actual</h3>
+      <div class="frame-props">
+        <label>Duración
+          <input type="range" id="frameDur" min="0.3" max="4" step="0.1" value="1.2">
+          <output id="frameDurOut">1.2 s</output>
+        </label>
+        <label>Nota
+          <input type="text" id="frameNote" placeholder="Ej: 9 abre a 10" spellcheck="false">
+        </label>
+      </div>
+
+      <h3>Atajos</h3>
+      <ul class="shortcuts">
+        <li><kbd>Espacio</kbd> reproducir / pausar</li>
+        <li><kbd>←</kbd> <kbd>→</kbd> frame anterior / siguiente</li>
+        <li><kbd>N</kbd> nuevo frame</li>
+        <li><kbd>V</kbd> <kbd>R</kbd> <kbd>P</kbd> <kbd>K</kbd> herramientas</li>
+        <li><kbd>Supr</kbd> borrar selección</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer</li>
+        <li>Rueda: zoom · Arrastrar fondo: mover</li>
+      </ul>
+    </aside>
+  </main>
+
+  <footer class="timeline">
+    <div class="transport">
+      <button class="btn icon" id="btnFirst" title="Al inicio">⏮</button>
+      <button class="btn icon" id="btnPrev" title="Frame anterior">◀</button>
+      <button class="btn icon play" id="btnPlay" title="Reproducir (Espacio)">▶</button>
+      <button class="btn icon" id="btnNext" title="Frame siguiente">▶|</button>
+      <button class="btn icon" id="btnLast" title="Al final">⏭</button>
+      <select id="speed" title="Velocidad">
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.5">1.5×</option>
+        <option value="2">2×</option>
+      </select>
+      <label class="chk inline"><input type="checkbox" id="optLoop"> Loop</label>
+    </div>
+
+    <input type="range" id="scrub" class="scrub" min="0" max="1000" value="0" step="1">
+
+    <div class="frames">
+      <div id="frameList" class="frame-list"></div>
+      <button class="btn sm" id="btnAddFrame" title="Nuevo frame (N)">+ Frame</button>
+      <button class="btn sm" id="btnDupFrame" title="Duplicar frame">Duplicar</button>
+      <button class="btn sm danger" id="btnDelFrame" title="Borrar frame">Borrar</button>
+    </div>
+  </footer>
+</div>
+<script>
+/* ===== js/geom.js ===== */
+/* geom.js - utilidades geometricas en coordenadas de cancha (metros) */
+window.RG = window.RG || {};
+
+RG.geom = (function () {
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+  const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  const uid = () => Math.random().toString(36).slice(2, 9);
+
+  function lerpPoint(a, b, t) {
+    return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
+  }
+
+  /* longitud acumulada de una polilinea */
+  function cumulative(pts) {
+    const acc = [0];
+    for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + dist(pts[i - 1], pts[i]));
+    return acc;
+  }
+
+  function pathLength(pts) {
+    if (!pts || pts.length < 2) return 0;
+    const acc = cumulative(pts);
+    return acc[acc.length - 1];
+  }
+
+  /* punto sobre la polilinea a fraccion t (0..1) de su longitud de arco */
+  function pointOnPath(pts, t) {
+    if (!pts || !pts.length) return null;
+    if (pts.length === 1) return { x: pts[0].x, y: pts[0].y };
+    const acc = cumulative(pts);
+    const total = acc[acc.length - 1];
+    if (total <= 1e-6) return { x: pts[0].x, y: pts[0].y };
+    const target = clamp(t, 0, 1) * total;
+    let i = 1;
+    while (i < acc.length - 1 && acc[i] < target) i++;
+    const seg = acc[i] - acc[i - 1];
+    const local = seg <= 1e-6 ? 0 : (target - acc[i - 1]) / seg;
+    return lerpPoint(pts[i - 1], pts[i], local);
+  }
+
+  /* angulo de la tangente al final de la polilinea (para la punta de flecha) */
+  function endAngle(pts) {
+    if (!pts || pts.length < 2) return 0;
+    const b = pts[pts.length - 1];
+    let a = pts[pts.length - 2];
+    for (let i = pts.length - 2; i >= 0 && dist(pts[i], b) < 0.4; i--) a = pts[i];
+    return Math.atan2(b.y - a.y, b.x - a.x);
+  }
+
+  function distToSegment(p, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 <= 1e-9) return dist(p, a);
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    t = clamp(t, 0, 1);
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  }
+
+  function distToPath(p, pts) {
+    if (!pts || pts.length === 0) return Infinity;
+    if (pts.length === 1) return dist(p, pts[0]);
+    let best = Infinity;
+    for (let i = 1; i < pts.length; i++) best = Math.min(best, distToSegment(p, pts[i - 1], pts[i]));
+    return best;
+  }
+
+  /* Ramer-Douglas-Peucker: limpia el trazo a mano alzada */
+  function simplify(pts, tol) {
+    if (!pts || pts.length < 3) return pts ? pts.slice() : [];
+    let maxD = 0, idx = 0;
+    const a = pts[0], b = pts[pts.length - 1];
+    for (let i = 1; i < pts.length - 1; i++) {
+      const d = distToSegment(pts[i], a, b);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD <= tol) return [a, b];
+    const left = simplify(pts.slice(0, idx + 1), tol);
+    const right = simplify(pts.slice(idx), tol);
+    return left.slice(0, -1).concat(right);
+  }
+
+  /* suavizado Catmull-Rom para que las rutas no se vean poligonales */
+  function smooth(pts, samplesPerSeg) {
+    if (!pts || pts.length < 3) return pts ? pts.slice() : [];
+    const n = samplesPerSeg || 8;
+    const p = [pts[0]].concat(pts, [pts[pts.length - 1]]);
+    const out = [];
+    for (let i = 1; i < p.length - 2; i++) {
+      const p0 = p[i - 1], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2];
+      for (let s = 0; s < n; s++) {
+        const t = s / n, t2 = t * t, t3 = t2 * t;
+        out.push({
+          x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+          y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+        });
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
+  /* arco lateral para pases y patadas: curva la recta a-b hacia un costado */
+  function arcPath(a, b, bulge, samples) {
+    const n = samples || 16;
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const cx = mx - (dy / len) * bulge, cy = my + (dx / len) * bulge;
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, mt = 1 - t;
+      out.push({
+        x: mt * mt * a.x + 2 * mt * t * cx + t * t * b.x,
+        y: mt * mt * a.y + 2 * mt * t * cy + t * t * b.y
+      });
+    }
+    return out;
+  }
+
+  return {
+    clamp, lerp, dist, easeInOut, uid, lerpPoint,
+    pathLength, pointOnPath, endAngle,
+    distToSegment, distToPath, simplify, smooth, arcPath
+  };
+})();
+
+/* ===== js/model.js ===== */
+/* model.js - estado de la jugada, frames, formaciones, historial y guardado */
+window.RG = window.RG || {};
+
+RG.model = (function () {
+  const G = RG.geom;
+  const uid = G.uid;
+
+  /* ---------- plantel ---------- */
+
+  const POSITION_NAMES = {
+    1: 'Pilar izq', 2: 'Hooker', 3: 'Pilar der', 4: 'Segunda', 5: 'Segunda',
+    6: 'Ala ciega', 7: 'Ala abierta', 8: 'Octavo', 9: 'Medio scrum', 10: 'Apertura',
+    11: 'Wing izq', 12: 'Primer centro', 13: 'Segundo centro', 14: 'Wing der', 15: 'Fullback'
+  };
+
+  /* que camisetas usa cada formato de juego */
+  const SQUADS = {
+    15: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    13: [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15],
+    10: [1, 2, 3, 4, 6, 8, 9, 10, 12, 15],
+    7: [1, 2, 3, 7, 9, 10, 15]
+  };
+
+  function makePlayers(size) {
+    const nums = SQUADS[size] || SQUADS[15];
+    const out = [];
+    for (const team of ['a', 'b']) {
+      for (const num of nums) {
+        out.push({ id: team + num, team, num, label: POSITION_NAMES[num] || ('#' + num) });
+      }
+    }
+    return out;
+  }
+
+  /* ---------- formaciones (metros; A ataca hacia +x) ---------- */
+
+  const FORMATIONS = {
+    attack: {
+      name: 'Ataque en fase (1-3-3-1)',
+      ballCarrier: 'a9',
+      a: {
+        1: [45.5, 33.2], 2: [45.5, 36.8], 3: [43.8, 40.5], 4: [42.2, 46.5], 6: [43.4, 48.4],
+        8: [41.4, 48.8], 5: [39.4, 58.5], 7: [38.2, 60.4], 9: [43.6, 35], 10: [40, 41.5],
+        12: [36.5, 52], 13: [33.5, 58.5], 11: [29.5, 66.5], 14: [33, 9], 15: [28, 44]
+      },
+      b: {
+        8: [46.6, 22], 5: [46.4, 26], 7: [46.2, 29.8], 1: [46, 33], 2: [46, 37.4],
+        9: [47.6, 35], 3: [46.8, 41.5], 4: [46.8, 45.6], 6: [46.8, 49.8],
+        10: [46.8, 54], 12: [46.8, 58], 13: [46.8, 62], 11: [46.6, 67],
+        15: [37, 54], 14: [39, 14]
+      }
+    },
+    scrum: {
+      name: 'Scrum en mitad de cancha',
+      ballCarrier: 'a9',
+      a: {
+        1: [48.5, 37.2], 2: [48.5, 35], 3: [48.5, 32.8],
+        4: [47.2, 36.1], 5: [47.2, 33.9], 6: [47.2, 38.7], 7: [47.2, 31.3], 8: [45.9, 35],
+        9: [44.8, 32.6], 10: [41, 39], 12: [38, 44.5], 13: [35, 50], 11: [30.5, 63],
+        14: [37.5, 13], 15: [28.5, 36]
+      },
+      b: {
+        1: [51.5, 32.8], 2: [51.5, 35], 3: [51.5, 37.2],
+        4: [52.8, 33.9], 5: [52.8, 36.1], 6: [52.8, 31.3], 7: [52.8, 38.7], 8: [54.1, 35],
+        9: [55.2, 37.4], 10: [59, 31], 12: [62, 25.5], 13: [65, 20], 11: [69.5, 7],
+        14: [62.5, 57], 15: [71.5, 34]
+      }
+    },
+    lineout: {
+      name: 'Line-out de 7 (touch izquierda)',
+      ballCarrier: 'a2',
+      a: {
+        2: [40, 0.6], 1: [38.8, 5.5], 3: [38.8, 8], 4: [38.8, 10.5], 5: [38.8, 13],
+        6: [38.8, 15.5], 7: [38.8, 18], 8: [38.8, 20.5],
+        9: [37.6, 8.5], 10: [34.5, 17], 12: [32, 24], 13: [29.5, 31],
+        11: [26, 44], 14: [31, 4.5], 15: [24, 20]
+      },
+      b: {
+        2: [41.8, 3], 1: [41.2, 5.5], 3: [41.2, 8], 4: [41.2, 10.5], 5: [41.2, 13],
+        6: [41.2, 15.5], 7: [41.2, 18], 8: [41.2, 20.5],
+        9: [42.5, 9], 10: [44.5, 16], 12: [46.5, 24], 13: [48.5, 32],
+        11: [50, 46], 14: [44, 4.5], 15: [52, 22]
+      }
+    },
+    kickoff: {
+      name: 'Salida desde mitad',
+      ballCarrier: 'a10',
+      a: {
+        10: [49, 35], 9: [47, 30], 8: [48.5, 12], 6: [48.5, 16], 4: [48.5, 20],
+        2: [48.5, 24], 1: [46.5, 20], 3: [46.5, 26], 5: [46.5, 15], 7: [48.5, 42],
+        12: [46, 46], 13: [44, 52], 11: [44, 62], 14: [45, 6], 15: [40, 35]
+      },
+      b: {
+        1: [58, 12], 2: [58, 18], 3: [58, 24], 4: [60, 15], 5: [60, 21],
+        6: [58, 30], 7: [58, 36], 8: [60, 27], 9: [62, 33],
+        10: [64, 40], 12: [62, 47], 13: [60, 54], 11: [58, 63], 14: [59, 5], 15: [70, 35]
+      }
+    },
+    defense22: {
+      name: 'Defensa en 22 propia',
+      ballCarrier: 'b9',
+      a: {
+        1: [19, 20], 2: [19, 24], 3: [19, 28], 4: [19, 32], 5: [19, 36],
+        6: [19, 40], 8: [19, 44], 7: [19, 48], 9: [17, 35],
+        10: [19, 52], 12: [19, 56], 13: [19, 60], 11: [19, 65],
+        15: [10, 42], 14: [12, 14]
+      },
+      b: {
+        9: [23.5, 30], 1: [23, 25], 2: [23, 21], 8: [24, 17], 3: [25, 34],
+        10: [26, 40], 4: [27, 45], 6: [28, 47], 5: [29, 49],
+        12: [30, 52], 13: [33, 58], 11: [36, 66], 7: [26, 12], 14: [33, 10], 15: [31, 40]
+      }
+    },
+    open: {
+      name: 'Campo vacío (a mano)',
+      ballCarrier: null,
+      a: null,
+      b: null
+    }
+  };
+
+  function formationList() {
+    return Object.keys(FORMATIONS).map((k) => ({ key: k, name: FORMATIONS[k].name }));
+  }
+
+  /* ---------- estado ---------- */
+
+  const state = {
+    id: uid(),
+    name: 'Jugada sin nombre',
+    squad: 15,
+    showB: true,
+    colors: { a: '#e8503a', b: '#3f7fe0' },
+    players: [],
+    frames: []
+  };
+
+  function blankFrame() {
+    return { id: uid(), dur: 1.2, note: '', pos: {}, routes: {}, ball: { carrier: null, x: 50, y: 35 }, ballRoute: null, ann: [] };
+  }
+
+  function frame(i) { return state.frames[G.clamp(i, 0, state.frames.length - 1)]; }
+  function frameCount() { return state.frames.length; }
+  function player(id) { return state.players.find((p) => p.id === id) || null; }
+  function activePlayers() { return state.showB ? state.players : state.players.filter((p) => p.team === 'a'); }
+
+  function pos(frameIdx, playerId) {
+    const f = frame(frameIdx);
+    return (f && f.pos[playerId]) || { x: 50, y: 35 };
+  }
+
+  /* coloca a todos en fila fuera de la cancha, por si falta un puesto en la formacion */
+  function benchSpot(team, i) {
+    return team === 'a' ? { x: 4 + i * 3, y: -4 } : { x: 96 - i * 3, y: 74 };
+  }
+
+  function applyFormation(key, frameIdx) {
+    const f = FORMATIONS[key];
+    if (!f) return;
+    const fr = frame(frameIdx);
+    let benchA = 0, benchB = 0;
+    for (const p of state.players) {
+      const table = f[p.team];
+      const spot = table && table[p.num];
+      if (spot) fr.pos[p.id] = { x: spot[0], y: spot[1] };
+      else fr.pos[p.id] = p.team === 'a' ? benchSpot('a', benchA++) : benchSpot('b', benchB++);
+    }
+    if (f.ballCarrier && player(f.ballCarrier)) {
+      fr.ball = { carrier: f.ballCarrier, x: 0, y: 0 };
+    } else {
+      fr.ball = { carrier: null, x: 50, y: 35 };
+    }
+    fr.routes = {};
+    fr.ballRoute = null;
+  }
+
+  function rebuildSquad(size, formationKey) {
+    state.squad = size;
+    state.players = makePlayers(size);
+    for (const fr of state.frames) {
+      const keep = {};
+      for (const p of state.players) keep[p.id] = fr.pos[p.id] || { x: 50, y: 35 };
+      fr.pos = keep;
+      for (const id of Object.keys(fr.routes)) if (!keep[id]) delete fr.routes[id];
+      if (fr.ball.carrier && !player(fr.ball.carrier)) fr.ball = { carrier: null, x: 50, y: 35 };
+    }
+    if (formationKey) applyFormation(formationKey, 0);
+  }
+
+  function newPlay(size, formationKey) {
+    state.id = uid();
+    state.name = 'Jugada sin nombre';
+    state.squad = size || 15;
+    state.showB = true;
+    state.players = makePlayers(state.squad);
+    state.frames = [blankFrame()];
+    applyFormation(formationKey || 'attack', 0);
+    resetHistory();
+  }
+
+  /* ---------- frames ---------- */
+
+  function addFrame(afterIdx) {
+    const src = frame(afterIdx);
+    const nf = blankFrame();
+    nf.dur = src.dur;
+    for (const id of Object.keys(src.pos)) nf.pos[id] = { x: src.pos[id].x, y: src.pos[id].y };
+    nf.ball = { carrier: src.ball.carrier, x: src.ball.x, y: src.ball.y };
+    if (!src.ball.carrier) {
+      const bp = ballStatic(afterIdx);
+      nf.ball.x = bp.x; nf.ball.y = bp.y;
+    }
+    /* conos y textos son referencias fijas: siguen presentes en el frame nuevo */
+    for (const a of src.ann) {
+      if (a.type === 'cone' || a.type === 'text') nf.ann.push(Object.assign({}, a, { id: uid() }));
+    }
+    state.frames.splice(afterIdx + 1, 0, nf);
+    return afterIdx + 1;
+  }
+
+  function duplicateFrame(idx) {
+    const copy = JSON.parse(JSON.stringify(frame(idx)));
+    copy.id = uid();
+    for (const a of copy.ann) a.id = uid();
+    state.frames.splice(idx + 1, 0, copy);
+    return idx + 1;
+  }
+
+  function deleteFrame(idx) {
+    if (state.frames.length <= 1) return idx;
+    state.frames.splice(idx, 1);
+    return G.clamp(idx, 0, state.frames.length - 1);
+  }
+
+  /* mover a un jugador en un frame; arrastra los frames siguientes que no fueron editados */
+  function setPos(frameIdx, playerId, pt, propagate) {
+    const fr = frame(frameIdx);
+    const old = fr.pos[playerId];
+    const next = { x: pt.x, y: pt.y };
+    if (propagate !== false && old) {
+      for (let i = frameIdx + 1; i < state.frames.length; i++) {
+        const q = state.frames[i].pos[playerId];
+        if (!q || Math.abs(q.x - old.x) > 1e-6 || Math.abs(q.y - old.y) > 1e-6) break;
+        state.frames[i].pos[playerId] = { x: next.x, y: next.y };
+        const r = state.frames[i].routes[playerId];
+        if (r && r.pts.length) { r.pts[0] = { x: next.x, y: next.y }; r.pts[r.pts.length - 1] = { x: next.x, y: next.y }; }
+      }
+    }
+    fr.pos[playerId] = next;
+    /* la ruta que llega a este frame termina donde esta el jugador */
+    const rin = fr.routes[playerId];
+    if (rin && rin.pts.length) rin.pts[rin.pts.length - 1] = { x: next.x, y: next.y };
+    /* la ruta que sale de este frame arranca donde esta el jugador */
+    const nf = state.frames[frameIdx + 1];
+    if (nf && nf.routes[playerId] && nf.routes[playerId].pts.length) nf.routes[playerId].pts[0] = { x: next.x, y: next.y };
+  }
+
+  function setRoute(frameIdx, playerId, pts, kind) {
+    if (frameIdx <= 0) return false;
+    const fr = frame(frameIdx);
+    if (!pts || pts.length < 2) { delete fr.routes[playerId]; return false; }
+    const start = pos(frameIdx - 1, playerId);
+    const clean = pts.slice();
+    clean[0] = { x: start.x, y: start.y };
+    fr.routes[playerId] = { pts: clean, kind: kind || 'run' };
+    setPos(frameIdx, playerId, clean[clean.length - 1], false);
+    return true;
+  }
+
+  function clearRoute(frameIdx, playerId) {
+    const fr = frame(frameIdx);
+    delete fr.routes[playerId];
+  }
+
+  /* ---------- pelota ---------- */
+
+  const CARRY_OFFSET = 1.35;
+
+  function carryPos(p, team) {
+    const dir = team === 'a' ? 1 : -1;
+    return { x: p.x + dir * CARRY_OFFSET * 0.55, y: p.y + CARRY_OFFSET };
+  }
+
+  function ballStatic(frameIdx) {
+    const fr = frame(frameIdx);
+    if (fr.ball.carrier && fr.pos[fr.ball.carrier]) {
+      const pl = player(fr.ball.carrier);
+      return carryPos(fr.pos[fr.ball.carrier], pl ? pl.team : 'a');
+    }
+    return { x: fr.ball.x, y: fr.ball.y };
+  }
+
+  function setCarrier(frameIdx, playerId) {
+    const fr = frame(frameIdx);
+    fr.ball.carrier = playerId;
+    if (!playerId) { const b = ballStatic(frameIdx); fr.ball.x = b.x; fr.ball.y = b.y; }
+    fr.ballRoute = null;
+  }
+
+  /* ---------- muestreo para la animacion ---------- */
+
+  function playerAt(frameIdx, playerId, t) {
+    if (frameIdx <= 0) return pos(0, playerId);
+    const fr = frame(frameIdx);
+    const e = G.easeInOut(G.clamp(t, 0, 1));
+    const route = fr.routes[playerId];
+    if (route && route.pts.length > 1) return G.pointOnPath(route.pts, e);
+    return G.lerpPoint(pos(frameIdx - 1, playerId), pos(frameIdx, playerId), e);
+  }
+
+  function ballAt(frameIdx, t) {
+    if (frameIdx <= 0) return ballStatic(0);
+    const prev = frame(frameIdx - 1), cur = frame(frameIdx);
+    const e = G.easeInOut(G.clamp(t, 0, 1));
+
+    if (cur.ballRoute && cur.ballRoute.pts.length > 1) return G.pointOnPath(cur.ballRoute.pts, e);
+
+    if (cur.ball.carrier && cur.ball.carrier === prev.ball.carrier) {
+      const pl = player(cur.ball.carrier);
+      return carryPos(playerAt(frameIdx, cur.ball.carrier, t), pl ? pl.team : 'a');
+    }
+
+    const from = prev.ball.carrier
+      ? carryPos(playerAt(frameIdx, prev.ball.carrier, t), (player(prev.ball.carrier) || {}).team || 'a')
+      : { x: prev.ball.x, y: prev.ball.y };
+    const to = cur.ball.carrier
+      ? carryPos(playerAt(frameIdx, cur.ball.carrier, t), (player(cur.ball.carrier) || {}).team || 'a')
+      : { x: cur.ball.x, y: cur.ball.y };
+
+    const p = G.lerpPoint(from, to, e);
+    /* pequeno arco para que el pase no sea una recta plana */
+    const d = G.dist(from, to);
+    const lift = Math.sin(Math.PI * e) * Math.min(1.6, d * 0.08);
+    return { x: p.x, y: p.y - lift };
+  }
+
+  function totalDuration() {
+    let s = 0;
+    for (let i = 1; i < state.frames.length; i++) s += state.frames[i].dur;
+    return s;
+  }
+
+  /* tiempo global -> frame destino + fraccion local */
+  function resolveTime(time) {
+    if (state.frames.length < 2) return { k: 0, t: 0 };
+    let acc = 0;
+    for (let i = 1; i < state.frames.length; i++) {
+      const d = state.frames[i].dur;
+      if (time <= acc + d || i === state.frames.length - 1) {
+        return { k: i, t: d <= 0 ? 1 : G.clamp((time - acc) / d, 0, 1) };
+      }
+      acc += d;
+    }
+    return { k: state.frames.length - 1, t: 1 };
+  }
+
+  function timeOfFrame(idx) {
+    let acc = 0;
+    for (let i = 1; i <= idx && i < state.frames.length; i++) acc += state.frames[i].dur;
+    return acc;
+  }
+
+  function sampleAt(time) {
+    const { k, t } = resolveTime(time);
+    const out = { k, t, pos: {}, ball: null };
+    for (const p of state.players) out.pos[p.id] = k === 0 ? pos(0, p.id) : playerAt(k, p.id, t);
+    out.ball = k === 0 ? ballStatic(0) : ballAt(k, t);
+    return out;
+  }
+
+  /* ---------- anotaciones ---------- */
+
+  function addAnnotation(frameIdx, ann) {
+    ann.id = uid();
+    frame(frameIdx).ann.push(ann);
+    return ann;
+  }
+
+  function removeAnnotation(frameIdx, id) {
+    const fr = frame(frameIdx);
+    const i = fr.ann.findIndex((a) => a.id === id);
+    if (i >= 0) fr.ann.splice(i, 1);
+  }
+
+  /* ---------- historial ---------- */
+
+  const history = { undo: [], redo: [], limit: 80 };
+
+  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, colors: state.colors, players: state.players, frames: state.frames }); }
+
+  function restore(json) {
+    const s = JSON.parse(json);
+    state.name = s.name; state.squad = s.squad; state.showB = s.showB;
+    state.colors = s.colors; state.players = s.players; state.frames = s.frames;
+  }
+
+  function commit() {
+    history.undo.push(snapshot());
+    if (history.undo.length > history.limit) history.undo.shift();
+    history.redo.length = 0;
+  }
+
+  function resetHistory() { history.undo.length = 0; history.redo.length = 0; }
+
+  function undo() {
+    if (!history.undo.length) return false;
+    history.redo.push(snapshot());
+    restore(history.undo.pop());
+    return true;
+  }
+
+  function redo() {
+    if (!history.redo.length) return false;
+    history.undo.push(snapshot());
+    restore(history.redo.pop());
+    return true;
+  }
+
+  /* ---------- serializacion / guardado ---------- */
+
+  const STORE_KEY = 'rugbyboard.plays.v1';
+
+  function serialize() {
+    return {
+      v: 1, id: state.id, name: state.name, squad: state.squad, showB: state.showB,
+      colors: state.colors, players: state.players, frames: state.frames, saved: Date.now()
+    };
+  }
+
+  function load(data) {
+    if (!data || !Array.isArray(data.frames) || !data.frames.length) throw new Error('Archivo de jugada invalido');
+    state.id = data.id || uid();
+    state.name = data.name || 'Jugada importada';
+    state.squad = data.squad || 15;
+    state.showB = data.showB !== false;
+    state.colors = data.colors || { a: '#e8503a', b: '#3f7fe0' };
+    state.players = data.players && data.players.length ? data.players : makePlayers(state.squad);
+    state.frames = data.frames.map((f) => ({
+      id: f.id || uid(), dur: f.dur || 1.2, note: f.note || '',
+      pos: f.pos || {}, routes: f.routes || {},
+      ball: f.ball || { carrier: null, x: 50, y: 35 },
+      ballRoute: f.ballRoute || null, ann: f.ann || []
+    }));
+    resetHistory();
+  }
+
+  function readStore() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch (e) { return {}; }
+  }
+
+  function writeStore(obj) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  }
+
+  function savePlay() {
+    const store = readStore();
+    store[state.id] = serialize();
+    return writeStore(store);
+  }
+
+  function listPlays() {
+    const store = readStore();
+    return Object.keys(store)
+      .map((k) => ({ id: k, name: store[k].name || '(sin nombre)', saved: store[k].saved || 0 }))
+      .sort((x, y) => y.saved - x.saved);
+  }
+
+  function loadPlay(id) {
+    const store = readStore();
+    if (!store[id]) return false;
+    load(store[id]);
+    return true;
+  }
+
+  function deletePlay(id) {
+    const store = readStore();
+    delete store[id];
+    return writeStore(store);
+  }
+
+  return {
+    state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
+    blankFrame, frame, frameCount, player, activePlayers, pos,
+    newPlay, rebuildSquad, applyFormation,
+    addFrame, duplicateFrame, deleteFrame,
+    setPos, setRoute, clearRoute,
+    ballStatic, setCarrier, carryPos,
+    playerAt, ballAt, sampleAt, totalDuration, resolveTime, timeOfFrame,
+    addAnnotation, removeAnnotation,
+    commit, undo, redo, resetHistory, history,
+    serialize, load, savePlay, listPlays, loadPlay, deletePlay
+  };
+})();
+
+/* ===== js/demos.js ===== */
+/* demos.js - jugadas de ejemplo armadas con la API del modelo */
+window.RG = window.RG || {};
+
+RG.demos = (function () {
+  const M = RG.model;
+
+  /* Un paso describe el frame siguiente: a donde va cada jugador (un punto = recta,
+     varios puntos = recorrido dibujado) y quien queda con la pelota. */
+  function build(spec) {
+    M.state.name = spec.name;
+    M.state.squad = 15;
+    M.state.showB = true;
+    M.state.players = M.state.players.length ? M.state.players : [];
+    M.rebuildSquad(15, null);
+    M.state.frames = [M.blankFrame()];
+    M.applyFormation(spec.formation, 0);
+    M.frame(0).note = spec.note || '';
+
+    spec.steps.forEach((step) => {
+      const k = M.addFrame(M.frameCount() - 1);
+      const fr = M.frame(k);
+      fr.dur = step.dur || 1.1;
+      fr.note = step.note || '';
+      for (const id of Object.keys(step.moves || {})) {
+        const pts = step.moves[id].map((q) => ({ x: q[0], y: q[1] }));
+        if (pts.length === 1) M.setPos(k, id, pts[0], false);
+        else M.setRoute(k, id, RG.geom.smooth(pts, 6), 'run');
+      }
+      if (step.carrier !== undefined) M.setCarrier(k, step.carrier);
+      for (const a of step.ann || []) M.addAnnotation(k, a);
+    });
+
+    M.state.id = RG.geom.uid();
+    M.resetHistory();
+  }
+
+  const PLAYS = {
+    lineout_backs: {
+      name: 'Line-out: salto de 5 y juego de backs',
+      formation: 'lineout',
+      note: 'Line-out de 7 en la touch izquierda',
+      steps: [
+        {
+          dur: 1.0, carrier: 'a9', note: 'Salto del 5, pelota limpia al 9',
+          moves: {
+            a9: [[37.8, 11.5]], a5: [[38.8, 12.6]], a4: [[39, 10.8]], a6: [[39, 14.4]],
+            a10: [[36, 19]], a12: [[33.5, 26]], a13: [[31, 33]], a15: [[26, 22]], a11: [[27.5, 45]],
+            b9: [[43.5, 13]], b10: [[44, 18]], b12: [[46, 26]], b13: [[48, 34]]
+          }
+        },
+        {
+          dur: 1.0, carrier: 'a10', note: 'Pase al 10, que ataca la línea',
+          moves: {
+            a10: [[36, 19], [38, 22], [40, 25]],
+            a12: [[36.5, 30]], a13: [[33.5, 37]], a11: [[30, 48]], a15: [[31, 33]],
+            a9: [[38, 17]],
+            b10: [[43.5, 24]], b12: [[45, 32]], b13: [[47, 40]], b11: [[48, 52]]
+          }
+        },
+        {
+          dur: 1.1, carrier: 'a12', note: 'El 12 recibe y busca el corte',
+          moves: {
+            a12: [[36.5, 30], [39.5, 33], [42.5, 35]],
+            a13: [[37, 42]], a15: [[35, 37]], a11: [[33, 51]], a10: [[39, 27]],
+            b10: [[42, 29]], b12: [[44, 36]], b13: [[46, 44]], b11: [[47, 56]], b15: [[44, 40]]
+          }
+        },
+        {
+          dur: 1.2, carrier: 'a15', note: 'Entra el 15 por adentro y rompe',
+          moves: {
+            a15: [[35, 37], [39, 40], [44, 42], [49, 43]],
+            a12: [[44, 34]], a13: [[41, 45]], a11: [[38, 54]],
+            b12: [[45, 37]], b13: [[46.5, 45]], b15: [[47, 43]], b11: [[48, 57]]
+          }
+        }
+      ]
+    },
+
+    scrum_blindside: {
+      name: 'Scrum: ciego del 8 con el 9 y el wing',
+      formation: 'scrum',
+      note: 'Scrum propio en mitad de cancha',
+      steps: [
+        {
+          dur: 1.0, carrier: 'a8', note: 'El 8 levanta la pelota y sale al lado ciego',
+          moves: {
+            a8: [[45.9, 35], [45.6, 31.5], [46, 28]],
+            a9: [[46.5, 30.5]], a10: [[42, 41]], a14: [[40, 13]], a15: [[31, 34]],
+            b9: [[54.5, 34]], b7: [[52.5, 33]]
+          }
+        },
+        {
+          dur: 1.0, carrier: 'a9', note: 'Pase corto al 9, que fija al ala',
+          moves: {
+            a9: [[46.5, 30.5], [48.5, 26.5], [50.5, 23]],
+            a8: [[47, 26]], a14: [[43, 12]], a11: [[33, 60]], a15: [[35, 26]],
+            b7: [[52, 27]], b9: [[53, 30]], b14: [[57, 20]], b15: [[64, 30]]
+          }
+        },
+        {
+          dur: 1.2, carrier: 'a14', note: 'Habilita al 14 con espacio afuera',
+          moves: {
+            a14: [[43, 12], [49, 10], [56, 9]],
+            a9: [[52, 20]], a15: [[42, 22]], a8: [[50, 24]],
+            b14: [[59, 14]], b7: [[55, 22]], b15: [[62, 20]]
+          }
+        },
+        {
+          dur: 1.2, carrier: 'a15', note: 'El 15 entra por dentro para el apoyo',
+          moves: {
+            a14: [[62, 9]], a15: [[42, 22], [50, 18], [58, 15]],
+            a9: [[56, 19]],
+            b15: [[64, 13]], b14: [[63, 10]], b13: [[60, 22]]
+          }
+        }
+      ]
+    },
+
+    counter_kick: {
+      name: 'Contra desde patada: recepción del 15',
+      formation: 'defense22',
+      note: 'El rival patea al fondo, el 15 contraataca',
+      steps: [
+        {
+          dur: 1.1, carrier: 'a15', note: 'El 15 toma en el aire',
+          moves: {
+            a15: [[10, 42], [11, 38], [13, 35]],
+            a11: [[16, 58]], a14: [[15, 16]], a10: [[17, 46]], a9: [[15, 33]],
+            b10: [[24, 38]], b12: [[27, 46]], b13: [[30, 54]]
+          }
+        },
+        {
+          dur: 1.1, carrier: 'a15', note: 'Arranca hacia el hueco entre el 12 y el 13',
+          moves: {
+            a15: [[13, 35], [17, 34], [22, 36]],
+            a11: [[21, 56]], a10: [[21, 44]], a14: [[20, 18]], a9: [[19, 32]],
+            b12: [[26, 44]], b13: [[29, 52]], b10: [[24, 36]], b11: [[31, 62]]
+          }
+        },
+        {
+          dur: 1.2, carrier: 'a11', note: 'Descarga al 11 que dobla por afuera',
+          moves: {
+            a11: [[21, 56], [28, 58], [36, 60]],
+            a15: [[28, 40]], a10: [[27, 46]], a9: [[25, 34]],
+            b13: [[33, 56]], b11: [[36, 64]], b15: [[40, 52]]
+          }
+        }
+      ]
+    }
+  };
+
+  function list() {
+    return Object.keys(PLAYS).map((k) => ({ key: k, name: PLAYS[k].name }));
+  }
+
+  function load(key) {
+    if (!PLAYS[key]) return false;
+    build(PLAYS[key]);
+    return true;
+  }
+
+  return { PLAYS, list, load, build };
+})();
+
+/* ===== js/field.js ===== */
+/* field.js - dimensiones reglamentarias, camara y dibujo de la cancha */
+window.RG = window.RG || {};
+
+RG.field = (function () {
+  const G = RG.geom;
+
+  /* World Rugby: 100 m entre lineas de try, 70 m de ancho, in-goal de 10 m */
+  const F = {
+    length: 100, width: 70, inGoal: 10,
+    xTryA: 0, xTryB: 100, xDeadA: -10, xDeadB: 110,
+    x22A: 22, x22B: 78, x10A: 40, x10B: 60, xHalf: 50, x5A: 5, x5B: 95,
+    y5: 5, y15: 15, yMid: 35, postGap: 5.6
+  };
+
+  const VIEWS = {
+    full: { x0: -13, y0: -3, x1: 113, y1: 73 },
+    attack: { x0: 48, y0: -2, x1: 113, y1: 72 },
+    mid: { x0: 18, y0: -2, x1: 82, y1: 72 },
+    defend: { x0: -13, y0: -2, x1: 52, y1: 72 }
+  };
+
+  function createView(canvas) {
+    const v = { ox: -13, oy: -3, scale: 8, canvas, w: 1, h: 1 };
+
+    v.resize = function () {
+      const dpr = window.devicePixelRatio || 1;
+      const r = canvas.getBoundingClientRect();
+      v.w = Math.max(1, r.width); v.h = Math.max(1, r.height);
+      canvas.width = Math.round(v.w * dpr);
+      canvas.height = Math.round(v.h * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return ctx;
+    };
+
+    v.fit = function (rect) {
+      const r = rect || VIEWS.full;
+      const sx = v.w / (r.x1 - r.x0), sy = v.h / (r.y1 - r.y0);
+      v.scale = Math.min(sx, sy);
+      v.ox = r.x0 - (v.w / v.scale - (r.x1 - r.x0)) / 2;
+      v.oy = r.y0 - (v.h / v.scale - (r.y1 - r.y0)) / 2;
+    };
+
+    v.toScreen = function (p) { return { x: (p.x - v.ox) * v.scale, y: (p.y - v.oy) * v.scale }; };
+    v.sx = function (x) { return (x - v.ox) * v.scale; };
+    v.sy = function (y) { return (y - v.oy) * v.scale; };
+    v.toWorld = function (p) { return { x: p.x / v.scale + v.ox, y: p.y / v.scale + v.oy }; };
+
+    v.zoomAt = function (screenPt, factor) {
+      const before = v.toWorld(screenPt);
+      v.scale = G.clamp(v.scale * factor, 2.2, 60);
+      const after = v.toWorld(screenPt);
+      v.ox += before.x - after.x;
+      v.oy += before.y - after.y;
+    };
+
+    v.panPixels = function (dx, dy) { v.ox -= dx / v.scale; v.oy -= dy / v.scale; };
+
+    return v;
+  }
+
+  /* ---------- dibujo ---------- */
+
+  function line(ctx, v, x0, y0, x1, y1) {
+    ctx.beginPath();
+    ctx.moveTo(v.sx(x0), v.sy(y0));
+    ctx.lineTo(v.sx(x1), v.sy(y1));
+    ctx.stroke();
+  }
+
+  /* marcas cortas de 5 m y 15 m, perpendiculares a la linea de touch */
+  function ticks(ctx, v, y, from, to, step, half) {
+    ctx.beginPath();
+    for (let x = from; x <= to + 0.01; x += step) {
+      ctx.moveTo(v.sx(x), v.sy(y - half));
+      ctx.lineTo(v.sx(x), v.sy(y + half));
+    }
+    ctx.stroke();
+  }
+
+  function goalPosts(ctx, v, x, dir) {
+    const g = F.postGap / 2;
+    const depth = 1.6 * dir;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.85)';
+    ctx.lineWidth = Math.max(2, 0.32 * v.scale);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(v.sx(x), v.sy(F.yMid - g)); ctx.lineTo(v.sx(x + depth), v.sy(F.yMid - g));
+    ctx.moveTo(v.sx(x), v.sy(F.yMid + g)); ctx.lineTo(v.sx(x + depth), v.sy(F.yMid + g));
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, 0.22 * v.scale);
+    ctx.beginPath();
+    ctx.moveTo(v.sx(x + depth * 0.55), v.sy(F.yMid - g));
+    ctx.lineTo(v.sx(x + depth * 0.55), v.sy(F.yMid + g));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw(ctx, v, opts) {
+    const o = opts || {};
+    const lw = Math.max(1, 0.12 * v.scale);
+
+    ctx.save();
+    ctx.fillStyle = '#0b0e12';
+    ctx.fillRect(0, 0, v.w, v.h);
+
+    /* in-goals */
+    ctx.fillStyle = '#20603a';
+    ctx.fillRect(v.sx(F.xDeadA), v.sy(0), (F.inGoal) * v.scale, F.width * v.scale);
+    ctx.fillRect(v.sx(F.xTryB), v.sy(0), (F.inGoal) * v.scale, F.width * v.scale);
+
+    /* campo de juego con franjas de corte de pasto */
+    for (let x = 0; x < F.length; x += 5) {
+      ctx.fillStyle = (x / 5) % 2 === 0 ? '#2a7a48' : '#26703f';
+      ctx.fillRect(v.sx(x), v.sy(0), 5 * v.scale + 0.6, F.width * v.scale);
+    }
+
+    /* grilla opcional */
+    if (o.grid) {
+      ctx.strokeStyle = 'rgba(255,255,255,.07)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = -10; x <= 110; x += 5) { ctx.moveTo(v.sx(x), v.sy(0)); ctx.lineTo(v.sx(x), v.sy(70)); }
+      for (let y = 0; y <= 70; y += 5) { ctx.moveTo(v.sx(-10), v.sy(y)); ctx.lineTo(v.sx(110), v.sy(y)); }
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,.92)';
+    ctx.lineWidth = lw;
+    ctx.setLineDash([]);
+
+    /* perimetro y lineas transversales solidas */
+    ctx.strokeRect(v.sx(F.xDeadA), v.sy(0), (F.length + 2 * F.inGoal) * v.scale, F.width * v.scale);
+    line(ctx, v, F.xTryA, 0, F.xTryA, 70);
+    line(ctx, v, F.xTryB, 0, F.xTryB, 70);
+    line(ctx, v, F.x22A, 0, F.x22A, 70);
+    line(ctx, v, F.x22B, 0, F.x22B, 70);
+    line(ctx, v, F.xHalf, 0, F.xHalf, 70);
+
+    /* lineas de 10 m y de 5 m: discontinuas */
+    ctx.setLineDash([1.0 * v.scale, 0.9 * v.scale]);
+    line(ctx, v, F.x10A, 0, F.x10A, 70);
+    line(ctx, v, F.x10B, 0, F.x10B, 70);
+    line(ctx, v, F.x5A, 0, F.x5A, 70);
+    line(ctx, v, F.x5B, 0, F.x5B, 70);
+    ctx.setLineDash([]);
+
+    /* marcas de 5 m y 15 m paralelas al touch */
+    ctx.lineWidth = Math.max(1, 0.1 * v.scale);
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    for (const y of [F.y5, F.y15, F.width - F.y15, F.width - F.y5]) {
+      ticks(ctx, v, y, 1, 99, 5, 0.55);
+    }
+
+    /* marca central */
+    ctx.beginPath();
+    ctx.arc(v.sx(F.xHalf), v.sy(F.yMid), Math.max(2, 0.35 * v.scale), 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fill();
+
+    goalPosts(ctx, v, F.xTryA, -1);
+    goalPosts(ctx, v, F.xTryB, 1);
+
+    /* referencias de distancia */
+    if (v.scale > 5) {
+      ctx.fillStyle = 'rgba(255,255,255,.28)';
+      ctx.font = Math.round(Math.max(9, 1.6 * v.scale)) + 'px ui-sans-serif,system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      const marks = [[22, '22'], [40, '10'], [50, '50'], [60, '10'], [78, '22']];
+      for (const [x, t] of marks) {
+        ctx.fillText(t, v.sx(x), v.sy(4.2));
+        ctx.fillText(t, v.sx(x), v.sy(68.4));
+      }
+    }
+    ctx.restore();
+  }
+
+  return { F, VIEWS, createView, draw };
+})();
+
+/* ===== js/render.js ===== */
+/* render.js - dibujo de jugadores, rutas, pelota y anotaciones sobre la cancha */
+window.RG = window.RG || {};
+
+RG.render = (function () {
+  const G = RG.geom;
+  const M = RG.model;
+
+  const KIND_STYLE = {
+    run: { dash: [], width: 0.34, head: true },
+    pass: { dash: [1.1, 0.9], width: 0.28, head: true },
+    kick: { dash: [2.2, 0.8, 0.4, 0.8], width: 0.28, head: true },
+    block: { dash: [], width: 0.34, head: false }
+  };
+
+  function playerRadius(v) { return Math.max(9, 1.15 * v.scale); }
+
+  function strokePath(ctx, v, pts, color, kind, alpha, progress) {
+    if (!pts || pts.length < 2) return;
+    const st = KIND_STYLE[kind] || KIND_STYLE.run;
+    let draw = pts;
+    if (typeof progress === 'number' && progress < 1) {
+      draw = clipPath(pts, G.clamp(progress, 0, 1));
+      if (draw.length < 2) return;
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.6, st.width * v.scale);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.setLineDash(st.dash.map((d) => d * v.scale));
+    ctx.beginPath();
+    const p0 = v.toScreen(draw[0]);
+    ctx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < draw.length; i++) { const p = v.toScreen(draw[i]); ctx.lineTo(p.x, p.y); }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (st.head) arrowHead(ctx, v, draw, color);
+    ctx.restore();
+  }
+
+  function clipPath(pts, f) {
+    const total = G.pathLength(pts);
+    if (total <= 0) return pts.slice(0, 1);
+    const target = total * f;
+    const out = [pts[0]];
+    let acc = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const seg = G.dist(pts[i - 1], pts[i]);
+      if (acc + seg >= target) {
+        const t = seg <= 1e-6 ? 0 : (target - acc) / seg;
+        out.push(G.lerpPoint(pts[i - 1], pts[i], t));
+        return out;
+      }
+      acc += seg;
+      out.push(pts[i]);
+    }
+    return out;
+  }
+
+  function arrowHead(ctx, v, pts, color) {
+    const tip = v.toScreen(pts[pts.length - 1]);
+    const ang = G.endAngle(pts);
+    const size = Math.max(7, 1.0 * v.scale);
+    ctx.save();
+    ctx.translate(tip.x, tip.y);
+    ctx.rotate(ang);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(size * 0.9, 0);
+    ctx.lineTo(-size * 0.55, size * 0.55);
+    ctx.lineTo(-size * 0.25, 0);
+    ctx.lineTo(-size * 0.55, -size * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlayer(ctx, v, p, at, opts) {
+    const s = v.toScreen(at);
+    const r = playerRadius(v);
+    const color = M.state.colors[p.team];
+    const o = opts || {};
+
+    ctx.save();
+    ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+
+    if (o.selected) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r + Math.max(4, r * 0.42), 0, Math.PI * 2);
+      ctx.strokeStyle = '#4ade80';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+    if (o.hover && !o.selected) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r + Math.max(3, r * 0.3), 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,.45)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(s.x, s.y + r * 0.16, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.2, r * 0.13);
+    ctx.strokeStyle = o.carrier ? '#ffd166' : 'rgba(255,255,255,.9)';
+    ctx.stroke();
+
+    if (o.numbers !== false && r >= 9) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '600 ' + Math.round(r * 1.12) + 'px ui-sans-serif,system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,.55)';
+      ctx.shadowBlur = 2;
+      ctx.fillText(String(p.num), s.x, s.y + 0.5);
+      ctx.shadowBlur = 0;
+    }
+
+    if (o.labels && r >= 8) {
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.font = Math.round(Math.max(9, r * 0.72)) + 'px ui-sans-serif,system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.shadowColor = 'rgba(0,0,0,.8)';
+      ctx.shadowBlur = 3;
+      ctx.fillText(p.label, s.x, s.y + r + 3);
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }
+
+  function drawBall(ctx, v, at) {
+    const s = v.toScreen(at);
+    const rx = Math.max(6, 0.78 * v.scale), ry = rx * 0.64;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(-0.5);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#f4f1e8';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.4, rx * 0.16);
+    ctx.strokeStyle = '#8a5a1e';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-rx * 0.45, 0); ctx.lineTo(rx * 0.45, 0);
+    ctx.strokeStyle = 'rgba(0,0,0,.55)';
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawAnnotation(ctx, v, a, selected) {
+    ctx.save();
+    if (a.type === 'arrow') {
+      strokePath(ctx, v, a.pts, a.color || '#ffd166', 'run', 1);
+    } else if (a.type === 'cone') {
+      const s = v.toScreen(a);
+      const r = Math.max(5, 0.8 * v.scale);
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - r);
+      ctx.lineTo(s.x + r * 0.85, s.y + r * 0.7);
+      ctx.lineTo(s.x - r * 0.85, s.y + r * 0.7);
+      ctx.closePath();
+      ctx.fillStyle = a.color || '#ffb020';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (a.type === 'text') {
+      const s = v.toScreen(a);
+      const size = Math.round(Math.max(11, (a.size || 2.2) * v.scale));
+      ctx.font = '600 ' + size + 'px ui-sans-serif,system-ui,sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const w = ctx.measureText(a.text).width;
+      ctx.fillStyle = 'rgba(10,14,20,.72)';
+      ctx.fillRect(s.x - 5, s.y - size * 0.78, w + 10, size * 1.55);
+      ctx.fillStyle = a.color || '#ffffff';
+      ctx.fillText(a.text, s.x, s.y);
+      if (selected) {
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(s.x - 5, s.y - size * 0.78, w + 10, size * 1.55);
+      }
+    }
+    if (selected && a.type !== 'text') {
+      const s = v.toScreen(a.type === 'arrow' ? a.pts[a.pts.length - 1] : a);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, Math.max(9, 1.2 * v.scale), 0, Math.PI * 2);
+      ctx.strokeStyle = '#4ade80';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ---------- escena completa ---------- */
+
+  function draw(ctx, v, scene) {
+    const st = M.state;
+    const opt = scene.options || {};
+    RG.field.draw(ctx, v, { grid: opt.grid });
+
+    const k = scene.k;
+    const t = scene.t;
+    const frame = M.frame(k);
+    const editing = !scene.playing;
+    const visible = M.activePlayers();
+
+    /* estela: donde estaban al comenzar el frame */
+    if (opt.onion && k > 0) {
+      const r = playerRadius(v) * 0.82;
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1.4;
+      for (const p of visible) {
+        const q = v.toScreen(M.pos(k - 1, p.id));
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,.18)';
+        ctx.fill();
+        ctx.strokeStyle = st.colors[p.team] + 'aa';
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    /* rutas del frame actual */
+    if (opt.routes) {
+      if (k > 0) {
+        for (const p of visible) {
+          if (frame.routes[p.id]) continue;
+          const from = M.pos(k - 1, p.id), to = M.pos(k, p.id);
+          if (G.dist(from, to) < 1.2) continue;
+          ctx.save();
+          ctx.globalAlpha = editing ? 0.45 : 0.3;
+          ctx.strokeStyle = st.colors[p.team];
+          ctx.lineWidth = Math.max(1, 0.13 * v.scale);
+          ctx.setLineDash([0.9 * v.scale, 0.7 * v.scale]);
+          const s0 = v.toScreen(from), s1 = v.toScreen(to);
+          ctx.beginPath();
+          ctx.moveTo(s0.x, s0.y);
+          ctx.lineTo(s1.x, s1.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+      }
+      for (const p of visible) {
+        const r = frame.routes[p.id];
+        if (!r) continue;
+        const col = st.colors[p.team];
+        strokePath(ctx, v, r.pts, col, r.kind, editing ? 0.92 : 0.5,
+          scene.playing ? Math.max(0.02, G.easeInOut(t)) : 1);
+      }
+      if (frame.ballRoute) {
+        strokePath(ctx, v, frame.ballRoute.pts, '#ffd166', frame.ballRoute.kind || 'kick', 0.9,
+          scene.playing ? Math.max(0.02, G.easeInOut(t)) : 1);
+      }
+      /* pase implicito: cambio de portador entre frames */
+      if (k > 0) {
+        const prev = M.frame(k - 1);
+        if (frame.ball.carrier && prev.ball.carrier && frame.ball.carrier !== prev.ball.carrier) {
+          const from = M.pos(k - 1, prev.ball.carrier);
+          const to = M.pos(k, frame.ball.carrier);
+          strokePath(ctx, v, [from, to], '#ffd166', 'pass', 0.75, scene.playing ? G.easeInOut(t) : 1);
+        }
+      }
+    }
+
+    /* anotaciones */
+    for (const a of frame.ann) drawAnnotation(ctx, v, a, scene.selection && scene.selection.type === 'ann' && scene.selection.id === a.id);
+    if (scene.draft && scene.draft.pts && scene.draft.pts.length > 1) {
+      strokePath(ctx, v, scene.draft.pts, scene.draft.color || '#ffffff', scene.draft.kind || 'run', 0.75);
+    }
+
+    /* jugadores */
+    const carrier = frame.ball.carrier;
+    const sel = scene.selection;
+    for (const p of visible) {
+      const at = scene.pos[p.id] || M.pos(k, p.id);
+      drawPlayer(ctx, v, p, at, {
+        selected: sel && sel.type === 'player' && sel.id === p.id,
+        hover: scene.hover && scene.hover.type === 'player' && scene.hover.id === p.id,
+        carrier: carrier === p.id,
+        labels: opt.labels,
+        numbers: opt.numbers
+      });
+    }
+
+    drawBall(ctx, v, scene.ball);
+  }
+
+  return { draw, drawPlayer, drawBall, strokePath, playerRadius, KIND_STYLE };
+})();
+
+/* ===== js/input.js ===== */
+/* input.js - punteros sobre el canvas: seleccion, arrastre, dibujo de rutas y anotaciones */
+window.RG = window.RG || {};
+
+RG.input = (function () {
+  const G = RG.geom;
+  const M = RG.model;
+
+  let app = null, cv = null, v = null;
+  const pointers = new Map();
+  let drag = null;          /* gesto en curso */
+  let pinch = null;
+  let passFrom = null;      /* origen pendiente para la herramienta de pase */
+
+  function worldFromEvent(e) {
+    const r = cv.getBoundingClientRect();
+    return v.toWorld({ x: e.clientX - r.left, y: e.clientY - r.top });
+  }
+
+  function screenFromEvent(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  /* ---------- hit testing (en metros) ---------- */
+
+  function hitPlayer(w) {
+    const tol = RG.render.playerRadius(v) / v.scale;
+    let best = null, bestD = Infinity;
+    for (const p of M.activePlayers()) {
+      const d = G.dist(w, M.pos(app.frameIdx, p.id));
+      if (d < tol && d < bestD) { best = p; bestD = d; }
+    }
+    return best;
+  }
+
+  function hitBall(w) {
+    const fr = M.frame(app.frameIdx);
+    if (fr.ball.carrier) return false;
+    return G.dist(w, M.ballStatic(app.frameIdx)) < Math.max(1.2, 10 / v.scale);
+  }
+
+  function hitAnnotation(w) {
+    const fr = M.frame(app.frameIdx);
+    const tol = Math.max(1.2, 12 / v.scale);
+    for (let i = fr.ann.length - 1; i >= 0; i--) {
+      const a = fr.ann[i];
+      if (a.type === 'arrow') { if (G.distToPath(w, a.pts) < tol) return a; }
+      else if (G.dist(w, a) < tol * 1.4) return a;
+    }
+    return null;
+  }
+
+  function hitRoute(w) {
+    const fr = M.frame(app.frameIdx);
+    const tol = Math.max(0.9, 9 / v.scale);
+    for (const p of M.activePlayers()) {
+      const r = fr.routes[p.id];
+      if (r && G.distToPath(w, r.pts) < tol) return { playerId: p.id, route: r };
+    }
+    return null;
+  }
+
+  /* el frame 0 guarda solo la posicion inicial: cualquier movimiento crea el siguiente */
+  function frameForMovement() {
+    if (app.frameIdx === 0) {
+      const i = M.addFrame(0);
+      app.setFrame(i);
+      app.toast('Frame 2 creado: el frame 1 es la posición inicial');
+    }
+    return app.frameIdx;
+  }
+
+  /* ---------- gestos ---------- */
+
+  function onDown(e) {
+    if (e.button === 2) return;
+    cv.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, screenFromEvent(e));
+    if (pointers.size === 2) { startPinch(); return; }
+
+    const w = worldFromEvent(e);
+    const sc = screenFromEvent(e);
+    app.stop();
+
+    if (e.button === 1 || e.altKey || app.spaceDown) { drag = { type: 'pan', last: sc }; return; }
+
+    switch (app.tool) {
+      case 'select': return downSelect(w, sc);
+      case 'run': return downRoute(w, 'run');
+      case 'pass': return downPass(w);
+      case 'kick': return downKick(w);
+      case 'arrow': return downArrow(w);
+      case 'cone': return downCone(w);
+      case 'text': return downText(w);
+      case 'erase': return downErase(w);
+    }
+  }
+
+  function downSelect(w, sc) {
+    const p = hitPlayer(w);
+    if (p) {
+      M.commit();
+      const at = M.pos(app.frameIdx, p.id);
+      app.selection = { type: 'player', id: p.id };
+      drag = { type: 'player', id: p.id, dx: at.x - w.x, dy: at.y - w.y, moved: false };
+      app.refreshInspector();
+      return;
+    }
+    if (hitBall(w)) {
+      M.commit();
+      app.selection = { type: 'ball' };
+      drag = { type: 'ball' };
+      app.refreshInspector();
+      return;
+    }
+    const a = hitAnnotation(w);
+    if (a) {
+      M.commit();
+      app.selection = { type: 'ann', id: a.id };
+      drag = { type: 'ann', id: a.id, ref: a, ox: w.x, oy: w.y };
+      app.refreshInspector();
+      return;
+    }
+    const r = hitRoute(w);
+    if (r) {
+      app.selection = { type: 'route', id: r.playerId };
+      app.refreshInspector();
+      drag = { type: 'pan', last: sc };
+      return;
+    }
+    app.selection = null;
+    app.refreshInspector();
+    drag = { type: 'pan', last: sc };
+  }
+
+  function downRoute(w, kind) {
+    const p = hitPlayer(w);
+    if (!p) { app.toast('Empezá el trazo sobre un jugador'); return; }
+    M.commit();
+    frameForMovement();
+    const start = M.pos(app.frameIdx - 1, p.id);
+    drag = { type: 'route', id: p.id, kind, pts: [{ x: start.x, y: start.y }] };
+    app.selection = { type: 'player', id: p.id };
+    app.draft = { pts: drag.pts, kind, color: M.state.colors[p.team] };
+  }
+
+  function downPass(w) {
+    const p = hitPlayer(w);
+    if (!p) { app.toast('Tocá al jugador que recibe'); return; }
+    const fr0 = M.frame(app.frameIdx);
+    if (!passFrom && !fr0.ball.carrier) { app.toast('Primero asigná la pelota a un jugador (herramienta Mover + doble click)'); return; }
+    M.commit();
+    const k = frameForMovement();
+    M.setCarrier(k, p.id);
+    app.selection = { type: 'player', id: p.id };
+    app.toast('Pase a #' + p.num);
+    app.refreshAll();
+  }
+
+  function downKick(w) {
+    const fr = M.frame(app.frameIdx);
+    const carrier = fr.ball.carrier;
+    const from = M.ballStatic(app.frameIdx);
+    if (!carrier) { app.toast('La patada sale del jugador que tiene la pelota'); }
+    M.commit();
+    drag = { type: 'kick', from: { x: from.x, y: from.y } };
+    app.draft = { pts: [from, w], kind: 'kick', color: '#ffd166' };
+  }
+
+  function downArrow(w) {
+    M.commit();
+    drag = { type: 'arrow', pts: [{ x: w.x, y: w.y }] };
+    app.draft = { pts: drag.pts, kind: 'run', color: '#ffd166' };
+  }
+
+  function downCone(w) {
+    M.commit();
+    const a = M.addAnnotation(app.frameIdx, { type: 'cone', x: w.x, y: w.y, color: '#ffb020' });
+    app.selection = { type: 'ann', id: a.id };
+    app.refreshAll();
+  }
+
+  function downText(w) {
+    const txt = window.prompt('Texto de la anotación:', '');
+    if (!txt) return;
+    M.commit();
+    const a = M.addAnnotation(app.frameIdx, { type: 'text', x: w.x, y: w.y, text: txt, size: 2.2, color: '#ffffff' });
+    app.selection = { type: 'ann', id: a.id };
+    app.refreshAll();
+  }
+
+  function downErase(w) {
+    const a = hitAnnotation(w);
+    if (a) { M.commit(); M.removeAnnotation(app.frameIdx, a.id); app.selection = null; app.refreshAll(); return; }
+    const r = hitRoute(w);
+    if (r) { M.commit(); M.clearRoute(app.frameIdx, r.playerId); app.refreshAll(); return; }
+    const p = hitPlayer(w);
+    if (p) {
+      M.commit();
+      M.clearRoute(app.frameIdx, p.id);
+      const fr = M.frame(app.frameIdx);
+      if (fr.ball.carrier === p.id) M.setCarrier(app.frameIdx, null);
+      app.refreshAll();
+      return;
+    }
+    const fr = M.frame(app.frameIdx);
+    if (fr.ballRoute) { M.commit(); fr.ballRoute = null; app.refreshAll(); }
+  }
+
+  function onMove(e) {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, screenFromEvent(e));
+    if (pinch && pointers.size >= 2) { updatePinch(); return; }
+
+    const w = worldFromEvent(e);
+    if (!drag) {
+      const p = hitPlayer(w);
+      const newHover = p ? { type: 'player', id: p.id } : null;
+      const changed = JSON.stringify(newHover) !== JSON.stringify(app.hover);
+      app.hover = newHover;
+      cv.style.cursor = p ? (app.tool === 'select' ? 'grab' : 'crosshair')
+        : (app.tool === 'select' ? 'default' : 'crosshair');
+      if (changed) app.requestDraw();
+      return;
+    }
+
+    if (drag.type === 'pan') {
+      const sc = screenFromEvent(e);
+      v.panPixels(sc.x - drag.last.x, sc.y - drag.last.y);
+      drag.last = sc;
+      app.requestDraw();
+      return;
+    }
+
+    if (drag.type === 'player') {
+      M.setPos(app.frameIdx, drag.id, { x: w.x + drag.dx, y: w.y + drag.dy }, true);
+      drag.moved = true;
+      cv.style.cursor = 'grabbing';
+      app.requestDraw();
+      return;
+    }
+
+    if (drag.type === 'ball') {
+      const fr = M.frame(app.frameIdx);
+      fr.ball.carrier = null; fr.ball.x = w.x; fr.ball.y = w.y;
+      app.requestDraw();
+      return;
+    }
+
+    if (drag.type === 'ann') {
+      const a = drag.ref;
+      if (a.type === 'arrow') {
+        const dx = w.x - drag.ox, dy = w.y - drag.oy;
+        for (const p of a.pts) { p.x += dx; p.y += dy; }
+        drag.ox = w.x; drag.oy = w.y;
+      } else { a.x = w.x; a.y = w.y; }
+      app.requestDraw();
+      return;
+    }
+
+    if (drag.type === 'route' || drag.type === 'arrow') {
+      const last = drag.pts[drag.pts.length - 1];
+      if (G.dist(last, w) > 0.35) drag.pts.push({ x: w.x, y: w.y });
+      app.requestDraw();
+      return;
+    }
+
+    if (drag.type === 'kick') {
+      app.draft.pts = G.arcPath(drag.from, w, -G.dist(drag.from, w) * 0.16, 18);
+      app.requestDraw();
+      return;
+    }
+  }
+
+  function onUp(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (!drag) return;
+    const w = worldFromEvent(e);
+
+    if (drag.type === 'route') {
+      const pts = G.smooth(G.simplify(drag.pts, 0.35), 6);
+      if (G.pathLength(pts) < 1.2) {
+        M.undo();
+        app.toast('Trazo muy corto');
+      } else {
+        M.setRoute(app.frameIdx, drag.id, pts, drag.kind);
+      }
+      app.draft = null;
+      app.refreshAll();
+    } else if (drag.type === 'arrow') {
+      const pts = G.smooth(G.simplify(drag.pts, 0.35), 6);
+      if (G.pathLength(pts) < 1.2) M.undo();
+      else {
+        const a = M.addAnnotation(app.frameIdx, { type: 'arrow', pts, color: '#ffd166' });
+        app.selection = { type: 'ann', id: a.id };
+      }
+      app.draft = null;
+      app.refreshAll();
+    } else if (drag.type === 'kick') {
+      const from = drag.from;
+      if (G.dist(from, w) < 2) { M.undo(); app.draft = null; app.refreshAll(); }
+      else {
+        const k = frameForMovement();
+        const fr = M.frame(k);
+        fr.ball.carrier = null;
+        fr.ball.x = w.x; fr.ball.y = w.y;
+        fr.ballRoute = { pts: G.arcPath(from, w, -G.dist(from, w) * 0.16, 18), kind: 'kick' };
+        app.draft = null;
+        app.toast('Patada cargada en el frame ' + (k + 1));
+        app.refreshAll();
+      }
+    } else if (drag.type === 'player' && drag.moved) {
+      app.refreshAll();
+    } else if (drag.type === 'ball' || drag.type === 'ann') {
+      app.refreshAll();
+    }
+
+    drag = null;
+    cv.style.cursor = app.tool === 'select' ? 'default' : 'crosshair';
+  }
+
+  function onDouble(e) {
+    const w = worldFromEvent(e);
+    const p = hitPlayer(w);
+    if (!p) return;
+    M.commit();
+    const fr = M.frame(app.frameIdx);
+    M.setCarrier(app.frameIdx, fr.ball.carrier === p.id ? null : p.id);
+    app.toast(fr.ball.carrier ? 'Pelota para #' + p.num : 'Pelota suelta');
+    app.refreshAll();
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    v.zoomAt(screenFromEvent(e), e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    app.requestDraw();
+  }
+
+  function startPinch() {
+    const pts = [...pointers.values()];
+    pinch = { d: G.dist(pts[0], pts[1]), mid: { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 } };
+    drag = null;
+  }
+
+  function updatePinch() {
+    const pts = [...pointers.values()];
+    const d = G.dist(pts[0], pts[1]);
+    const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    if (pinch.d > 0) v.zoomAt(mid, d / pinch.d);
+    v.panPixels(mid.x - pinch.mid.x, mid.y - pinch.mid.y);
+    pinch = { d, mid };
+    app.requestDraw();
+  }
+
+  function attach(_app) {
+    app = _app; cv = app.canvas; v = app.view;
+    cv.addEventListener('pointerdown', onDown);
+    cv.addEventListener('pointermove', onMove);
+    cv.addEventListener('pointerup', onUp);
+    cv.addEventListener('pointercancel', onUp);
+    cv.addEventListener('dblclick', onDouble);
+    cv.addEventListener('wheel', onWheel, { passive: false });
+    cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  return { attach, hitPlayer };
+})();
+
+/* ===== js/ui.js ===== */
+/* ui.js - conexion entre el DOM (paneles, timeline, inspector) y el modelo */
+window.RG = window.RG || {};
+
+RG.ui = (function () {
+  const M = RG.model;
+  const G = RG.geom;
+  let app = null;
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- avisos ---------- */
+
+  let toastEl = null, toastTimer = null;
+  function toast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'toast';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1900);
+  }
+
+  const HINTS = {
+    select: 'Arrastrá jugadores. Doble click le da la pelota. Arrastrá el fondo para mover la vista.',
+    run: 'Dibujá desde un jugador el recorrido que hace en este frame.',
+    pass: 'Tocá al jugador que recibe el pase en este frame.',
+    kick: 'Arrastrá desde el portador hasta donde cae la pelota.',
+    arrow: 'Arrastrá para dibujar una flecha de referencia.',
+    cone: 'Click para poner un cono o marcador.',
+    text: 'Click para escribir una nota sobre la cancha.',
+    erase: 'Click sobre una ruta, flecha, cono o jugador para borrar su marca.'
+  };
+
+  /* ---------- timeline ---------- */
+
+  function refreshFrames() {
+    const list = $('frameList');
+    list.innerHTML = '';
+    M.state.frames.forEach((f, i) => {
+      const el = document.createElement('div');
+      el.className = 'frame-chip' + (i === app.frameIdx ? ' active' : '');
+      el.innerHTML = '<b>' + (i + 1) + '</b><small>' + (i === 0 ? 'inicio' : f.dur.toFixed(1) + ' s') + '</small>';
+      el.title = f.note || (i === 0 ? 'Posición inicial' : 'Frame ' + (i + 1));
+      el.addEventListener('click', () => app.setFrame(i));
+      list.appendChild(el);
+    });
+    const cur = M.frame(app.frameIdx);
+    $('frameDur').value = cur.dur;
+    $('frameDur').disabled = app.frameIdx === 0;
+    $('frameDurOut').textContent = app.frameIdx === 0 ? '—' : cur.dur.toFixed(1) + ' s';
+    $('frameNote').value = cur.note || '';
+    const total = M.totalDuration();
+    $('scrub').max = Math.max(1, Math.round(total * 1000));
+    $('scrub').value = Math.round(M.timeOfFrame(app.frameIdx) * 1000);
+    $('btnDelFrame').disabled = M.state.frames.length <= 1;
+  }
+
+  function refreshScrub() {
+    $('scrub').value = Math.round(app.time * 1000);
+  }
+
+  /* ---------- inspector ---------- */
+
+  function row(label, inner) {
+    return '<div class="insp-row"><label>' + label + '</label>' + inner + '</div>';
+  }
+
+  function refreshInspector() {
+    const box = $('inspector-body');
+    const sel = app.selection;
+    if (!sel) {
+      box.className = 'insp-empty';
+      box.innerHTML = 'Nada seleccionado.<br><small>Click en un jugador, una ruta o una anotación.</small>';
+      return;
+    }
+    box.className = '';
+    const fr = M.frame(app.frameIdx);
+
+    if (sel.type === 'player') {
+      const p = M.player(sel.id);
+      if (!p) { app.selection = null; return refreshInspector(); }
+      const route = fr.routes[p.id];
+      const isCarrier = fr.ball.carrier === p.id;
+      box.innerHTML =
+        '<div class="insp-title"><span class="dot" style="background:' + M.state.colors[p.team] + '"></span>' +
+        (p.team === 'a' ? 'Propio' : 'Rival') + ' #' + p.num + '</div>' +
+        row('Número', '<input type="number" id="ipNum" min="1" max="99" value="' + p.num + '">') +
+        row('Puesto', '<input type="text" id="ipLabel" value="' + escapeAttr(p.label) + '">') +
+        row('Pelota', '<button class="btn sm" id="ipBall">' + (isCarrier ? 'Soltar' : 'Dársela') + '</button>') +
+        (route
+          ? row('Ruta', '<select id="ipKind"><option value="run">Carrera</option><option value="pass">Pase</option><option value="kick">Patada</option><option value="block">Bloqueo</option></select>') +
+            row('', '<button class="btn sm danger" id="ipDelRoute">Borrar ruta</button>')
+          : '<div class="insp-empty"><small>Sin ruta en este frame. Usá la herramienta Carrera o arrastralo.</small></div>');
+
+      $('ipNum').addEventListener('change', (e) => {
+        M.commit(); p.num = G.clamp(parseInt(e.target.value, 10) || 1, 1, 99);
+        p.label = M.POSITION_NAMES[p.num] || p.label; app.refreshAll();
+      });
+      $('ipLabel').addEventListener('change', (e) => { M.commit(); p.label = e.target.value; app.refreshAll(); });
+      $('ipBall').addEventListener('click', () => {
+        M.commit(); M.setCarrier(app.frameIdx, isCarrier ? null : p.id); app.refreshAll();
+      });
+      if (route) {
+        $('ipKind').value = route.kind;
+        $('ipKind').addEventListener('change', (e) => { M.commit(); route.kind = e.target.value; app.refreshAll(); });
+        $('ipDelRoute').addEventListener('click', () => { M.commit(); M.clearRoute(app.frameIdx, p.id); app.refreshAll(); });
+      }
+      return;
+    }
+
+    if (sel.type === 'route') {
+      const p = M.player(sel.id);
+      box.innerHTML = '<div class="insp-title">Ruta de #' + (p ? p.num : '?') + '</div>' +
+        row('', '<button class="btn sm danger" id="ipDelRoute">Borrar ruta</button>');
+      $('ipDelRoute').addEventListener('click', () => { M.commit(); M.clearRoute(app.frameIdx, sel.id); app.selection = null; app.refreshAll(); });
+      return;
+    }
+
+    if (sel.type === 'ball') {
+      box.innerHTML = '<div class="insp-title">Pelota</div>' +
+        '<div class="insp-empty"><small>Arrastrala para reposicionarla, o doble click en un jugador para dársela.</small></div>';
+      return;
+    }
+
+    if (sel.type === 'ann') {
+      const a = fr.ann.find((x) => x.id === sel.id);
+      if (!a) { app.selection = null; return refreshInspector(); }
+      const names = { arrow: 'Flecha', cone: 'Cono', text: 'Texto' };
+      box.innerHTML = '<div class="insp-title">' + (names[a.type] || a.type) + '</div>' +
+        (a.type === 'text' ? row('Texto', '<input type="text" id="ipText" value="' + escapeAttr(a.text) + '">') : '') +
+        row('Color', '<input type="color" id="ipColor" value="' + (a.color || '#ffd166') + '">') +
+        row('', '<button class="btn sm danger" id="ipDelAnn">Borrar</button>');
+      if (a.type === 'text') $('ipText').addEventListener('change', (e) => { M.commit(); a.text = e.target.value; app.refreshAll(); });
+      $('ipColor').addEventListener('input', (e) => { a.color = e.target.value; app.requestDraw(); });
+      $('ipDelAnn').addEventListener('click', () => { M.commit(); M.removeAnnotation(app.frameIdx, a.id); app.selection = null; app.refreshAll(); });
+    }
+  }
+
+  function escapeAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+  /* ---------- guardado ---------- */
+
+  function refreshSaved() {
+    const sel = $('savedPlays');
+    const plays = M.listPlays();
+    sel.innerHTML = plays.length
+      ? plays.map((p) => '<option value="' + p.id + '">' + escapeAttr(p.name) + '</option>').join('')
+      : '<option value="">(sin jugadas guardadas)</option>';
+    if (plays.some((p) => p.id === M.state.id)) sel.value = M.state.id;
+  }
+
+  /* En claude.ai la descarga directa está bloqueada: si existe la capability
+     de descargas del visor se usa esa, y si no, el link de siempre. */
+  let dlNs = null, dlAsked = false;
+  async function downloader() {
+    if (dlAsked) return dlNs;
+    dlAsked = true;
+    try {
+      dlNs = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('downloads') : null;
+    } catch (e) { dlNs = null; }
+    return dlNs;
+  }
+
+  async function saveFile(name, mime, data) {
+    const ns = await downloader();
+    if (ns) {
+      try { await ns.save({ filename: name, data: data }); return true; }
+      catch (e) { return !!(e && e.code === 'declined'); }
+    }
+    try {
+      const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function slug(s) { return String(s || 'jugada').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'jugada'; }
+
+  /* ---------- opciones ---------- */
+
+  function syncOptions() {
+    app.options.onion = $('optOnion').checked;
+    app.options.routes = $('optRoutes').checked;
+    app.options.labels = $('optLabels').checked;
+    app.options.grid = $('optGrid').checked;
+    app.options.numbers = $('optNumbers').checked;
+    app.requestDraw();
+  }
+
+  function setTool(tool) {
+    app.tool = tool;
+    document.querySelectorAll('.tool').forEach((b) => b.classList.toggle('active', b.dataset.tool === tool));
+    $('hint').textContent = HINTS[tool] || '';
+    app.canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+  }
+
+  /* ---------- init ---------- */
+
+  function init(_app) {
+    app = _app;
+
+    const presets = $('presetSelect');
+    presets.innerHTML =
+      '<optgroup label="Jugadas de ejemplo">' +
+      RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
+      '</optgroup><optgroup label="Formaciones">' +
+      M.formationList().map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
+      '</optgroup>';
+
+    document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+    document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+      app.view.fit(RG.field.VIEWS[b.dataset.view]); app.requestDraw();
+    }));
+
+    ['optOnion', 'optRoutes', 'optLabels', 'optGrid', 'optNumbers'].forEach((id) => $(id).addEventListener('change', syncOptions));
+
+    $('playName').addEventListener('change', (e) => { M.state.name = e.target.value.trim() || 'Jugada sin nombre'; });
+
+    $('btnPreset').addEventListener('click', () => {
+      const val = presets.value || '';
+      const kind = val.slice(0, 2), key = val.slice(2);
+      if (M.state.frames.length > 1 && !confirm('Esto reemplaza la jugada actual. ¿Seguir?')) return;
+      if (kind === 'd:') {
+        RG.demos.load(key);
+        app.frameIdx = 0; app.time = 0; app.selection = null;
+        app.fitPlay();
+        app.refreshAll();
+        toast('Jugada de ejemplo cargada: apretá play');
+        return;
+      }
+      M.commit();
+      M.state.frames = [M.blankFrame()];
+      app.frameIdx = 0; app.time = 0;
+      M.applyFormation(key, 0);
+      app.selection = null;
+      app.fitPlay();
+      app.refreshAll();
+      toast('Formación aplicada');
+    });
+
+    $('squadSize').addEventListener('change', (e) => {
+      M.commit();
+      M.rebuildSquad(parseInt(e.target.value, 10), null);
+      const val = presets.value || '';
+      M.applyFormation(val.slice(0, 2) === 'f:' ? val.slice(2) : 'attack', app.frameIdx);
+      app.selection = null;
+      app.refreshAll();
+    });
+
+    $('colorA').addEventListener('input', (e) => { M.state.colors.a = e.target.value; app.requestDraw(); });
+    $('colorB').addEventListener('input', (e) => { M.state.colors.b = e.target.value; app.requestDraw(); });
+    $('optShowB').addEventListener('change', (e) => { M.state.showB = e.target.checked; app.requestDraw(); });
+
+    $('btnUndo').addEventListener('click', () => app.undo());
+    $('btnRedo').addEventListener('click', () => app.redo());
+
+    /* transporte */
+    $('btnPlay').addEventListener('click', () => app.togglePlay());
+    $('btnFirst').addEventListener('click', () => app.setFrame(0));
+    $('btnLast').addEventListener('click', () => app.setFrame(M.frameCount() - 1));
+    $('btnPrev').addEventListener('click', () => app.setFrame(app.frameIdx - 1));
+    $('btnNext').addEventListener('click', () => app.setFrame(app.frameIdx + 1));
+    $('speed').addEventListener('change', (e) => { app.speed = parseFloat(e.target.value); });
+    $('optLoop').addEventListener('change', (e) => { app.loop = e.target.checked; });
+
+    $('scrub').addEventListener('input', (e) => {
+      app.stop();
+      app.time = parseInt(e.target.value, 10) / 1000;
+      const r = M.resolveTime(app.time);
+      app.frameIdx = r.t > 0.98 ? r.k : Math.max(0, r.k - 1);
+      app.scrubbing = true;
+      app.requestDraw();
+      refreshFrames();
+      app.scrubbing = false;
+    });
+
+    $('btnAddFrame').addEventListener('click', () => {
+      M.commit();
+      app.setFrame(M.addFrame(app.frameIdx));
+      toast('Frame ' + (app.frameIdx + 1) + ' agregado');
+    });
+    $('btnDupFrame').addEventListener('click', () => { M.commit(); app.setFrame(M.duplicateFrame(app.frameIdx)); });
+    $('btnDelFrame').addEventListener('click', () => { M.commit(); app.setFrame(M.deleteFrame(app.frameIdx)); });
+
+    $('frameDur').addEventListener('input', (e) => {
+      const f = M.frame(app.frameIdx);
+      f.dur = parseFloat(e.target.value);
+      $('frameDurOut').textContent = f.dur.toFixed(1) + ' s';
+      refreshFrames();
+    });
+    $('frameNote').addEventListener('change', (e) => { M.frame(app.frameIdx).note = e.target.value; refreshFrames(); });
+
+    /* zoom */
+    $('btnZoomIn').addEventListener('click', () => { app.view.zoomAt({ x: app.view.w / 2, y: app.view.h / 2 }, 1.2); app.requestDraw(); });
+    $('btnZoomOut').addEventListener('click', () => { app.view.zoomAt({ x: app.view.w / 2, y: app.view.h / 2 }, 1 / 1.2); app.requestDraw(); });
+    $('btnZoomFit').addEventListener('click', () => { app.view.fit(RG.field.VIEWS.full); app.requestDraw(); });
+
+    /* guardado */
+    $('btnSave').addEventListener('click', () => {
+      M.state.name = $('playName').value.trim() || 'Jugada sin nombre';
+      if (M.savePlay()) { refreshSaved(); toast('Jugada guardada'); }
+      else toast('No se pudo guardar en este navegador');
+    });
+    $('btnLoad').addEventListener('click', () => {
+      const id = $('savedPlays').value;
+      if (!id) return toast('No hay jugadas guardadas');
+      if (M.loadPlay(id)) { app.frameIdx = 0; app.time = 0; app.selection = null; app.refreshAll(); toast('Jugada abierta'); }
+    });
+    $('btnDeletePlay').addEventListener('click', () => {
+      const id = $('savedPlays').value;
+      if (!id) return;
+      if (!confirm('¿Borrar la jugada guardada?')) return;
+      M.deletePlay(id); refreshSaved(); toast('Jugada borrada');
+    });
+
+    $('btnExport').addEventListener('click', async () => {
+      M.state.name = $('playName').value.trim() || 'Jugada sin nombre';
+      const json = JSON.stringify(M.serialize(), null, 2);
+      const ok = await saveFile(slug(M.state.name) + '.json', 'application/json', json);
+      if (!ok) window.prompt('Copiá el JSON de la jugada:', json);
+    });
+    $('btnImport').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          M.load(JSON.parse(rd.result));
+          app.frameIdx = 0; app.time = 0; app.selection = null;
+          app.refreshAll(); toast('Jugada importada');
+        } catch (err) { toast('Archivo inválido: ' + err.message); }
+      };
+      rd.readAsText(file);
+      e.target.value = '';
+    });
+    $('btnPng').addEventListener('click', () => {
+      app.canvas.toBlob(async (blob) => {
+        if (!blob) return toast('No se pudo generar la imagen');
+        const name = slug(M.state.name) + '-frame' + (app.frameIdx + 1) + '.png';
+        if (!(await saveFile(name, 'image/png', blob))) toast('El navegador rechazó la descarga');
+      });
+    });
+
+    $('btnPresent').addEventListener('click', () => app.togglePresent());
+
+    setTool('select');
+    syncOptions();
+    refreshSaved();
+  }
+
+  function refreshHeader() {
+    $('playName').value = M.state.name;
+    $('squadSize').value = String(M.state.squad);
+    $('colorA').value = M.state.colors.a;
+    $('colorB').value = M.state.colors.b;
+    $('optShowB').checked = M.state.showB;
+    $('btnUndo').disabled = !M.history.undo.length;
+    $('btnRedo').disabled = !M.history.redo.length;
+  }
+
+  return { init, toast, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+})();
+
+/* ===== js/app.js ===== */
+/* app.js - estado de la aplicacion, bucle de animacion y atajos de teclado */
+(function () {
+  const M = RG.model;
+  const G = RG.geom;
+
+  const canvas = document.getElementById('cv');
+  const view = RG.field.createView(canvas);
+  let ctx = canvas.getContext('2d');
+
+  const app = {
+    canvas, view,
+    tool: 'select',
+    frameIdx: 0,
+    time: 0,
+    playing: false,
+    scrubbing: false,
+    speed: 1,
+    loop: false,
+    selection: null,
+    hover: null,
+    draft: null,
+    spaceDown: false,
+    options: { onion: true, routes: true, labels: false, grid: false, numbers: true }
+  };
+
+  /* ---------- dibujo ---------- */
+
+  let pending = false;
+  app.requestDraw = function () {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; app.draw(); });
+  };
+
+  function buildScene() {
+    if (app.playing || app.scrubbing) {
+      const s = M.sampleAt(app.time);
+      return { k: s.k, t: s.t, pos: s.pos, ball: s.ball, playing: true, options: app.options, selection: app.selection, hover: app.hover, draft: app.draft };
+    }
+    const k = app.frameIdx;
+    const pos = {};
+    for (const p of M.state.players) pos[p.id] = M.pos(k, p.id);
+    return { k, t: 1, pos, ball: M.ballStatic(k), playing: false, options: app.options, selection: app.selection, hover: app.hover, draft: app.draft };
+  }
+
+  app.draw = function () { RG.render.draw(ctx, view, buildScene()); };
+
+  /* ---------- reproduccion ---------- */
+
+  let rafId = 0, lastTs = 0;
+
+  function tick(ts) {
+    if (!app.playing) return;
+    const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0);
+    lastTs = ts;
+    app.time += dt * app.speed;
+    const total = M.totalDuration();
+    if (app.time >= total) {
+      if (app.loop) { app.time = 0; }
+      else {
+        app.time = total;
+        app.playing = false;
+        app.frameIdx = M.frameCount() - 1;
+        document.getElementById('btnPlay').textContent = '▶';
+        RG.ui.refreshFrames();
+        app.draw();
+        return;
+      }
+    }
+    const r = M.resolveTime(app.time);
+    if (r.k !== app.frameIdx + 1 && r.k !== app.frameIdx) { /* solo informativo */ }
+    app.frameIdx = Math.max(0, r.t >= 1 ? r.k : r.k - 1);
+    RG.ui.refreshScrub();
+    app.draw();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  app.play = function () {
+    if (M.frameCount() < 2) return app.toast('Agregá al menos un frame más para animar');
+    if (app.time >= M.totalDuration() - 1e-6) app.time = 0;
+    app.playing = true;
+    app.selection = null;
+    document.getElementById('btnPlay').textContent = '❚❚';
+    lastTs = performance.now();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  };
+
+  app.stop = function () {
+    if (!app.playing) return;
+    app.playing = false;
+    cancelAnimationFrame(rafId);
+    document.getElementById('btnPlay').textContent = '▶';
+    const r = M.resolveTime(app.time);
+    app.frameIdx = r.t > 0.5 ? r.k : Math.max(0, r.k - 1);
+    app.time = M.timeOfFrame(app.frameIdx);
+    RG.ui.refreshFrames();
+    app.draw();
+  };
+
+  app.togglePlay = function () { app.playing ? app.stop() : app.play(); };
+
+  /* ---------- encuadre automatico sobre la jugada ---------- */
+
+  app.fitPlay = function () {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const push = (q) => {
+      if (!q) return;
+      x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
+      x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+    };
+    for (let i = 0; i < M.frameCount(); i++) {
+      const fr = M.frame(i);
+      for (const p of M.activePlayers()) push(fr.pos[p.id]);
+      for (const id of Object.keys(fr.routes)) for (const q of fr.routes[id].pts) push(q);
+      for (const a of fr.ann) a.type === 'arrow' ? a.pts.forEach(push) : push(a);
+    }
+    if (!isFinite(x0)) return view.fit(RG.field.VIEWS.full);
+    const pad = 8;
+    view.fit({
+      x0: Math.max(-12, x0 - pad), y0: Math.max(-2, y0 - pad),
+      x1: Math.min(112, x1 + pad), y1: Math.min(72, y1 + pad)
+    });
+  };
+
+  /* ---------- modo presentacion ---------- */
+
+  app.togglePresent = function (on) {
+    const active = on == null ? !document.body.classList.contains('presenting') : on;
+    document.body.classList.toggle('presenting', active);
+    setTimeout(() => {
+      ctx = view.resize();
+      app.fitPlay();
+      if (active) { app.setFrame(0); app.loop = true; app.play(); }
+      else { app.stop(); app.loop = document.getElementById('optLoop').checked; }
+      app.draw();
+    }, 60);
+  };
+
+  /* ---------- navegacion ---------- */
+
+  app.setFrame = function (i) {
+    app.stop();
+    app.frameIdx = G.clamp(i, 0, M.frameCount() - 1);
+    app.time = M.timeOfFrame(app.frameIdx);
+    app.selection = null;
+    app.refreshAll();
+  };
+
+  app.refreshAll = function () {
+    RG.ui.refreshFrames();
+    RG.ui.refreshInspector();
+    RG.ui.refreshHeader();
+    app.requestDraw();
+  };
+  app.refreshInspector = function () { RG.ui.refreshInspector(); RG.ui.refreshHeader(); app.requestDraw(); };
+  app.toast = RG.ui.toast;
+
+  app.undo = function () {
+    if (M.undo()) {
+      app.frameIdx = G.clamp(app.frameIdx, 0, M.frameCount() - 1);
+      app.time = M.timeOfFrame(app.frameIdx);
+      app.selection = null;
+      app.refreshAll();
+    }
+  };
+  app.redo = function () {
+    if (M.redo()) {
+      app.frameIdx = G.clamp(app.frameIdx, 0, M.frameCount() - 1);
+      app.time = M.timeOfFrame(app.frameIdx);
+      app.selection = null;
+      app.refreshAll();
+    }
+  };
+
+  /* ---------- teclado ---------- */
+
+  const TOOL_KEYS = { v: 'select', r: 'run', p: 'pass', k: 'kick', a: 'arrow', c: 'cone', t: 'text', e: 'erase' };
+
+  document.addEventListener('keydown', (ev) => {
+    const tag = (ev.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+
+    if (ev.code === 'Space') { ev.preventDefault(); app.spaceDown = true; app.togglePlay(); return; }
+    if (ev.key === 'Escape') { app.togglePresent(false); return; }
+    if (ev.key.toLowerCase() === 'f' && !ev.ctrlKey && !ev.metaKey) { ev.preventDefault(); app.togglePresent(); return; }
+    if (ev.key === 'ArrowLeft') { ev.preventDefault(); app.setFrame(app.frameIdx - 1); return; }
+    if (ev.key === 'ArrowRight') { ev.preventDefault(); app.setFrame(app.frameIdx + 1); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); ev.shiftKey ? app.redo() : app.undo(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { ev.preventDefault(); app.redo(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { ev.preventDefault(); document.getElementById('btnSave').click(); return; }
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+    const key = ev.key.toLowerCase();
+    if (key === 'n') { ev.preventDefault(); document.getElementById('btnAddFrame').click(); return; }
+    if (TOOL_KEYS[key]) { RG.ui.setTool(TOOL_KEYS[key]); return; }
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      const sel = app.selection;
+      if (!sel) return;
+      M.commit();
+      if (sel.type === 'ann') M.removeAnnotation(app.frameIdx, sel.id);
+      else if (sel.type === 'player' || sel.type === 'route') M.clearRoute(app.frameIdx, sel.id);
+      app.selection = null;
+      app.refreshAll();
+    }
+  });
+
+  document.addEventListener('keyup', (ev) => { if (ev.code === 'Space') app.spaceDown = false; });
+
+  /* ---------- arranque ---------- */
+
+  function resize() {
+    ctx = view.resize();
+    app.draw();
+  }
+
+  RG.ui.init(app);
+  RG.input.attach(app);
+
+  RG.demos.load('lineout_backs');
+  ctx = view.resize();
+  app.fitPlay();
+  app.refreshAll();
+
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(document.querySelector('.stage'));
+  window.addEventListener('resize', resize);
+
+  window.RG.app = app;
+})();
+
+</script>
+</body>
+</html>

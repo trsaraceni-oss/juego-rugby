@@ -151,9 +151,26 @@ RG.ui = (function () {
     if (plays.some((p) => p.id === M.state.id)) sel.value = M.state.id;
   }
 
-  function download(name, mime, data) {
+  /* En claude.ai la descarga directa está bloqueada: si existe la capability
+     de descargas del visor se usa esa, y si no, el link de siempre. */
+  let dlNs = null, dlAsked = false;
+  async function downloader() {
+    if (dlAsked) return dlNs;
+    dlAsked = true;
     try {
-      const blob = new Blob([data], { type: mime });
+      dlNs = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('downloads') : null;
+    } catch (e) { dlNs = null; }
+    return dlNs;
+  }
+
+  async function saveFile(name, mime, data) {
+    const ns = await downloader();
+    if (ns) {
+      try { await ns.save({ filename: name, data: data }); return true; }
+      catch (e) { return !!(e && e.code === 'declined'); }
+    }
+    try {
+      const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = name;
@@ -303,12 +320,11 @@ RG.ui = (function () {
       M.deletePlay(id); refreshSaved(); toast('Jugada borrada');
     });
 
-    $('btnExport').addEventListener('click', () => {
+    $('btnExport').addEventListener('click', async () => {
       M.state.name = $('playName').value.trim() || 'Jugada sin nombre';
       const json = JSON.stringify(M.serialize(), null, 2);
-      if (!download(slug(M.state.name) + '.json', 'application/json', json)) {
-        window.prompt('Copiá el JSON de la jugada:', json);
-      }
+      const ok = await saveFile(slug(M.state.name) + '.json', 'application/json', json);
+      if (!ok) window.prompt('Copiá el JSON de la jugada:', json);
     });
     $('btnImport').addEventListener('click', () => $('fileInput').click());
     $('fileInput').addEventListener('change', (e) => {
@@ -326,13 +342,10 @@ RG.ui = (function () {
       e.target.value = '';
     });
     $('btnPng').addEventListener('click', () => {
-      app.canvas.toBlob((blob) => {
+      app.canvas.toBlob(async (blob) => {
         if (!blob) return toast('No se pudo generar la imagen');
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = slug(M.state.name) + '-frame' + (app.frameIdx + 1) + '.png';
-        document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+        const name = slug(M.state.name) + '-frame' + (app.frameIdx + 1) + '.png';
+        if (!(await saveFile(name, 'image/png', blob))) toast('El navegador rechazó la descarga');
       });
     });
 
