@@ -237,6 +237,8 @@ RG.ui = (function () {
       }
       M.commit();
       M.state.frames = [M.blankFrame()];
+      M.state.id = RG.geom.uid();
+      M.state.name = 'Jugada sin nombre';
       app.frameIdx = 0; app.time = 0;
       M.applyFormation(key, 0);
       app.selection = null;

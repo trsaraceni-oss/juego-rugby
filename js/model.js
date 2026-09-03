@@ -34,6 +34,14 @@ RG.model = (function () {
 
   /* ---------- formaciones (metros; A ataca hacia +x) ---------- */
 
+  /* los dos equipos enfrentados en columna, ordenados por número: punto de
+     partida para armar una jugada arrastrando jugadores */
+  function lineUp(x) {
+    const out = {};
+    for (let n = 1; n <= 15; n++) out[n] = [x, 5 + (n - 1) * 4.3];
+    return out;
+  }
+
   const FORMATIONS = {
     attack: {
       name: 'Ataque en fase (1-3-3-1)',
@@ -111,11 +119,11 @@ RG.model = (function () {
         12: [30, 52], 13: [33, 58], 11: [36, 66], 7: [26, 12], 14: [33, 10], 15: [31, 40]
       }
     },
-    open: {
-      name: 'Campo vacío (a mano)',
+    manual: {
+      name: 'Equipos alineados (armar a mano)',
       ballCarrier: null,
-      a: null,
-      b: null
+      a: lineUp(30),
+      b: lineUp(70)
     }
   };
 

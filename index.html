@@ -139,15 +139,17 @@
         <option value="2">2×</option>
       </select>
       <label class="chk inline"><input type="checkbox" id="optLoop"> Loop</label>
+      <span class="grow"></span>
+      <button class="btn sm primary" id="btnAddFrame" title="Nuevo frame (N)">+ Frame</button>
+      <button class="btn sm" id="btnDupFrame" title="Duplicar el frame actual">Duplicar</button>
+      <button class="btn sm danger" id="btnDelFrame" title="Borrar el frame actual">Borrar frame</button>
     </div>
 
     <input type="range" id="scrub" class="scrub" min="0" max="1000" value="0" step="1">
 
     <div class="frames">
+      <span class="frames-label">Frames</span>
       <div id="frameList" class="frame-list"></div>
-      <button class="btn sm" id="btnAddFrame" title="Nuevo frame (N)">+ Frame</button>
-      <button class="btn sm" id="btnDupFrame" title="Duplicar frame">Duplicar</button>
-      <button class="btn sm danger" id="btnDelFrame" title="Borrar frame">Borrar</button>
     </div>
   </footer>
 </div>

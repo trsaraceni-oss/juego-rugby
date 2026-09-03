@@ -126,7 +126,9 @@ kbd{
   background:var(--panel);border-top:1px solid var(--line);
   padding:8px 12px;display:flex;flex-direction:column;gap:7px;flex:0 0 auto;
 }
-.transport{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.transport{display:flex;align-items:center;gap:5px;color:var(--muted);flex-wrap:wrap}
+.grow{flex:1}
+.frames-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
 .btn.play{background:var(--accent-2);border-color:var(--accent-2);color:#04140a;min-width:36px;font-size:14px}
 .btn.play:hover{background:var(--accent)}
 .scrub{width:100%;accent-color:var(--accent-2);margin:0}
@@ -159,6 +161,13 @@ body.presenting .zoom-controls{display:none}
 body.presenting .timeline{background:transparent;border-top:none;padding:6px 12px}
 body.presenting .transport{justify-content:center}
 body.presenting .stage{background:#000}
+
+@media (max-height:760px){
+  .timeline{padding:6px 12px;gap:5px}
+  .frame-chip{padding:3px 9px;min-width:52px}
+  .panel h3{margin:10px 0 6px}
+  .tool{padding:6px 4px}
+}
 
 @media (max-width:1100px){
   .panel{width:158px;flex-basis:158px;padding:8px}
