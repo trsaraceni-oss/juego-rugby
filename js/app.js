@@ -107,6 +107,7 @@
   app.setStage = function (stage) {
     M.state.stage = stage;
     view.swap = stage === 'lineout';
+    view.setBounds(stage === 'lineout' ? RG.field.VIEWS.lineout : null);
     app.fitPlay();
     document.querySelectorAll('[data-stage]').forEach((b) => b.classList.toggle('active', b.dataset.stage === stage));
     app.requestDraw();
@@ -222,6 +223,7 @@
 
   function resize() {
     ctx = view.resize();
+    view.applyBounds();
     app.draw();
   }
 

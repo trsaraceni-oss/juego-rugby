@@ -51,7 +51,8 @@ parciales definen su propio plantel; el selector de formato sólo manda en las c
 
 **Espacio de line-out**: el botón del panel *Vista* cambia el escenario por el corredor de
 line-out visto de costado, con la línea de touch a la izquierda, las marcas de un metro y las
-líneas de 5 m y 15 m. Los ejes quedan intercambiados (la distancia a la touch corre en
+líneas de 5 m y 15 m. Es un espacio cerrado: la cámara tiene límites (`view.setBounds`), así que
+no se puede alejar hasta ver la cancha entera ni salirse del área de trabajo. Los ejes quedan intercambiados (la distancia a la touch corre en
 horizontal), así los saltadores se alinean a lo ancho de la pantalla. La formación *Line-out solo*
 lo abre sola. Todo lo demás funciona igual ahí: recorridos, pases, frames y animación.
 

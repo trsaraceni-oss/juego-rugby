@@ -1299,11 +1299,11 @@ RG.field = (function () {
     attack: { x0: 48, y0: -2, x1: 113, y1: 72 },
     mid: { x0: 18, y0: -2, x1: 82, y1: 72 },
     defend: { x0: -13, y0: -2, x1: 52, y1: 72 },
-    lineout: { x0: 44.5, y0: -2.6, x1: 55.5, y1: 16.3 }
+    lineout: { x0: 43, y0: -3, x1: 57, y1: 18 }
   };
 
   function createView(canvas) {
-    const v = { ox: -13, oy: -3, scale: 8, swap: false, canvas, w: 1, h: 1 };
+    const v = { ox: -13, oy: -3, scale: 8, swap: false, bounds: null, canvas, w: 1, h: 1 };
 
     /* mundo -> plano de dibujo: el escenario de line-out intercambia los ejes,
        así la distancia a la touch corre en horizontal */
@@ -1328,6 +1328,7 @@ RG.field = (function () {
       v.scale = Math.min(sx, sy);
       v.ox = r.x0 - (v.w / v.scale - (r.x1 - r.x0)) / 2;
       v.oy = r.y0 - (v.h / v.scale - (r.y1 - r.y0)) / 2;
+      v.applyBounds();
     };
 
     v.toScreen = function (p) {
@@ -1347,9 +1348,31 @@ RG.field = (function () {
       const d = v.plane({ x: before.x - after.x, y: before.y - after.y });
       v.ox += d.x;
       v.oy += d.y;
+      v.applyBounds();
     };
 
-    v.panPixels = function (dx, dy) { v.ox -= dx / v.scale; v.oy -= dy / v.scale; };
+    v.panPixels = function (dx, dy) {
+      v.ox -= dx / v.scale;
+      v.oy -= dy / v.scale;
+      v.applyBounds();
+    };
+
+    /* Con límites puestos, la cámara no se aleja más allá del área ni se sale de
+       ella: el escenario de line-out es un espacio cerrado, no un zoom de la cancha. */
+    v.setBounds = function (rect) { v.bounds = rect || null; v.applyBounds(); };
+
+    v.applyBounds = function () {
+      if (!v.bounds) return;
+      const a = v.plane({ x: v.bounds.x0, y: v.bounds.y0 });
+      const b = v.plane({ x: v.bounds.x1, y: v.bounds.y1 });
+      const r = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+      const W = r.x1 - r.x0, H = r.y1 - r.y0;
+      const minS = Math.min(v.w / W, v.h / H);
+      v.scale = G.clamp(v.scale, minS, minS * 5);
+      const vw = v.w / v.scale, vh = v.h / v.scale;
+      v.ox = vw >= W ? (r.x0 + r.x1) / 2 - vw / 2 : G.clamp(v.ox, r.x0, r.x1 - vw);
+      v.oy = vh >= H ? (r.y0 + r.y1) / 2 - vh / 2 : G.clamp(v.oy, r.y0, r.y1 - vh);
+    };
 
     return v;
   }
@@ -1476,55 +1499,40 @@ RG.field = (function () {
   /* ---------- escenario de line-out ---------- */
 
   function drawLineoutStage(ctx, v, o) {
-    /* se dibuja sobre todo lo que entra en pantalla, no sobre un recuadro fijo,
-       así el fondo acompaña cualquier zoom */
-    const c0 = v.toWorld({ x: 0, y: 0 }), c1 = v.toWorld({ x: v.w, y: v.h });
-    const vis = {
-      x0: Math.min(c0.x, c1.x), x1: Math.max(c0.x, c1.x),
-      y0: Math.min(c0.y, c1.y), y1: Math.max(c0.y, c1.y)
-    };
-    const lw = Math.max(1.4, 0.1 * v.scale);
-    const grassTop = Math.max(0, vis.y0);
+    const A = VIEWS.lineout;              /* el área de trabajo */
+    const lw = Math.max(1.4, 0.09 * v.scale);
 
-    /* pasto, con franjas de corte cada 5 m de cancha */
-    for (let x = Math.floor(vis.x0 / 5) * 5; x < vis.x1 + 5; x += 5) {
-      box(ctx, v, x, grassTop, x + 5, vis.y1, (Math.round(x / 5) % 2 === 0) ? '#2a7a48' : '#26703f');
+    /* pasto sólo dentro del área, con franjas cada 5 m de cancha */
+    for (let x = Math.floor(A.x0 / 5) * 5; x < A.x1; x += 5) {
+      const x0 = Math.max(x, A.x0), x1 = Math.min(x + 5, A.x1);
+      box(ctx, v, x0, 0, x1, A.y1, (Math.round(x / 5) % 2 === 0) ? '#2a7a48' : '#26703f');
     }
     /* afuera de la línea de touch */
-    if (vis.y0 < 0) box(ctx, v, vis.x0, vis.y0, vis.x1, 0, '#182029');
+    box(ctx, v, A.x0, A.y0, A.x1, 0, '#182029');
 
     /* corredor válido: de 5 m a 15 m de la touch */
-    box(ctx, v, vis.x0, F.y5, vis.x1, F.y15, 'rgba(255,255,255,.05)');
+    box(ctx, v, A.x0, F.y5, A.x1, F.y15, 'rgba(255,255,255,.05)');
 
-    /* líneas transversales de la cancha que caigan en pantalla */
-    ctx.strokeStyle = 'rgba(255,255,255,.45)';
-    ctx.lineWidth = Math.max(1, 0.08 * v.scale);
-    for (const [x, t, dash] of [[F.x22A, '22 m', false], [F.x10A, '10 m', true], [F.xHalf, 'Mitad', false],
-                                [F.x10B, '10 m', true], [F.x22B, '22 m', false], [F.xTryA, 'Try', false], [F.xTryB, 'Try', false]]) {
-      if (x < vis.x0 || x > vis.x1) continue;
-      ctx.setLineDash(dash ? [0.8 * v.scale, 0.7 * v.scale] : []);
-      line(ctx, v, x, grassTop, x, vis.y1);
-      tag(ctx, v, x, vis.y1, t, { px: 11, align: 'right', dx: -10, dy: -10, color: 'rgba(255,255,255,.5)', weight: '' });
-    }
-    ctx.setLineDash([]);
+    /* la única línea de cancha que cruza el área */
+    ctx.strokeStyle = 'rgba(255,255,255,.4)';
+    ctx.lineWidth = Math.max(1, 0.07 * v.scale);
+    line(ctx, v, F.xHalf, 0, F.xHalf, A.y1);
+    tag(ctx, v, F.xHalf, A.y1, 'Mitad', { px: 11, align: 'right', dx: -10, dy: -10, color: 'rgba(255,255,255,.45)', weight: '' });
 
     /* línea de touch */
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = lw * 1.5;
-    line(ctx, v, vis.x0, 0, vis.x1, 0);
+    line(ctx, v, A.x0, 0, A.x1, 0);
 
-    /* marcas de un metro: ubican a cada saltador respecto de la touch.
-       Se anclan al borde superior de la pantalla, que corre sobre el eje del campo. */
-    const tickX = vis.x0 + (vis.x1 - vis.x0) * 0.03;
+    /* marcas de un metro sobre el borde de arriba */
+    const tickX = A.x0 + (A.x1 - A.x0) * 0.028;
     ctx.strokeStyle = 'rgba(255,255,255,.55)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    for (let y = 1; y <= 25; y++) {
-      if (y < vis.y0 || y > vis.y1) continue;
-      const long = y % 5 === 0;
+    for (let y = 1; y <= 17; y++) {
       const a = v.toScreen({ x: tickX, y: y });
       ctx.moveTo(a.x, a.y);
-      ctx.lineTo(a.x, a.y + (long ? 16 : 9));
+      ctx.lineTo(a.x, a.y + (y % 5 === 0 ? 15 : 8));
     }
     ctx.stroke();
 
@@ -1532,27 +1540,33 @@ RG.field = (function () {
     ctx.strokeStyle = 'rgba(255,255,255,.92)';
     ctx.lineWidth = lw;
     ctx.setLineDash([1.1 * v.scale, 0.9 * v.scale]);
-    line(ctx, v, vis.x0, F.y5, vis.x1, F.y5);
-    line(ctx, v, vis.x0, F.y15, vis.x1, F.y15);
+    line(ctx, v, A.x0, F.y5, A.x1, F.y5);
+    line(ctx, v, A.x0, F.y15, A.x1, F.y15);
     ctx.setLineDash([]);
 
     /* eje del line-out */
-    ctx.strokeStyle = 'rgba(255,255,255,.2)';
+    ctx.strokeStyle = 'rgba(255,255,255,.18)';
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 5]);
-    line(ctx, v, F.xHalf, 0, F.xHalf, F.y15 + 4);
+    line(ctx, v, F.xHalf, 0, F.xHalf, F.y15 + 3);
     ctx.setLineDash([]);
 
     if (o.grid) {
       ctx.strokeStyle = 'rgba(255,255,255,.07)';
       ctx.lineWidth = 1;
-      for (let y = Math.ceil(vis.y0); y <= vis.y1; y++) line(ctx, v, vis.x0, y, vis.x1, y);
-      for (let x = Math.ceil(vis.x0); x <= vis.x1; x++) line(ctx, v, x, grassTop, x, vis.y1);
+      for (let y = Math.ceil(A.y0); y <= A.y1; y++) line(ctx, v, A.x0, y, A.x1, y);
+      for (let x = Math.ceil(A.x0); x <= A.x1; x++) line(ctx, v, x, 0, x, A.y1);
     }
+
+    /* borde del área de trabajo */
+    const c0 = v.toScreen({ x: A.x0, y: A.y0 }), c1 = v.toScreen({ x: A.x1, y: A.y1 });
+    ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(Math.min(c0.x, c1.x), Math.min(c0.y, c1.y), Math.abs(c1.x - c0.x), Math.abs(c1.y - c0.y));
 
     tag(ctx, v, tickX, F.y5, '5 m', { px: 13, dy: 30, box: true });
     tag(ctx, v, tickX, F.y15, '15 m', { px: 13, dy: 30, box: true });
-    if (vis.y0 < -0.5) tag(ctx, v, tickX, vis.y0, 'TOUCH', { px: 11, align: 'left', dx: 8, dy: 30, color: 'rgba(255,255,255,.6)', weight: '' });
+    tag(ctx, v, tickX, A.y0, 'TOUCH', { px: 11, align: 'left', dx: 10, dy: 26, color: 'rgba(255,255,255,.6)', weight: '' });
   }
 
   function draw(ctx, v, opts) {
@@ -2821,6 +2835,7 @@ RG.ui = (function () {
   app.setStage = function (stage) {
     M.state.stage = stage;
     view.swap = stage === 'lineout';
+    view.setBounds(stage === 'lineout' ? RG.field.VIEWS.lineout : null);
     app.fitPlay();
     document.querySelectorAll('[data-stage]').forEach((b) => b.classList.toggle('active', b.dataset.stage === stage));
     app.requestDraw();
@@ -2936,6 +2951,7 @@ RG.ui = (function () {
 
   function resize() {
     ctx = view.resize();
+    view.applyBounds();
     app.draw();
   }
 
