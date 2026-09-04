@@ -55,6 +55,11 @@ líneas de 5 m y 15 m. Los ejes quedan intercambiados (la distancia a la touch c
 horizontal), así los saltadores se alinean a lo ancho de la pantalla. La formación *Line-out solo*
 lo abre sola. Todo lo demás funciona igual ahí: recorridos, pases, frames y animación.
 
+En la cancha las fichas van a escala real, porque la distancia entre jugadores es el dato. En el
+escenario de line-out, que trabaja muy ampliado, se dibujan más chicas que el jugador real
+(`markScale` en `js/render.js`) para que se lea la separación entre saltadores en vez de un
+amontonamiento de círculos.
+
 **Formatos**: XV, 13, ten-a-side y seven. Cambia el plantel manteniendo la numeración real de
 cada puesto.
 

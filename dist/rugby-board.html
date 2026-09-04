@@ -1583,7 +1583,15 @@ RG.render = (function () {
     block: { dash: [], width: 0.34, head: false }
   };
 
-  function playerRadius(v) { return G.clamp(0.72 * v.scale, 9, 34); }
+  /* Escala de las marcas (fichas, rutas, flechas). En la cancha van a escala real,
+     porque la distancia entre jugadores es el dato. El escenario de line-out
+     trabaja muy ampliado y ahí las fichas son fichas: se dibujan más chicas que
+     el jugador real para que se lea la separación entre saltadores. */
+  function markScale(v) {
+    return M.state.stage === 'lineout' ? v.scale * 0.42 : v.scale;
+  }
+
+  function playerRadius(v) { return G.clamp(0.72 * markScale(v), 9, 34); }
 
   function strokePath(ctx, v, pts, color, kind, alpha, progress) {
     if (!pts || pts.length < 2) return;
@@ -1596,10 +1604,10 @@ RG.render = (function () {
     ctx.save();
     ctx.globalAlpha = alpha == null ? 1 : alpha;
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(1.6, st.width * v.scale);
+    ctx.lineWidth = G.clamp(st.width * markScale(v), 1.6, 9);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.setLineDash(st.dash.map((d) => d * v.scale));
+    ctx.setLineDash(st.dash.map((d) => d * markScale(v)));
     ctx.beginPath();
     const p0 = v.toScreen(draw[0]);
     ctx.moveTo(p0.x, p0.y);
@@ -1632,7 +1640,7 @@ RG.render = (function () {
   function arrowHead(ctx, v, pts, color) {
     const tip = v.toScreen(pts[pts.length - 1]);
     const ang = G.endAngle(pts);
-    const size = Math.max(7, 1.0 * v.scale);
+    const size = G.clamp(1.0 * markScale(v), 7, 20);
     ctx.save();
     ctx.translate(tip.x, tip.y);
     ctx.rotate(ang);
@@ -1710,7 +1718,7 @@ RG.render = (function () {
 
   function drawBall(ctx, v, at) {
     const s = v.toScreen(at);
-    const rx = G.clamp(0.78 * v.scale, 6, 24), ry = rx * 0.64;
+    const rx = G.clamp(0.7 * markScale(v), 6, 22), ry = rx * 0.64;
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(-0.5);
@@ -1735,7 +1743,7 @@ RG.render = (function () {
       strokePath(ctx, v, a.pts, a.color || '#ffd166', 'run', 1);
     } else if (a.type === 'cone') {
       const s = v.toScreen(a);
-      const r = Math.max(5, 0.8 * v.scale);
+      const r = G.clamp(0.8 * markScale(v), 5, 22);
       ctx.beginPath();
       ctx.moveTo(s.x, s.y - r);
       ctx.lineTo(s.x + r * 0.85, s.y + r * 0.7);
@@ -1748,7 +1756,7 @@ RG.render = (function () {
       ctx.stroke();
     } else if (a.type === 'text') {
       const s = v.toScreen(a);
-      const size = Math.round(Math.max(11, (a.size || 2.2) * v.scale));
+      const size = Math.round(G.clamp((a.size || 2.2) * markScale(v), 11, 34));
       ctx.font = '600 ' + size + 'px ui-sans-serif,system-ui,sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
@@ -1766,7 +1774,7 @@ RG.render = (function () {
     if (selected && a.type !== 'text') {
       const s = v.toScreen(a.type === 'arrow' ? a.pts[a.pts.length - 1] : a);
       ctx.beginPath();
-      ctx.arc(s.x, s.y, Math.max(9, 1.2 * v.scale), 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, G.clamp(1.2 * markScale(v), 9, 26), 0, Math.PI * 2);
       ctx.strokeStyle = '#4ade80';
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -1815,8 +1823,8 @@ RG.render = (function () {
           ctx.save();
           ctx.globalAlpha = editing ? 0.45 : 0.3;
           ctx.strokeStyle = st.colors[p.team];
-          ctx.lineWidth = Math.max(1, 0.13 * v.scale);
-          ctx.setLineDash([0.9 * v.scale, 0.7 * v.scale]);
+          ctx.lineWidth = G.clamp(0.13 * markScale(v), 1, 4);
+          ctx.setLineDash([0.9 * markScale(v), 0.7 * markScale(v)]);
           const s0 = v.toScreen(from), s1 = v.toScreen(to);
           ctx.beginPath();
           ctx.moveTo(s0.x, s0.y);
@@ -1871,7 +1879,7 @@ RG.render = (function () {
     drawBall(ctx, v, scene.ball);
   }
 
-  return { draw, drawPlayer, drawBall, strokePath, playerRadius, KIND_STYLE };
+  return { draw, drawPlayer, drawBall, strokePath, playerRadius, markScale, KIND_STYLE };
 })();
 
 /* ===== js/input.js ===== */
