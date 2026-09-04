@@ -476,7 +476,7 @@ RG.ui = (function () {
 
       const original = btn.textContent;
       btn.disabled = true;
-      toast(ids ? 'Grabando ' + ids.length + ' jugadas, no cierres la pestaña' : 'Grabando la jugada, no cierres la pestaña');
+      toast(ids ? 'Armando el video de ' + ids.length + ' jugadas' : 'Armando el video de la jugada');
       try {
         const out = await RG.video.record(app, (p) => { btn.textContent = Math.round(p * 100) + '%'; }, ids);
         const name = slug(ids ? 'jugadas-' + M.state.squad + 'v' : M.state.name) + '.' + out.ext;

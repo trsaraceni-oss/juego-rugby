@@ -82,11 +82,17 @@ amontonamiento de círculos.
 **Formatos**: XV, 13, ten-a-side y seven. Cambia el plantel manteniendo la numeración real de
 cada puesto.
 
-**Video**: el botón *Video* graba la animación y baja un archivo listo para mandar por WhatsApp:
-1280x720, con el nombre de la jugada arriba, la nota del momento abajo y una barra de avance.
-Si hay más de una jugada guardada, ofrece encadenarlas todas en un solo video con una placa de
-título entre cada una. Sale en MP4 donde el navegador lo permite (Chrome) y en WebM en el resto;
-graba en tiempo real, así que tarda lo que dura la animación.
+**Video**: el botón *Video* arma un MP4 de 1280x720 a 30 cuadros por segundo, listo para mandar
+por WhatsApp, con el nombre de la jugada arriba, la nota del momento abajo y una barra de avance.
+Si hay más de una jugada guardada, ofrece encadenarlas todas en un solo archivo con una placa de
+título entre cada una.
+
+Codifica con WebCodecs y escribe el contenedor con `js/mp4.js`, un muxer propio que arma un MP4
+progresivo: el índice completo antes de los datos y una duración fija por cuadro. Es lo que
+reproducen bien WhatsApp y los reproductores de escritorio. `MediaRecorder` queda de respaldo para
+navegadores sin WebCodecs, pero devuelve MP4 fragmentado y de cuadro variable, que se traba en
+varios reproductores; por eso el archivo se comprueba antes de entregarlo y sólo se cae al
+respaldo si la vía principal falla.
 
 **Guardar**: las jugadas quedan en el navegador (localStorage). `Exportar` baja un `.json` que
 `Importar` vuelve a leer, para pasarlas entre máquinas o versionarlas. `PNG` baja el frame actual
@@ -102,7 +108,8 @@ js/model.js         estado de la jugada, frames, formaciones, historial, guardad
 js/demos.js         jugadas de ejemplo
 js/field.js         medidas reglamentarias, cámara y dibujo de los escenarios
 js/render.js        jugadores, rutas, pelota y anotaciones
-js/video.js         grabación de la animación a MP4 o WebM
+js/mp4.js           muxer de MP4 progresivo
+js/video.js         codificación de la animación a video
 js/input.js         mouse y touch sobre el canvas
 js/ui.js            paneles, timeline e inspector
 js/app.js           bucle de animación, teclado y arranque

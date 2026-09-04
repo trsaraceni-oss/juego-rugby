@@ -1,4 +1,8 @@
-/* video.js - graba la animación de la jugada y devuelve un archivo para compartir */
+/* video.js - graba la animación de la jugada y devuelve un archivo para compartir.
+   Prefiere WebCodecs + muxer propio de MP4: da cuadro fijo (30 fps) y un archivo
+   progresivo, que es lo que reproducen bien WhatsApp y los reproductores de
+   escritorio. MediaRecorder queda como respaldo, pero produce MP4 fragmentado
+   y de cuadro variable, que se traba en varios reproductores. */
 window.RG = window.RG || {};
 
 RG.video = (function () {
@@ -6,22 +10,38 @@ RG.video = (function () {
   const G = RG.geom;
 
   const SIZE = { w: 1280, h: 720 };
+  const FPS = 30;
+  const BITRATE = 4500000;
   const HOLD_IN = 0.9;    /* segundos congelado en la posición inicial */
   const HOLD_OUT = 1.4;   /* y en la final, para que se lea el resultado */
+  const CARD = 1.4;       /* placa con el nombre, al encadenar varias jugadas */
 
-  /* Chrome graba MP4 en versiones recientes; si no, cae a WebM (Android y
-     computadora lo abren igual, iPhone y WhatsApp prefieren MP4) */
-  const CANDIDATES = [
+  const AVC = ['avc1.42001f', 'avc1.42E01E', 'avc1.4d401f', 'avc1.640028'];
+
+  const MR_CANDIDATES = [
     { mime: 'video/mp4;codecs=avc1.42E01E', ext: 'mp4' },
     { mime: 'video/mp4', ext: 'mp4' },
     { mime: 'video/webm;codecs=vp9', ext: 'webm' },
-    { mime: 'video/webm;codecs=vp8', ext: 'webm' },
     { mime: 'video/webm', ext: 'webm' }
   ];
 
+  /* ---------- disponibilidad ---------- */
+
+  async function pickCodec(forced) {
+    if (typeof VideoEncoder === 'undefined') return null;
+    const lista = forced ? [forced] : AVC;
+    for (const codec of lista) {
+      try {
+        const r = await VideoEncoder.isConfigSupported({ codec: codec, width: SIZE.w, height: SIZE.h, bitrate: BITRATE, framerate: FPS });
+        if (r && r.supported) return codec;
+      } catch (e) { /* sigue */ }
+    }
+    return null;
+  }
+
   function pickFormat() {
     if (typeof MediaRecorder === 'undefined') return null;
-    for (const c of CANDIDATES) {
+    for (const c of MR_CANDIDATES) {
       try { if (MediaRecorder.isTypeSupported(c.mime)) return c; } catch (e) { /* sigue */ }
     }
     return null;
@@ -29,10 +49,11 @@ RG.video = (function () {
 
   function supported() {
     const cv = document.createElement('canvas');
-    return !!(pickFormat() && typeof cv.captureStream === 'function');
+    return !!(pickFormat() || typeof VideoEncoder !== 'undefined') && typeof cv.getContext === 'function';
   }
 
-  /* marco: nombre de la jugada, nota del momento y barra de avance */
+  /* ---------- dibujo ---------- */
+
   function overlay(ctx, w, h, title, note, progress) {
     const pad = Math.round(w * 0.028);
     ctx.save();
@@ -68,16 +89,6 @@ RG.video = (function () {
     ctx.restore();
   }
 
-  function frameAt(ctx, v, time, options) {
-    const s = M.sampleAt(time);
-    RG.render.draw(ctx, v, {
-      k: s.k, t: s.t, pos: s.pos, ball: s.ball,
-      playing: true, options: options, selection: null, hover: null, draft: null
-    });
-    return s;
-  }
-
-  /* placa con el nombre de la jugada, entre una y otra */
   function titleCard(ctx, w, h, title, subtitle, index, count) {
     ctx.save();
     ctx.fillStyle = '#0f1216';
@@ -102,7 +113,7 @@ RG.video = (function () {
     ctx.restore();
   }
 
-  function prepareView(cv, app) {
+  function viewFor(cv, app) {
     const v = RG.field.createView(cv);
     v.w = SIZE.w; v.h = SIZE.h;
     v.swap = M.state.stage === 'lineout';
@@ -111,82 +122,198 @@ RG.video = (function () {
     return v;
   }
 
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  /* ---------- plan de la grabación ---------- */
 
-  /* espera hasta `seconds`, dibujando en cada cuadro */
-  function playFor(seconds, drawFn) {
-    return new Promise((resolve) => {
-      const t0 = performance.now();
-      (function tick() {
-        const elapsed = (performance.now() - t0) / 1000;
-        drawFn(Math.min(elapsed, seconds));
-        if (elapsed < seconds) requestAnimationFrame(tick);
-        else resolve();
-      })();
-    });
+  /* Recorre las jugadas una vez para medirlas. Devuelve los tramos en orden y la
+     duración total, con la jugada abierta restaurada al final. */
+  function plan(app, plays) {
+    const ids = (plays && plays.length) ? plays.slice() : [null];
+    const backup = ids.length > 1 || ids[0] ? M.serialize() : null;
+    const items = [];
+    for (const id of ids) {
+      if (id && !M.loadPlay(id)) continue;
+      items.push({
+        id: id, name: M.state.name || 'Jugada', note: M.frame(0).note || '',
+        dur: M.totalDuration(), card: ids.length > 1 ? CARD : 0
+      });
+    }
+    if (backup) M.load(backup);
+    const total = items.reduce((s, it) => s + it.card + HOLD_IN + it.dur + HOLD_OUT, 0);
+    return { items: items, total: total, backup: backup };
   }
 
-  /* Graba en tiempo real: es lo único que garantiza el ritmo correcto del
-     archivo. `plays` vacío = la jugada que está abierta; si trae ids de
-     jugadas guardadas, las encadena con una placa de título entre cada una. */
-  async function record(app, onProgress, plays) {
+  /* dibuja un instante del plan; devuelve false cuando el plan terminó */
+  function makePainter(app, cv, ctx, p) {
+    const options = Object.assign({}, app.options, { onion: false });
+    let idx = -1, base = 0, view = null;
+
+    return function paint(t) {
+      /* ubicar el tramo que corresponde a este instante */
+      let acc = 0, i = 0;
+      for (; i < p.items.length; i++) {
+        const largo = p.items[i].card + HOLD_IN + p.items[i].dur + HOLD_OUT;
+        if (t < acc + largo || i === p.items.length - 1) break;
+        acc += largo;
+      }
+      const it = p.items[i];
+      if (!it) return false;
+      if (i !== idx) {
+        idx = i; base = acc;
+        if (it.id) M.loadPlay(it.id);
+        view = viewFor(cv, app);
+      }
+      const local = t - base;
+      if (local < it.card) {
+        titleCard(ctx, SIZE.w, SIZE.h, it.name, it.note, i + 1, p.items.length);
+        return true;
+      }
+      const time = G.clamp(local - it.card - HOLD_IN, 0, it.dur);
+      const s = M.sampleAt(time);
+      RG.render.draw(ctx, view, {
+        k: s.k, t: s.t, pos: s.pos, ball: s.ball,
+        playing: true, options: options, selection: null, hover: null, draft: null
+      });
+      overlay(ctx, SIZE.w, SIZE.h, it.name, M.frame(s.k).note || it.note, t / p.total);
+      return true;
+    };
+  }
+
+  /* ---------- grabación con WebCodecs (cuadro fijo, MP4 progresivo) ---------- */
+
+  async function recordWebCodecs(app, onProgress, plays, codec) {
+    const cv = document.createElement('canvas');
+    cv.width = SIZE.w; cv.height = SIZE.h;
+    const ctx = cv.getContext('2d', { alpha: false });
+
+    const p = plan(app, plays);
+    if (!p.items.length || p.total <= 0) throw new Error('No hay nada para grabar');
+
+    const esAvc = codec.indexOf('avc') === 0;
+    const samples = [];
+    let description = null, encError = null;
+
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => {
+        if (!description && meta && meta.decoderConfig && meta.decoderConfig.description) {
+          description = new Uint8Array(meta.decoderConfig.description);
+        }
+        const data = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(data);
+        samples.push({ data: data, key: chunk.type === 'key' });
+      },
+      error: (e) => { encError = e; }
+    });
+    const config = { codec: codec, width: SIZE.w, height: SIZE.h, bitrate: BITRATE, framerate: FPS, latencyMode: 'quality' };
+    if (esAvc) config.avc = { format: 'avc' };   /* longitudes al frente, como pide el MP4 */
+    encoder.configure(config);
+
+    const paint = makePainter(app, cv, ctx, p);
+    const totalFrames = Math.max(1, Math.round(p.total * FPS));
+    const dur = Math.round(1000000 / FPS);
+
+    try {
+      for (let i = 0; i < totalFrames; i++) {
+        if (encError) throw encError;
+        paint(i / FPS);
+        const frame = new VideoFrame(cv, { timestamp: Math.round(i * 1000000 / FPS), duration: dur });
+        encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
+        frame.close();
+        if (encoder.encodeQueueSize > 6) await new Promise((r) => setTimeout(r, 6));
+        if (i % 10 === 0) {
+          if (onProgress) onProgress(i / totalFrames);
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+      await encoder.flush();
+    } finally {
+      if (p.backup) M.load(p.backup);
+      try { encoder.close(); } catch (e) { /* ya cerrado */ }
+    }
+    if (encError) throw encError;
+    const blob = RG.mp4.build({
+      codec: esAvc ? 'avc' : 'vp9', width: SIZE.w, height: SIZE.h,
+      fps: FPS, samples: samples, description: description
+    });
+    if (onProgress) onProgress(1);
+    return { blob: blob, ext: 'mp4', mime: 'video/mp4', engine: 'webcodecs' };
+  }
+
+  /* ---------- respaldo: MediaRecorder en tiempo real ---------- */
+
+  async function recordMediaRecorder(app, onProgress, plays) {
     const fmt = pickFormat();
     if (!fmt) throw new Error('Este navegador no puede grabar video');
 
-    const lista = (plays && plays.length) ? plays.slice() : [null];
-    const backup = (plays && plays.length) ? M.serialize() : null;
-
     const cv = document.createElement('canvas');
     cv.width = SIZE.w; cv.height = SIZE.h;
-    const ctx = cv.getContext('2d');
+    const ctx = cv.getContext('2d', { alpha: false });
 
-    const stream = cv.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: fmt.mime, videoBitsPerSecond: 4500000 });
+    const p = plan(app, plays);
+    if (!p.items.length || p.total <= 0) throw new Error('No hay nada para grabar');
+
+    const stream = cv.captureStream(FPS);
+    const rec = new MediaRecorder(stream, { mimeType: fmt.mime, videoBitsPerSecond: BITRATE });
     const chunks = [];
     rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
     const stopped = new Promise((res) => { rec.onstop = res; });
 
-    /* estimación para la barra de avance */
-    const CARD = 1.3;
-    let done = 0;
-    const options = Object.assign({}, app.options, { onion: false });
-
+    const paint = makePainter(app, cv, ctx, p);
     rec.start();
     try {
-      for (let i = 0; i < lista.length; i++) {
-        if (lista[i]) M.loadPlay(lista[i]);
-        const title = M.state.name || 'Jugada';
-        const total = M.totalDuration();
-        if (total <= 0) continue;
-        const v = prepareView(cv, app);
-        const tramo = (lista.length > 1 ? CARD : 0) + HOLD_IN + total + HOLD_OUT;
-        const base = done;
-        const largoTotal = lista.length * (CARD + 6);
-
-        if (lista.length > 1) {
-          await playFor(CARD, () => {
-            titleCard(ctx, SIZE.w, SIZE.h, title, M.frame(0).note || '', i + 1, lista.length);
-          });
-        }
-        await playFor(HOLD_IN + total + HOLD_OUT, (elapsed) => {
-          const time = G.clamp(elapsed - HOLD_IN, 0, total);
-          const s = frameAt(ctx, v, time, options);
-          overlay(ctx, SIZE.w, SIZE.h, title, M.frame(s.k).note || M.frame(0).note || '',
-            (base + CARD + elapsed) / largoTotal);
-          if (onProgress) onProgress(G.clamp((base + CARD + elapsed) / largoTotal, 0, 0.99));
-        });
-        done += tramo;
-      }
+      await new Promise((resolve) => {
+        const t0 = performance.now();
+        (function tick() {
+          const t = (performance.now() - t0) / 1000;
+          paint(Math.min(t, p.total));
+          if (onProgress) onProgress(G.clamp(t / p.total, 0, 0.99));
+          if (t < p.total) requestAnimationFrame(tick);
+          else resolve();
+        })();
+      });
     } finally {
-      if (backup) M.load(backup);
-      await wait(120);
+      if (p.backup) M.load(p.backup);
+      await new Promise((r) => setTimeout(r, 150));
       if (rec.state !== 'inactive') rec.stop();
       await stopped;
       stream.getTracks().forEach((t) => t.stop());
     }
     if (onProgress) onProgress(1);
-    return { blob: new Blob(chunks, { type: fmt.mime }), ext: fmt.ext, mime: fmt.mime };
+    return { blob: new Blob(chunks, { type: fmt.mime }), ext: fmt.ext, mime: fmt.mime, engine: 'mediarecorder' };
   }
 
-  return { record, supported, pickFormat, SIZE };
+  /* Antes de entregar el archivo se comprueba que el navegador pueda abrirlo:
+     si algo salió mal, se prefiere el respaldo a bajar un video roto. */
+  function playable(blob) {
+    return new Promise((resolve) => {
+      let listo = false;
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement('video');
+      el.preload = 'metadata';
+      el.muted = true;
+      const done = (ok) => { if (listo) return; listo = true; URL.revokeObjectURL(url); resolve(ok); };
+      el.onloadedmetadata = () => done(isFinite(el.duration) && el.duration > 0.2 && el.videoWidth > 0);
+      el.onerror = () => done(false);
+      setTimeout(() => done(false), 5000);
+      el.src = url;
+    });
+  }
+
+  /* ---------- entrada única ---------- */
+
+  async function record(app, onProgress, plays, opts) {
+    const o = opts || {};
+    if (!o.forceMediaRecorder) {
+      const codec = await pickCodec(o.codec);
+      if (codec) {
+        try {
+          const out = await recordWebCodecs(app, onProgress, plays, codec);
+          if (await playable(out.blob)) return out;
+          if (o.strict) throw new Error('El archivo generado no se pudo abrir');
+        } catch (e) { if (o.strict) throw e; /* si falla, se usa el respaldo */ }
+      }
+    }
+    return recordMediaRecorder(app, onProgress, plays);
+  }
+
+  return { record, supported, pickFormat, pickCodec, SIZE, FPS };
 })();
