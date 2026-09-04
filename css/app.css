@@ -77,6 +77,8 @@ select{
 .tool.active span{color:var(--accent)}
 
 .view-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.stage-switch{display:grid;gap:5px;margin-top:6px}
+.stage-switch .btn.active{background:#173a26;border-color:var(--accent-2);color:var(--accent)}
 .chk{display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;color:var(--muted)}
 .chk input{accent-color:var(--accent-2)}
 .chk.inline{padding:0;margin-left:4px;white-space:nowrap;font-size:12px}

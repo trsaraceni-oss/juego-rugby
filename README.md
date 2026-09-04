@@ -49,6 +49,12 @@ rival que hubiera sale de la cancha. Volviendo a tildarlo reaparece según la ú
 el número corregible desde el panel derecho, que también los quita de a uno. Las formaciones
 parciales definen su propio plantel; el selector de formato sólo manda en las completas.
 
+**Espacio de line-out**: el botón del panel *Vista* cambia el escenario por el corredor de
+line-out visto de costado, con la línea de touch a la izquierda, las marcas de un metro y las
+líneas de 5 m y 15 m. Los ejes quedan intercambiados (la distancia a la touch corre en
+horizontal), así los saltadores se alinean a lo ancho de la pantalla. La formación *Line-out solo*
+lo abre sola. Todo lo demás funciona igual ahí: recorridos, pases, frames y animación.
+
 **Formatos**: XV, 13, ten-a-side y seven. Cambia el plantel manteniendo la numeración real de
 cada puesto.
 
@@ -64,7 +70,7 @@ css/app.css         estilos
 js/geom.js          geometría: interpolación, longitud de arco, suavizado de trazos
 js/model.js         estado de la jugada, frames, formaciones, historial, guardado
 js/demos.js         jugadas de ejemplo
-js/field.js         medidas reglamentarias, cámara y dibujo de la cancha
+js/field.js         medidas reglamentarias, cámara y dibujo de los escenarios
 js/render.js        jugadores, rutas, pelota y anotaciones
 js/input.js         mouse y touch sobre el canvas
 js/ui.js            paneles, timeline e inspector
@@ -78,7 +84,9 @@ funcione abierta directamente desde el disco, sin servidor.
 
 Todo el modelo está en metros: `x` de -10 a 110 a lo largo del campo (0 y 100 son las líneas de
 try, ±10 los in-goals), `y` de 0 a 70 de touch a touch. El equipo propio ataca hacia `x` creciente.
-La cámara (`js/field.js`) convierte a píxeles; el modelo nunca conoce la pantalla.
+La cámara (`js/field.js`) convierte a píxeles; el modelo nunca conoce la pantalla. El escenario
+de line-out no rota el contexto del canvas: la cámara intercambia los ejes (`view.swap`), así los
+textos siguen derechos y el modelo sigue trabajando en metros de cancha.
 
 ### Formato de la jugada
 

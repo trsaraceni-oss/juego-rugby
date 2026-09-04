@@ -266,8 +266,12 @@ RG.ui = (function () {
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
     document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
-      app.view.fit(RG.field.VIEWS[b.dataset.view]); app.requestDraw();
+      if (M.state.stage !== 'field') app.setStage('field');
+      app.view.fit(RG.field.VIEWS[b.dataset.view]);
+      app.requestDraw();
     }));
+
+    document.querySelectorAll('[data-stage]').forEach((b) => b.addEventListener('click', () => app.setStage(b.dataset.stage)));
 
     ['optOnion', 'optRoutes', 'optLabels', 'optGrid', 'optNumbers'].forEach((id) => $(id).addEventListener('change', syncOptions));
 
@@ -280,7 +284,7 @@ RG.ui = (function () {
       if (kind === 'd:') {
         RG.demos.load(key);
         app.frameIdx = 0; app.time = 0; app.selection = null;
-        app.fitPlay();
+        app.setStage('field');
         app.refreshAll();
         toast('Jugada de ejemplo cargada: apretá play');
         return;
@@ -291,6 +295,8 @@ RG.ui = (function () {
       M.state.name = 'Jugada sin nombre';
       app.frameIdx = 0; app.time = 0;
       M.applyFormation(key, 0, $('optWithB').checked);
+      if (key === 'unit_lineout') app.setStage('lineout');
+      else if (M.state.stage !== 'field') app.setStage('field');
       app.selection = null;
       app.fitPlay();
       app.refreshAll();
@@ -371,7 +377,7 @@ RG.ui = (function () {
     /* zoom */
     $('btnZoomIn').addEventListener('click', () => { app.view.zoomAt({ x: app.view.w / 2, y: app.view.h / 2 }, 1.2); app.requestDraw(); });
     $('btnZoomOut').addEventListener('click', () => { app.view.zoomAt({ x: app.view.w / 2, y: app.view.h / 2 }, 1 / 1.2); app.requestDraw(); });
-    $('btnZoomFit').addEventListener('click', () => { app.view.fit(RG.field.VIEWS.full); app.requestDraw(); });
+    $('btnZoomFit').addEventListener('click', () => { app.fitPlay(); app.requestDraw(); });
 
     /* guardado */
     $('btnSave').addEventListener('click', () => {
@@ -382,7 +388,7 @@ RG.ui = (function () {
     $('btnLoad').addEventListener('click', () => {
       const id = $('savedPlays').value;
       if (!id) return toast('No hay jugadas guardadas');
-      if (M.loadPlay(id)) { app.frameIdx = 0; app.time = 0; app.selection = null; app.refreshAll(); toast('Jugada abierta'); }
+      if (M.loadPlay(id)) { app.frameIdx = 0; app.time = 0; app.selection = null; app.setStage(M.state.stage); app.refreshAll(); toast('Jugada abierta'); }
     });
     $('btnDeletePlay').addEventListener('click', async () => {
       const id = $('savedPlays').value;
@@ -407,6 +413,7 @@ RG.ui = (function () {
         try {
           M.load(JSON.parse(rd.result));
           app.frameIdx = 0; app.time = 0; app.selection = null;
+          app.setStage(M.state.stage);
           app.refreshAll(); toast('Jugada importada');
         } catch (err) { toast('Archivo inválido: ' + err.message); }
       };

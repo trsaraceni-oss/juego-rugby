@@ -103,7 +103,17 @@
 
   /* ---------- encuadre automatico sobre la jugada ---------- */
 
+  /* 'field' = cancha completa; 'lineout' = corredor de line-out visto de costado */
+  app.setStage = function (stage) {
+    M.state.stage = stage;
+    view.swap = stage === 'lineout';
+    app.fitPlay();
+    document.querySelectorAll('[data-stage]').forEach((b) => b.classList.toggle('active', b.dataset.stage === stage));
+    app.requestDraw();
+  };
+
   app.fitPlay = function () {
+    if (M.state.stage === 'lineout') return view.fit(RG.field.VIEWS.lineout);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const push = (q) => {
       if (!q) return;
@@ -220,7 +230,7 @@
 
   RG.demos.load('lineout_backs');
   ctx = view.resize();
-  app.fitPlay();
+  app.setStage(M.state.stage);
   app.refreshAll();
 
   if (window.ResizeObserver) new ResizeObserver(resize).observe(document.querySelector('.stage'));

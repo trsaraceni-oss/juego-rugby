@@ -78,15 +78,15 @@ RG.model = (function () {
       name: 'Line-out de 7 (touch izquierda)',
       ballCarrier: 'a2',
       a: {
-        2: [40, 0.6], 1: [38.8, 5.5], 3: [38.8, 8], 4: [38.8, 10.5], 5: [38.8, 13],
-        6: [38.8, 15.5], 7: [38.8, 18], 8: [38.8, 20.5],
-        9: [37.6, 8.5], 10: [34.5, 17], 12: [32, 24], 13: [29.5, 31],
+        2: [40, 0.6], 1: [38.8, 5.5], 3: [38.8, 7], 4: [38.8, 8.5], 5: [38.8, 10],
+        6: [38.8, 11.5], 7: [38.8, 13], 8: [38.8, 14.5],
+        9: [37.4, 9], 10: [34.5, 17], 12: [32, 24], 13: [29.5, 31],
         11: [26, 44], 14: [31, 4.5], 15: [24, 20]
       },
       b: {
-        2: [41.8, 3], 1: [41.2, 5.5], 3: [41.2, 8], 4: [41.2, 10.5], 5: [41.2, 13],
-        6: [41.2, 15.5], 7: [41.2, 18], 8: [41.2, 20.5],
-        9: [42.5, 9], 10: [44.5, 16], 12: [46.5, 24], 13: [48.5, 32],
+        2: [41.8, 2.5], 1: [41.2, 5.5], 3: [41.2, 7], 4: [41.2, 8.5], 5: [41.2, 10],
+        6: [41.2, 11.5], 7: [41.2, 13], 8: [41.2, 14.5],
+        9: [42.6, 9], 10: [44.5, 16], 12: [46.5, 24], 13: [48.5, 32],
         11: [50, 46], 14: [44, 4.5], 15: [52, 22]
       }
     },
@@ -133,12 +133,12 @@ RG.model = (function () {
       only: true,
       ballCarrier: 'a2',
       a: {
-        2: [50, 0.6], 1: [49.4, 5.5], 3: [49.4, 8], 4: [49.4, 10.5], 5: [49.4, 13],
-        6: [49.4, 15.5], 7: [49.4, 18], 8: [49.4, 20.5], 9: [47.6, 9]
+        2: [50, 0.5], 1: [49.5, 5.5], 3: [49.5, 7], 4: [49.5, 8.5], 5: [49.5, 10],
+        6: [49.5, 11.5], 7: [49.5, 13], 8: [49.5, 14.5], 9: [48.2, 9]
       },
       b: {
-        2: [51.8, 3], 1: [51.2, 5.5], 3: [51.2, 8], 4: [51.2, 10.5], 5: [51.2, 13],
-        6: [51.2, 15.5], 7: [51.2, 18], 8: [51.2, 20.5], 9: [53, 9]
+        2: [51.6, 2.5], 1: [50.5, 5.5], 3: [50.5, 7], 4: [50.5, 8.5], 5: [50.5, 10],
+        6: [50.5, 11.5], 7: [50.5, 13], 8: [50.5, 14.5], 9: [51.8, 9]
       }
     },
     unit_scrum: {
@@ -189,6 +189,7 @@ RG.model = (function () {
     name: 'Jugada sin nombre',
     squad: 15,
     lastFormation: 'attack',
+    stage: 'field',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
     players: [],
@@ -495,11 +496,11 @@ RG.model = (function () {
 
   const history = { undo: [], redo: [], limit: 80 };
 
-  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, lastFormation: state.lastFormation, colors: state.colors, players: state.players, frames: state.frames }); }
+  function snapshot() { return JSON.stringify({ name: state.name, squad: state.squad, showB: state.showB, lastFormation: state.lastFormation, stage: state.stage, colors: state.colors, players: state.players, frames: state.frames }); }
 
   function restore(json) {
     const s = JSON.parse(json);
-    state.name = s.name; state.squad = s.squad; state.showB = s.showB; state.lastFormation = s.lastFormation;
+    state.name = s.name; state.squad = s.squad; state.showB = s.showB; state.lastFormation = s.lastFormation; state.stage = s.stage || 'field';
     state.colors = s.colors; state.players = s.players; state.frames = s.frames;
   }
 
@@ -532,7 +533,7 @@ RG.model = (function () {
   function serialize() {
     return {
       v: 1, id: state.id, name: state.name, squad: state.squad, showB: state.showB,
-      colors: state.colors, players: state.players, frames: state.frames, saved: Date.now()
+      colors: state.colors, players: state.players, frames: state.frames, stage: state.stage, saved: Date.now()
     };
   }
 
@@ -542,6 +543,7 @@ RG.model = (function () {
     state.name = data.name || 'Jugada importada';
     state.squad = data.squad || 15;
     state.showB = data.showB !== false;
+    state.stage = data.stage || 'field';
     state.colors = data.colors || { a: '#e8503a', b: '#3f7fe0' };
     state.players = data.players && data.players.length ? data.players : makePlayers(state.squad);
     state.frames = data.frames.map((f) => ({
