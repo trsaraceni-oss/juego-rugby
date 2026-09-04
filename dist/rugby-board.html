@@ -227,6 +227,8 @@ body.presenting .stage{background:#000}
       <select id="presetSelect" title="Formaciones"></select>
       <label class="chk inline" title="Si lo destildás, la formación trae sólo tu equipo"><input type="checkbox" id="optWithB" checked> con rival</label>
       <button id="btnPreset" class="btn">Aplicar</button>
+      <button id="btnSaveFormation" class="btn icon" title="Guardar la posición actual como formación propia">＋</button>
+      <button id="btnDelFormation" class="btn icon danger" title="Borrar la formación propia elegida">🗑</button>
     </div>
     <div class="group">
       <button id="btnUndo" class="btn icon" title="Deshacer (Ctrl+Z)">↶</button>
@@ -817,6 +819,57 @@ RG.model = (function () {
     return Object.keys(FORMATIONS).map((k) => ({ key: k, name: FORMATIONS[k].name, group: FORMATIONS[k].group || 'Otras' }));
   }
 
+  /* ---------- formaciones propias ---------- */
+
+  const FORM_KEY = 'rugbyboard.formations.v1';
+
+  function readUserFormations() {
+    try { return JSON.parse(localStorage.getItem(FORM_KEY) || '{}'); } catch (e) { return {}; }
+  }
+
+  function writeUserFormations(obj) {
+    try { localStorage.setItem(FORM_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  }
+
+  /* las guardadas se suman al catálogo al arrancar */
+  function loadUserFormations() {
+    const store = readUserFormations();
+    for (const k of Object.keys(store)) FORMATIONS[k] = store[k];
+    return Object.keys(store).length;
+  }
+
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  /* toma la posición que hay en pantalla y la convierte en formación */
+  function saveFormation(name, frameIdx) {
+    const fr = frame(frameIdx);
+    const f = {
+      name: name, group: 'Mis formaciones', only: true, user: true,
+      stage: state.stage, note: fr.note || '', ballCarrier: fr.ball.carrier, a: {}, b: {}
+    };
+    for (const p of state.players) {
+      const q = fr.pos[p.id];
+      if (q) f[p.team][p.num] = [round2(q.x), round2(q.y)];
+    }
+    const store = readUserFormations();
+    /* mismo nombre: se reemplaza, para poder corregir una estructura y volver a guardarla */
+    let key = Object.keys(store).find((k) => store[k].name === name);
+    if (!key) key = 'u:' + uid();
+    store[key] = f;
+    FORMATIONS[key] = f;
+    return writeUserFormations(store) ? key : null;
+  }
+
+  function deleteFormation(key) {
+    const store = readUserFormations();
+    if (!store[key]) return false;
+    delete store[key];
+    delete FORMATIONS[key];
+    return writeUserFormations(store);
+  }
+
+  function isUserFormation(key) { return !!(FORMATIONS[key] && FORMATIONS[key].user); }
+
   /* ---------- estado ---------- */
 
   const state = {
@@ -1229,6 +1282,7 @@ RG.model = (function () {
     state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
     blankFrame, frame, frameCount, player, activePlayers, pos,
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
+    loadUserFormations, saveFormation, deleteFormation, isUserFormation,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,
@@ -2658,14 +2712,50 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
+    const ORDEN = ['Mis formaciones', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
-      .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('');
-    presets.innerHTML =
-      '<optgroup label="Jugadas de ejemplo">' +
-      RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-      '</optgroup>' +
-      ORDEN.map((g) => '<optgroup label="' + g + '">' + porGrupo(g) + '</optgroup>').join('');
+      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
+
+    function refreshPresets(sel) {
+      presets.innerHTML =
+        '<optgroup label="Jugadas de ejemplo">' +
+        RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
+        '</optgroup>' +
+        ORDEN.map((g) => {
+          const items = porGrupo(g);
+          return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
+        }).join('');
+      if (sel) presets.value = sel;
+      syncFormationButtons();
+    }
+
+    function syncFormationButtons() {
+      const val = presets.value || '';
+      $('btnDelFormation').disabled = !(val.slice(0, 2) === 'f:' && M.isUserFormation(val.slice(2)));
+    }
+
+    refreshPresets();
+    presets.addEventListener('change', syncFormationButtons);
+
+    $('btnSaveFormation').addEventListener('click', async () => {
+      const sugerido = M.state.name && M.state.name !== 'Jugada sin nombre' ? M.state.name : '';
+      const nombre = await askText('Nombre de la formación (si repetís uno, se reemplaza):', sugerido);
+      if (!nombre) return;
+      const key = M.saveFormation(nombre.trim(), app.frameIdx);
+      if (!key) return toast('No se pudo guardar en este navegador');
+      refreshPresets('f:' + key);
+      toast('Formación guardada en "Mis formaciones"');
+    });
+
+    $('btnDelFormation').addEventListener('click', async () => {
+      const val = presets.value || '';
+      const key = val.slice(2);
+      if (!M.isUserFormation(key)) return;
+      if (!(await askConfirm('¿Borrar la formación "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
+      M.deleteFormation(key);
+      refreshPresets();
+      toast('Formación borrada');
+    });
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
     document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
@@ -3080,6 +3170,7 @@ RG.ui = (function () {
     app.draw();
   }
 
+  M.loadUserFormations();
   RG.ui.init(app);
   RG.input.attach(app);
 

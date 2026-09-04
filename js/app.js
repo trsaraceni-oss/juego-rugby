@@ -227,6 +227,7 @@
     app.draw();
   }
 
+  M.loadUserFormations();
   RG.ui.init(app);
   RG.input.attach(app);
 

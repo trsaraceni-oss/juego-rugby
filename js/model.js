@@ -309,6 +309,57 @@ RG.model = (function () {
     return Object.keys(FORMATIONS).map((k) => ({ key: k, name: FORMATIONS[k].name, group: FORMATIONS[k].group || 'Otras' }));
   }
 
+  /* ---------- formaciones propias ---------- */
+
+  const FORM_KEY = 'rugbyboard.formations.v1';
+
+  function readUserFormations() {
+    try { return JSON.parse(localStorage.getItem(FORM_KEY) || '{}'); } catch (e) { return {}; }
+  }
+
+  function writeUserFormations(obj) {
+    try { localStorage.setItem(FORM_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  }
+
+  /* las guardadas se suman al catálogo al arrancar */
+  function loadUserFormations() {
+    const store = readUserFormations();
+    for (const k of Object.keys(store)) FORMATIONS[k] = store[k];
+    return Object.keys(store).length;
+  }
+
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  /* toma la posición que hay en pantalla y la convierte en formación */
+  function saveFormation(name, frameIdx) {
+    const fr = frame(frameIdx);
+    const f = {
+      name: name, group: 'Mis formaciones', only: true, user: true,
+      stage: state.stage, note: fr.note || '', ballCarrier: fr.ball.carrier, a: {}, b: {}
+    };
+    for (const p of state.players) {
+      const q = fr.pos[p.id];
+      if (q) f[p.team][p.num] = [round2(q.x), round2(q.y)];
+    }
+    const store = readUserFormations();
+    /* mismo nombre: se reemplaza, para poder corregir una estructura y volver a guardarla */
+    let key = Object.keys(store).find((k) => store[k].name === name);
+    if (!key) key = 'u:' + uid();
+    store[key] = f;
+    FORMATIONS[key] = f;
+    return writeUserFormations(store) ? key : null;
+  }
+
+  function deleteFormation(key) {
+    const store = readUserFormations();
+    if (!store[key]) return false;
+    delete store[key];
+    delete FORMATIONS[key];
+    return writeUserFormations(store);
+  }
+
+  function isUserFormation(key) { return !!(FORMATIONS[key] && FORMATIONS[key].user); }
+
   /* ---------- estado ---------- */
 
   const state = {
@@ -721,6 +772,7 @@ RG.model = (function () {
     state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
     blankFrame, frame, frameCount, player, activePlayers, pos,
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
+    loadUserFormations, saveFormation, deleteFormation, isUserFormation,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,

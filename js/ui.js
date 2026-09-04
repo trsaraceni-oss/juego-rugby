@@ -253,14 +253,50 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
+    const ORDEN = ['Mis formaciones', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
-      .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('');
-    presets.innerHTML =
-      '<optgroup label="Jugadas de ejemplo">' +
-      RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-      '</optgroup>' +
-      ORDEN.map((g) => '<optgroup label="' + g + '">' + porGrupo(g) + '</optgroup>').join('');
+      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
+
+    function refreshPresets(sel) {
+      presets.innerHTML =
+        '<optgroup label="Jugadas de ejemplo">' +
+        RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
+        '</optgroup>' +
+        ORDEN.map((g) => {
+          const items = porGrupo(g);
+          return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
+        }).join('');
+      if (sel) presets.value = sel;
+      syncFormationButtons();
+    }
+
+    function syncFormationButtons() {
+      const val = presets.value || '';
+      $('btnDelFormation').disabled = !(val.slice(0, 2) === 'f:' && M.isUserFormation(val.slice(2)));
+    }
+
+    refreshPresets();
+    presets.addEventListener('change', syncFormationButtons);
+
+    $('btnSaveFormation').addEventListener('click', async () => {
+      const sugerido = M.state.name && M.state.name !== 'Jugada sin nombre' ? M.state.name : '';
+      const nombre = await askText('Nombre de la formación (si repetís uno, se reemplaza):', sugerido);
+      if (!nombre) return;
+      const key = M.saveFormation(nombre.trim(), app.frameIdx);
+      if (!key) return toast('No se pudo guardar en este navegador');
+      refreshPresets('f:' + key);
+      toast('Formación guardada en "Mis formaciones"');
+    });
+
+    $('btnDelFormation').addEventListener('click', async () => {
+      const val = presets.value || '';
+      const key = val.slice(2);
+      if (!M.isUserFormation(key)) return;
+      if (!(await askConfirm('¿Borrar la formación "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
+      M.deleteFormation(key);
+      refreshPresets();
+      toast('Formación borrada');
+    });
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
     document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {

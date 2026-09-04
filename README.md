@@ -50,6 +50,12 @@ lado ciego, contraataque desde patada) y las posiciones de partido, agrupadas:
 
 Cada una deja su descripción en la nota del primer frame. Cargar una reemplaza la jugada actual.
 
+**Formaciones propias**: el botón `＋` al lado de *Aplicar* guarda la posición que hay en pantalla
+como formación, en el grupo *Mis formaciones* del mismo selector. Repetir el nombre reemplaza la
+anterior, así una estructura se corrige aplicándola, moviendo jugadores y volviéndola a guardar.
+El `🗑` de al lado borra la propia que esté elegida; las de fábrica no se tocan. Viven en el
+navegador (`localStorage`), igual que las jugadas guardadas.
+
 Los lados se nombran desde el equipo propio, que ataca hacia `x` creciente: *izquierda* es la
 touch de `y = 0` y *derecha* la de `y = 70`. Un scrum "de izquierda a derecha" está sobre la touch
 izquierda con el campo abierto hacia la derecha.
