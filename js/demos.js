@@ -37,7 +37,7 @@ RG.demos = (function () {
   const PLAYS = {
     lineout_backs: {
       name: 'Line-out: salto de 5 y juego de backs',
-      formation: 'lineout',
+      formation: 'lineout_field',
       note: 'Line-out de 7 en la touch izquierda',
       steps: [
         {
@@ -78,7 +78,7 @@ RG.demos = (function () {
 
     scrum_blindside: {
       name: 'Scrum: ciego del 8 con el 9 y el wing',
-      formation: 'scrum',
+      formation: 'scrum_mid',
       note: 'Scrum propio en mitad de cancha',
       steps: [
         {

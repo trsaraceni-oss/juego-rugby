@@ -38,9 +38,21 @@ guarda solo la posición de partida.
 (`Esc` sale). La rueda del mouse hace zoom.
 
 **Formaciones y ejemplos**: el selector de arriba trae tres jugadas armadas (line-out, scrum al
-lado ciego, contraataque desde patada), seis formaciones completas (ataque en fase, scrum,
-line-out, salida, defensa en 22, equipos alineados) y cuatro parciales para trabajar una unidad
-sola: line-out, scrum, línea de tres cuartos y cancha vacía. Cargar una reemplaza la jugada actual.
+lado ciego, contraataque desde patada) y las posiciones de partido, agrupadas:
+
+| Grupo | Formaciones |
+|---|---|
+| Salidas | mitad de cancha a favor y en contra, 22 a favor y en contra |
+| Scrums | de izquierda a derecha, de derecha a izquierda, en mitad de cancha |
+| Line-outs | line de 7, de 5 y de 4 (abren el escenario de line-out) |
+| Estructuras | canal 3 Fuego, canal 3 Agua |
+| Otras | ataque en fase, defensa en 22, line-out con backs, línea de tres cuartos sola, equipos alineados, cancha vacía |
+
+Cada una deja su descripción en la nota del primer frame. Cargar una reemplaza la jugada actual.
+
+Los lados se nombran desde el equipo propio, que ataca hacia `x` creciente: *izquierda* es la
+touch de `y = 0` y *derecha* la de `y = 70`. Un scrum "de izquierda a derecha" está sobre la touch
+izquierda con el campo abierto hacia la derecha.
 
 **Sin rival**: destildando *Con equipo rival* la formación que apliques trae sólo tu equipo, y el
 rival que hubiera sale de la cancha. Volviendo a tildarlo reaparece según la última formación.

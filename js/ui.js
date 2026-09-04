@@ -253,16 +253,14 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
+    const ORDEN = ['Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
+    const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
+      .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('');
     presets.innerHTML =
       '<optgroup label="Jugadas de ejemplo">' +
       RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-      '</optgroup><optgroup label="Formaciones completas">' +
-      M.formationList().filter((f) => !M.FORMATIONS[f.key].only)
-        .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
-      '</optgroup><optgroup label="Una unidad sola">' +
-      M.formationList().filter((f) => M.FORMATIONS[f.key].only)
-        .map((f) => '<option value="f:' + f.key + '">' + f.name + '</option>').join('') +
-      '</optgroup>';
+      '</optgroup>' +
+      ORDEN.map((g) => '<optgroup label="' + g + '">' + porGrupo(g) + '</optgroup>').join('');
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
     document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
@@ -295,8 +293,7 @@ RG.ui = (function () {
       M.state.name = 'Jugada sin nombre';
       app.frameIdx = 0; app.time = 0;
       M.applyFormation(key, 0, $('optWithB').checked);
-      if (key === 'unit_lineout') app.setStage('lineout');
-      else if (M.state.stage !== 'field') app.setStage('field');
+      app.setStage((M.FORMATIONS[key] && M.FORMATIONS[key].stage) || 'field');
       app.selection = null;
       app.fitPlay();
       app.refreshAll();
