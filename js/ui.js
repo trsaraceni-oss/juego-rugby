@@ -38,6 +38,7 @@ RG.ui = (function () {
         '<p>' + escapeAttr(opts.message) + '</p>' + field +
         '<div class="modal-actions">' +
         (opts.kind === 'copy' ? '' : '<button class="btn" id="mdNo">' + (opts.cancel || 'Cancelar') + '</button>') +
+        (opts.alt ? '<button class="btn" id="mdAlt">' + opts.alt + '</button>' : '') +
         '<button class="btn primary" id="mdYes">' + (opts.ok || 'Aceptar') + '</button>' +
         '</div></div>';
       document.body.appendChild(back);
@@ -51,6 +52,8 @@ RG.ui = (function () {
       }
       document.addEventListener('keydown', onKey, true);
       back.querySelector('#mdYes').addEventListener('click', accept);
+      const alt = back.querySelector('#mdAlt');
+      if (alt) alt.addEventListener('click', () => close('alt'));
       const no = back.querySelector('#mdNo');
       if (no) no.addEventListener('click', () => close(opts.kind === 'text' ? null : false));
       back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(opts.kind === 'text' ? null : false); });
@@ -59,6 +62,7 @@ RG.ui = (function () {
   }
 
   const askConfirm = (message, ok) => dialog({ message, ok: ok || 'Sí, seguir' });
+  const askChoice = (message, ok, alt) => dialog({ message, ok, alt });
   const askText = (message, value) => dialog({ kind: 'text', message, value, ok: 'Agregar' });
   const showCopy = (message, value) => dialog({ kind: 'copy', message, value, ok: 'Listo' });
 
@@ -453,6 +457,39 @@ RG.ui = (function () {
       rd.readAsText(file);
       e.target.value = '';
     });
+    $('btnVideo').addEventListener('click', async () => {
+      const btn = $('btnVideo');
+      if (!RG.video.supported()) return toast('Este navegador no puede grabar video: probá con Chrome');
+      if (M.frameCount() < 2) return toast('Agregá al menos un frame más: el video anima entre frames');
+      app.stop();
+      M.state.name = $('playName').value.trim() || 'Jugada sin nombre';
+
+      const guardadas = M.listPlays();
+      let ids = null;
+      if (guardadas.length > 1) {
+        const r = await askChoice(
+          'Podés grabar sólo esta jugada o encadenar las ' + guardadas.length + ' guardadas en un video.',
+          'Sólo esta', 'Las ' + guardadas.length + ' guardadas');
+        if (r === false || r === null) return;
+        if (r === 'alt') ids = guardadas.map((g) => g.id).reverse();
+      }
+
+      const original = btn.textContent;
+      btn.disabled = true;
+      toast(ids ? 'Grabando ' + ids.length + ' jugadas, no cierres la pestaña' : 'Grabando la jugada, no cierres la pestaña');
+      try {
+        const out = await RG.video.record(app, (p) => { btn.textContent = Math.round(p * 100) + '%'; }, ids);
+        const name = slug(ids ? 'jugadas-' + M.state.squad + 'v' : M.state.name) + '.' + out.ext;
+        const ok = await saveFile(name, out.mime, out.blob);
+        if (ids) { app.frameIdx = 0; app.time = 0; app.setStage(M.state.stage); app.refreshAll(); refreshSaved(); }
+        toast(ok ? 'Video listo: ' + name : 'No se pudo guardar el video');
+      } catch (e) {
+        toast('No se pudo grabar: ' + (e && e.message ? e.message : 'error'));
+      }
+      btn.disabled = false;
+      btn.textContent = original;
+    });
+
     $('btnPng').addEventListener('click', () => {
       app.canvas.toBlob(async (blob) => {
         if (!blob) return toast('No se pudo generar la imagen');
@@ -478,5 +515,5 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, askConfirm, askText, showCopy, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();

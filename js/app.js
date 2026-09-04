@@ -113,8 +113,9 @@
     app.requestDraw();
   };
 
-  app.fitPlay = function () {
-    if (M.state.stage === 'lineout') return view.fit(RG.field.VIEWS.lineout);
+  /* rectángulo del mundo que contiene toda la jugada, con margen */
+  app.playBox = function () {
+    if (M.state.stage === 'lineout') return RG.field.VIEWS.lineout;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const push = (q) => {
       if (!q) return;
@@ -127,13 +128,15 @@
       for (const id of Object.keys(fr.routes)) for (const q of fr.routes[id].pts) push(q);
       for (const a of fr.ann) a.type === 'arrow' ? a.pts.forEach(push) : push(a);
     }
-    if (!isFinite(x0)) return view.fit(RG.field.VIEWS.full);
+    if (!isFinite(x0)) return RG.field.VIEWS.full;
     const pad = 8;
-    view.fit({
+    return {
       x0: Math.max(-12, x0 - pad), y0: Math.max(-2, y0 - pad),
       x1: Math.min(112, x1 + pad), y1: Math.min(72, y1 + pad)
-    });
+    };
   };
+
+  app.fitPlay = function () { view.fit(app.playBox()); };
 
   /* ---------- modo presentacion ---------- */
 
