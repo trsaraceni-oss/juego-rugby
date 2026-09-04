@@ -12,7 +12,7 @@ RG.render = (function () {
     block: { dash: [], width: 0.34, head: false }
   };
 
-  function playerRadius(v) { return G.clamp(0.72 * v.scale, 9, 30); }
+  function playerRadius(v) { return G.clamp(0.72 * v.scale, 9, 34); }
 
   function strokePath(ctx, v, pts, color, kind, alpha, progress) {
     if (!pts || pts.length < 2) return;
@@ -139,7 +139,7 @@ RG.render = (function () {
 
   function drawBall(ctx, v, at) {
     const s = v.toScreen(at);
-    const rx = Math.max(6, 0.78 * v.scale), ry = rx * 0.64;
+    const rx = G.clamp(0.78 * v.scale, 6, 24), ry = rx * 0.64;
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(-0.5);

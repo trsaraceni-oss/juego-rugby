@@ -1299,7 +1299,7 @@ RG.field = (function () {
     attack: { x0: 48, y0: -2, x1: 113, y1: 72 },
     mid: { x0: 18, y0: -2, x1: 82, y1: 72 },
     defend: { x0: -13, y0: -2, x1: 52, y1: 72 },
-    lineout: { x0: 36, y0: -4.5, x1: 64, y1: 23 }
+    lineout: { x0: 44.5, y0: -2.6, x1: 55.5, y1: 16.3 }
   };
 
   function createView(canvas) {
@@ -1476,71 +1476,83 @@ RG.field = (function () {
   /* ---------- escenario de line-out ---------- */
 
   function drawLineoutStage(ctx, v, o) {
-    const win = VIEWS.lineout;
-    const lw = Math.max(1.4, 0.14 * v.scale);
+    /* se dibuja sobre todo lo que entra en pantalla, no sobre un recuadro fijo,
+       así el fondo acompaña cualquier zoom */
+    const c0 = v.toWorld({ x: 0, y: 0 }), c1 = v.toWorld({ x: v.w, y: v.h });
+    const vis = {
+      x0: Math.min(c0.x, c1.x), x1: Math.max(c0.x, c1.x),
+      y0: Math.min(c0.y, c1.y), y1: Math.max(c0.y, c1.y)
+    };
+    const lw = Math.max(1.4, 0.1 * v.scale);
+    const grassTop = Math.max(0, vis.y0);
 
-    /* pasto a lo ancho de la ventana, con franjas de corte cada 5 m de cancha */
-    for (let x = Math.floor(win.x0 / 5) * 5; x < win.x1 + 5; x += 5) {
-      box(ctx, v, x, 0, x + 5, win.y1 + 4, (Math.round(x / 5) % 2 === 0) ? '#2a7a48' : '#26703f');
+    /* pasto, con franjas de corte cada 5 m de cancha */
+    for (let x = Math.floor(vis.x0 / 5) * 5; x < vis.x1 + 5; x += 5) {
+      box(ctx, v, x, grassTop, x + 5, vis.y1, (Math.round(x / 5) % 2 === 0) ? '#2a7a48' : '#26703f');
     }
     /* afuera de la línea de touch */
-    box(ctx, v, win.x0 - 5, win.y0 - 4, win.x1 + 5, 0, '#182029');
+    if (vis.y0 < 0) box(ctx, v, vis.x0, vis.y0, vis.x1, 0, '#182029');
 
-    /* líneas transversales de la cancha que caigan en la ventana */
-    ctx.strokeStyle = 'rgba(255,255,255,.5)';
-    ctx.lineWidth = Math.max(1, 0.1 * v.scale);
+    /* corredor válido: de 5 m a 15 m de la touch */
+    box(ctx, v, vis.x0, F.y5, vis.x1, F.y15, 'rgba(255,255,255,.05)');
+
+    /* líneas transversales de la cancha que caigan en pantalla */
+    ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    ctx.lineWidth = Math.max(1, 0.08 * v.scale);
     for (const [x, t, dash] of [[F.x22A, '22 m', false], [F.x10A, '10 m', true], [F.xHalf, 'Mitad', false],
-                                [F.x10B, '10 m', true], [F.x22B, '22 m', false]]) {
-      if (x < win.x0 - 1 || x > win.x1 + 1) continue;
+                                [F.x10B, '10 m', true], [F.x22B, '22 m', false], [F.xTryA, 'Try', false], [F.xTryB, 'Try', false]]) {
+      if (x < vis.x0 || x > vis.x1) continue;
       ctx.setLineDash(dash ? [0.8 * v.scale, 0.7 * v.scale] : []);
-      line(ctx, v, x, 0, x, win.y1 + 4);
-      tag(ctx, v, x, win.y1 + 1, t, { px: 11, align: 'right', dx: -8, color: 'rgba(255,255,255,.45)', weight: '' });
+      line(ctx, v, x, grassTop, x, vis.y1);
+      tag(ctx, v, x, vis.y1, t, { px: 11, align: 'right', dx: -10, dy: -10, color: 'rgba(255,255,255,.5)', weight: '' });
     }
     ctx.setLineDash([]);
 
     /* línea de touch */
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = lw * 1.4;
-    line(ctx, v, win.x0 - 5, 0, win.x1 + 5, 0);
+    ctx.lineWidth = lw * 1.5;
+    line(ctx, v, vis.x0, 0, vis.x1, 0);
 
-    /* marcas de un metro sobre la touch: ubican a cada saltador */
-    ctx.strokeStyle = 'rgba(255,255,255,.5)';
-    ctx.lineWidth = 1;
+    /* marcas de un metro: ubican a cada saltador respecto de la touch.
+       Se anclan al borde superior de la pantalla, que corre sobre el eje del campo. */
+    const tickX = vis.x0 + (vis.x1 - vis.x0) * 0.03;
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    for (let y = 1; y <= 20; y++) {
+    for (let y = 1; y <= 25; y++) {
+      if (y < vis.y0 || y > vis.y1) continue;
       const long = y % 5 === 0;
-      const a = v.toScreen({ x: win.x0 + 0.4, y: y }), b = v.toScreen({ x: win.x0 + (long ? 1.8 : 1.1), y: y });
-      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      const a = v.toScreen({ x: tickX, y: y });
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(a.x, a.y + (long ? 16 : 9));
     }
     ctx.stroke();
 
-    /* corredor válido: de 5 m a 15 m de la touch */
-    box(ctx, v, win.x0 - 5, F.y5, win.x1 + 5, F.y15, 'rgba(255,255,255,.06)');
+    /* 5 m y 15 m */
     ctx.strokeStyle = 'rgba(255,255,255,.92)';
     ctx.lineWidth = lw;
     ctx.setLineDash([1.1 * v.scale, 0.9 * v.scale]);
-    line(ctx, v, win.x0 - 5, F.y5, win.x1 + 5, F.y5);
-    line(ctx, v, win.x0 - 5, F.y15, win.x1 + 5, F.y15);
+    line(ctx, v, vis.x0, F.y5, vis.x1, F.y5);
+    line(ctx, v, vis.x0, F.y15, vis.x1, F.y15);
     ctx.setLineDash([]);
 
-    /* pasillo de un metro entre las dos filas, en el eje del line-out */
-    ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    /* eje del line-out */
+    ctx.strokeStyle = 'rgba(255,255,255,.2)';
     ctx.lineWidth = 1;
-    ctx.setLineDash([2, 4]);
-    line(ctx, v, 50, 0, 50, 20);
+    ctx.setLineDash([2, 5]);
+    line(ctx, v, F.xHalf, 0, F.xHalf, F.y15 + 4);
     ctx.setLineDash([]);
 
     if (o.grid) {
       ctx.strokeStyle = 'rgba(255,255,255,.07)';
       ctx.lineWidth = 1;
-      for (let y = 0; y <= 22; y++) line(ctx, v, win.x0, y, win.x1, y);
-      for (let x = Math.ceil(win.x0); x <= win.x1; x++) line(ctx, v, x, 0, x, 22);
+      for (let y = Math.ceil(vis.y0); y <= vis.y1; y++) line(ctx, v, vis.x0, y, vis.x1, y);
+      for (let x = Math.ceil(vis.x0); x <= vis.x1; x++) line(ctx, v, x, grassTop, x, vis.y1);
     }
 
-    tag(ctx, v, win.x0 + 0.6, F.y5, '5 m', { px: 13, align: 'center', dy: 14, box: true });
-    tag(ctx, v, win.x0 + 0.6, F.y15, '15 m', { px: 13, align: 'center', dy: 14, box: true });
-    tag(ctx, v, win.x0 + 0.6, -2.2, 'TOUCH', { px: 11, align: 'center', dy: 14, color: 'rgba(255,255,255,.55)', weight: '' });
-    tag(ctx, v, win.x1 - 0.6, 10, 'corredor de line-out', { px: 11, align: 'center', dy: -10, color: 'rgba(255,255,255,.35)', weight: '' });
+    tag(ctx, v, tickX, F.y5, '5 m', { px: 13, dy: 30, box: true });
+    tag(ctx, v, tickX, F.y15, '15 m', { px: 13, dy: 30, box: true });
+    if (vis.y0 < -0.5) tag(ctx, v, tickX, vis.y0, 'TOUCH', { px: 11, align: 'left', dx: 8, dy: 30, color: 'rgba(255,255,255,.6)', weight: '' });
   }
 
   function draw(ctx, v, opts) {
@@ -1571,7 +1583,7 @@ RG.render = (function () {
     block: { dash: [], width: 0.34, head: false }
   };
 
-  function playerRadius(v) { return G.clamp(0.72 * v.scale, 9, 30); }
+  function playerRadius(v) { return G.clamp(0.72 * v.scale, 9, 34); }
 
   function strokePath(ctx, v, pts, color, kind, alpha, progress) {
     if (!pts || pts.length < 2) return;
@@ -1698,7 +1710,7 @@ RG.render = (function () {
 
   function drawBall(ctx, v, at) {
     const s = v.toScreen(at);
-    const rx = Math.max(6, 0.78 * v.scale), ry = rx * 0.64;
+    const rx = G.clamp(0.78 * v.scale, 6, 24), ry = rx * 0.64;
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(-0.5);
