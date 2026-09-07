@@ -232,6 +232,7 @@
 
   M.loadUserFormations();
   RG.ui.init(app);
+  if (RG.account) RG.account.init();
   RG.input.attach(app);
 
   M.newPlay(15, 'kickoff_for');
