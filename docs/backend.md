@@ -1,0 +1,80 @@
+# Cuentas de entrenador: cómo montar el backend
+
+La app hoy guarda todo en el navegador. Para que cada entrenador tenga su cuenta hace falta un
+servidor. Estas instrucciones montan uno con Supabase, que trae base de datos, login y permisos en
+el mismo lugar y no requiere mantener infraestructura. El plan gratis alcanza de sobra para varios
+clubes.
+
+Son unos quince minutos. Al terminar, pasame los dos valores del paso 5 y conecto la app.
+
+## 1. Crear el proyecto
+
+En [supabase.com](https://supabase.com) entrá con tu cuenta de GitHub o tu mail y creá un proyecto
+nuevo. Elegí la región **South America (São Paulo)**, que es la más cercana. Anotá la contraseña de
+la base que te pide: no la usa la app, pero la vas a necesitar si algún día entrás por fuera.
+
+## 2. Instalar el esquema
+
+En el panel del proyecto, **SQL Editor** → **New query**. Pegá el contenido completo de
+[`db/schema.sql`](../db/schema.sql) y apretá **Run**. Tiene que decir *Success*.
+
+Eso crea las tablas (clubes, equipos, entrenadores, set ups, jugadas) y las reglas de acceso:
+
+- Cada entrenador ve y edita **sus** set ups y jugadas, siempre.
+- Ve los de otros **sólo** si están compartidos a un equipo del que también forma parte.
+- Nadie puede modificar ni borrar lo de otro, aunque lo vea.
+- Dos entrenadores pueden tener cada uno su versión del mismo set up base sin pisarse.
+
+Está probado contra Postgres, no sólo escrito: se simularon dos entrenadores del mismo club y se
+verificó cada uno de esos cuatro puntos.
+
+## 3. Configurar la entrada por link de mail
+
+**Authentication** → **Providers** → **Email**. Dejá *Enable Email provider* activado y
+**desactivá** *Confirm password* / *Enable password sign-up*: sin contraseñas, sólo el link.
+
+En **Authentication** → **URL Configuration**, poné en *Site URL* la dirección donde va a vivir la
+app (mientras probamos, `http://localhost:8123`; después la definitiva) y agregá esa misma
+dirección en *Redirect URLs*.
+
+Con el plan gratis, Supabase manda los mails desde su propio servidor con un límite de unos pocos
+por hora, suficiente para probar. Cuando lo abras al club conviene conectar un servicio de mail
+propio (Resend tiene plan gratis) para que no se demoren.
+
+## 4. Crear tu club
+
+No hace falta tocar la base: la primera vez que entres a la app te va a ofrecer crear el club y te
+va a dar un **código de seis caracteres**. Ese código se lo pasás a Yanina y a Nico, ellos entran
+con su mail y quedan dentro del club.
+
+Los equipos (Primera, M19, lo que uses) se crean desde la app. El que crea el club queda como
+dueño; el resto entra como entrenador.
+
+## 5. Pasarme las credenciales
+
+**Project Settings** → **API**. Copiame:
+
+- **Project URL** (algo como `https://abcdefgh.supabase.co`)
+- **anon public** key (la clave larga que dice `anon`)
+
+Esas dos van en el código de la app, a la vista de cualquiera, y está bien: son públicas por
+diseño. Lo que protege los datos son las reglas del paso 2, que se aplican en el servidor. La clave
+que **no** hay que compartir nunca es la `service_role`, que saltea todas las reglas.
+
+## 6. Dónde va a vivir la app
+
+Supabase guarda los datos, pero la app en sí necesita una dirección web. Dos opciones, las dos
+gratis:
+
+- **GitHub Pages**: Settings → Pages → rama `main`, carpeta raíz. Queda en
+  `trsaraceni-oss.github.io/juego-rugby`. Requiere que el repositorio esté publicado, y para eso
+  falta el acceso de escritura.
+- **Vercel** o **Netlify**: se conectan al repositorio y publican solos en cada cambio. Permiten
+  usar un dominio propio si algún día querés uno.
+
+Cualquiera sirve. GitHub Pages es un paso menos.
+
+## Qué pasa con lo que ya tenés guardado
+
+Nada se pierde. Al entrar con tu cuenta por primera vez, la app va a ofrecer subir los set ups y
+jugadas que tengas en ese navegador. Los que no subas siguen ahí, en esa máquina, como hasta ahora.

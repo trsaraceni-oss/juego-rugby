@@ -161,8 +161,19 @@ textos siguen derechos y el modelo sigue trabajando en metros de cancha.
 }
 ```
 
+## Cuentas de entrenador
+
+Los set ups y las jugadas viven hoy en el navegador de cada máquina. `db/schema.sql` tiene el
+esquema de la base para que cada entrenador tenga su cuenta: clubes con equipos, set ups y jugadas
+propios de cada uno, y la opción de compartirlos al equipo. Las reglas de acceso están probadas
+contra Postgres: cada entrenador ve y edita lo suyo, ve lo compartido de sus equipos y no puede
+tocar lo ajeno. Los pasos para montarlo están en [docs/backend.md](docs/backend.md).
+
 ## Para seguir
 
-Ideas que quedaron afuera y son fáciles de sumar sobre esta base: exportar la animación a video o
-GIF, biblioteca de jugadas compartida, medir distancias y tiempos sobre la cancha, vista vertical,
-y jugadores con velocidad propia para simular llegadas en vez de interpolar por tiempo fijo.
+Lo próximo, en orden: conectar la app a las cuentas de entrenador, y después el modo joystick, con
+los jugadores entrando desde el teléfono con un código de sala para mover su ficha y comparar el
+recorrido que hicieron contra el de la jugada.
+
+Otras ideas anotadas: medir distancias y tiempos sobre la cancha, vista vertical, y jugadores con
+velocidad propia para simular llegadas en vez de interpolar por tiempo fijo.
