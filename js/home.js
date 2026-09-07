@@ -7,8 +7,9 @@ RG.home = (function () {
   const C = RG.cloud;
   const M = RG.model;
   const SIN_CUENTA = 'rugbyboard.sinCuenta';
+  const CODIGO_PENDIENTE = 'rugbyboard.codigoPendiente';
 
-  let app = null, root = null, pendiente = null, cargando = true;
+  let app = null, root = null, pendiente = null, cargando = true, errorCodigo = null;
   let estado = { user: null, clubs: [], club: null, teams: [], members: [] };
 
   const esc = (s) => String(s == null ? '' : s)
@@ -19,6 +20,18 @@ RG.home = (function () {
   async function refrescar() {
     estado.user = await C.session();
     estado.clubs = estado.user ? await C.myClubs() : [];
+
+    /* el código que puso al entrar: se aplica al volver del link */
+    const codigo = estado.user ? localStorage.getItem(CODIGO_PENDIENTE) : null;
+    if (codigo) {
+      localStorage.removeItem(CODIGO_PENDIENTE);
+      try {
+        const club = await C.joinClub(codigo);
+        localStorage.setItem('rugbyboard.club', club.id);
+        estado.clubs = await C.myClubs();
+      } catch (e) { errorCodigo = e && e.message ? e.message : 'No se pudo usar el código'; }
+    }
+
     const guardado = localStorage.getItem('rugbyboard.club');
     estado.club = estado.clubs.find((c) => c.id === guardado) || estado.clubs[0] || null;
     estado.teams = estado.club ? await C.teams(estado.club.id) : [];
@@ -60,6 +73,8 @@ RG.home = (function () {
       '<div id="hmForm" class="hm-form">' +
       '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email"></label>' +
       '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+      '<label>Código del club <span class="hm-opt">(si te invitaron)</span>' +
+      '<input type="text" id="hmJoinCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>' +
       '<button class="btn primary big" id="hmGo">Entrar</button>' +
       '</div>' +
       (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
@@ -73,6 +88,9 @@ RG.home = (function () {
       '<h2>Revisá tu mail</h2>' +
       '<p class="hm-lead">Te mandamos un link a <b>' + esc(pendiente) + '</b>. Abrilo desde este ' +
       'mismo dispositivo y volvés a la app con tu cuenta lista.</p>' +
+      (localStorage.getItem(CODIGO_PENDIENTE)
+        ? '<p class="hm-note">Cuando vuelvas te sumamos al club del código <b>' +
+          esc(localStorage.getItem(CODIGO_PENDIENTE)) + '</b>.</p>' : '') +
       '<p class="hm-note">Si no llega en un par de minutos, mirá en spam. El link sirve una sola vez.</p>' +
       '<button class="btn" id="hmBack">Usar otro mail</button>' +
       '</div>';
@@ -186,6 +204,7 @@ RG.home = (function () {
     else if (localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaInicio();
     else cuerpo.innerHTML = vistaEntrar();
     enganchar();
+    if (errorCodigo) { aviso(errorCodigo); errorCodigo = null; }
   }
 
   function aviso(msg) {
@@ -219,6 +238,9 @@ RG.home = (function () {
     }
 
     accion('#hmForm', '#hmGo', () => correr(async () => {
+      const codigo = (q('#hmJoinCode') ? q('#hmJoinCode').value : '').trim().toUpperCase();
+      if (codigo) localStorage.setItem(CODIGO_PENDIENTE, codigo);
+      else localStorage.removeItem(CODIGO_PENDIENTE);
       const r = await C.signIn(q('#hmEmail').value, q('#hmName').value);
       pendiente = r && r.pending ? r.email : null;
     }));
