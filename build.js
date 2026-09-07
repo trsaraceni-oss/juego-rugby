@@ -13,6 +13,20 @@ const args = process.argv.slice(2);
 const fragment = args.includes('--fragment');
 const out = args.filter((a) => !a.startsWith('--'))[0] || (fragment ? 'dist/rugby-board.fragment.html' : 'dist/rugby-board.html');
 
+/* Sella los scripts y estilos con la fecha del build: sin esto, el navegador
+   sigue sirviendo del caché los archivos viejos cuando se publica una versión. */
+function sellar() {
+  const version = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
+  const p = path.join(ROOT, 'index.html');
+  const original = fs.readFileSync(p, 'utf8');
+  const sellado = original
+    .replace(/(src="js\/[a-z0-9-]+\.js)(\?v=\d+)?"/g, '$1?v=' + version + '"')
+    .replace(/(href="css\/[a-z0-9-]+\.css)(\?v=\d+)?"/g, '$1?v=' + version + '"');
+  if (sellado !== original) fs.writeFileSync(p, sellado);
+  return version;
+}
+
+const version = sellar();
 const html = read('index.html');
 const css = read('css/app.css');
 const js = SCRIPTS.map((f) => '/* ===== ' + f + ' ===== */\n' + read(f)).join('\n');
@@ -34,4 +48,4 @@ const doc = fragment
 const dest = path.resolve(ROOT, out);
 fs.mkdirSync(path.dirname(dest), { recursive: true });
 fs.writeFileSync(dest, doc);
-console.log(out + ' — ' + Math.round(doc.length / 1024) + ' KB');
+console.log(out + ' — ' + Math.round(doc.length / 1024) + ' KB · versión ' + version);
