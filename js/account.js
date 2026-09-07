@@ -6,7 +6,7 @@ window.RG = window.RG || {};
 RG.account = (function () {
   const C = RG.cloud;
   let estado = { user: null, clubs: [], club: null, teams: [], members: [] };
-  let root = null, cerrar = null;
+  let root = null, cerrar = null, pendiente = null;
 
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -42,6 +42,16 @@ RG.account = (function () {
       (C.configured() ? '<p class="ac-note">Te llega un link al mail para entrar, sin contraseña.</p>'
         : '<p class="ac-note ac-warn">Todavía no hay servidor conectado: esto corre simulado en tu ' +
           'navegador, para probar la pantalla. Los datos no salen de esta máquina.</p>');
+  }
+
+  /* con servidor real la sesión llega recién cuando abre el link del mail */
+  function vistaPendiente() {
+    return '' +
+      '<h2>Revisá tu mail</h2>' +
+      '<p class="ac-lead">Te mandamos un link a <b>' + esc(pendiente) + '</b>. Abrilo desde este mismo ' +
+      'dispositivo y volvés directo a la app, ya con tu cuenta.</p>' +
+      '<p class="ac-note">Si no llega en un par de minutos, mirá en spam. El link vale una sola vez.</p>' +
+      '<div class="ac-foot"><span class="grow"></span><button class="btn" id="acBack">Usar otro mail</button></div>';
   }
 
   function vistaSinClub() {
@@ -110,7 +120,8 @@ RG.account = (function () {
 
   function pintar() {
     const cuerpo = root.querySelector('.ac-body');
-    cuerpo.innerHTML = !estado.user ? vistaEntrar() : (!estado.club ? vistaSinClub() : vistaClub());
+    cuerpo.innerHTML = estado.user ? (estado.club ? vistaClub() : vistaSinClub())
+      : (pendiente ? vistaPendiente() : vistaEntrar());
     enganchar();
   }
 
@@ -144,7 +155,13 @@ RG.account = (function () {
       }));
     }
 
-    accion('#acForm', '#acGo', () => correr(() => C.signIn(q('#acEmail').value, q('#acName').value)));
+    accion('#acForm', '#acGo', () => correr(async () => {
+      const r = await C.signIn(q('#acEmail').value, q('#acName').value);
+      pendiente = r && r.pending ? r.email : null;
+    }));
+
+    const volver = q('#acBack');
+    if (volver) volver.addEventListener('click', () => { pendiente = null; pintar(); });
 
     accion('#acNewClub', '#acCreate', () => correr(async () => {
       const club = await C.createClub(q('#acClubName').value, q('#acTeamName').value);
@@ -172,7 +189,7 @@ RG.account = (function () {
     });
 
     const salir = q('#acOut');
-    if (salir) salir.addEventListener('click', () => correr(() => C.signOut()));
+    if (salir) salir.addEventListener('click', () => correr(async () => { pendiente = null; await C.signOut(); }));
 
     const codigo = q('#acCodeBox');
     if (codigo) codigo.addEventListener('click', () => {
@@ -230,6 +247,18 @@ RG.account = (function () {
   async function init() {
     const btn = document.getElementById('btnAccount');
     if (btn) btn.addEventListener('click', abrir);
+
+    /* Si la app ya estaba abierta, volver del link del mail sólo cambia el # de
+       la dirección y el navegador no recarga: hay que tomar la sesión igual. */
+    window.addEventListener('hashchange', async () => {
+      if ((location.hash || '').indexOf('access_token=') < 0) return;
+      pendiente = null;
+      await refrescar();
+      actualizarBoton();
+      if (root) pintar();
+      else if (estado.user) abrir();
+    });
+
     await refrescar();
     actualizarBoton();
   }

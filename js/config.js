@@ -1,10 +1,9 @@
-/* config.js - conexión al servidor de cuentas.
-   Mientras esté vacío, la app trabaja sola en este navegador y la pantalla de
-   cuenta corre contra un backend simulado. Al pegar los dos valores del proyecto
-   de Supabase (docs/backend.md, paso 5) pasa a trabajar contra el servidor.
-   Las dos claves son públicas por diseño: lo que protege los datos son las
-   reglas de acceso de db/schema.sql. */
+/* config.js - conexión al servidor de cuentas (Supabase).
+   Las dos claves son públicas por diseño: van en el navegador y cualquiera que
+   abra la app las puede leer. Lo que protege los datos son las reglas de acceso
+   de db/schema.sql, que corren en el servidor. La clave secreta del proyecto no
+   va acá ni en ningún archivo del repositorio. */
 window.RG_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: ''
+  supabaseUrl: 'https://yjopnvjopdjulzuiijbr.supabase.co',
+  supabaseAnonKey: 'sb_publishable_4Z9d98Ba5dqF9btfGMapQg_layo9EHG'
 };

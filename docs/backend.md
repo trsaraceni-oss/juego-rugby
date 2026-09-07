@@ -28,6 +28,15 @@ Eso crea las tablas (clubes, equipos, entrenadores, set ups, jugadas) y las regl
 Está probado contra Postgres, no sólo escrito: se simularon dos entrenadores del mismo club y se
 verificó cada uno de esos cuatro puntos.
 
+## 2b. Correr la corrección
+
+Al escribir la pantalla de cuerpo técnico aparecieron dos faltantes del esquema inicial: el perfil
+no guardaba el mail (está en `auth.users`, que el navegador no puede leer) y cada entrenador sólo
+veía su propio perfil, así que la lista del club salía sin nombres.
+
+Repetí el paso anterior con [`db/migration-1.sql`](../db/migration-1.sql): **SQL Editor** → **New
+query** → pegar → **Run**. Se puede correr más de una vez sin romper nada.
+
 ## 3. Configurar la entrada por link de mail
 
 **Authentication** → **Providers** → **Email**. Dejá *Enable Email provider* activado y
