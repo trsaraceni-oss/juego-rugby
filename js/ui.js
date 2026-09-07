@@ -400,9 +400,18 @@ RG.ui = (function () {
 
     function cargarPaquete(texto) {
       try {
-        const r = M.importAll(JSON.parse(texto), false);
+        const data = JSON.parse(texto);
+        const r = M.importAll(data, false);
         refreshPresets();
         refreshSaved();
+        /* el paquete viejo sólo llevaba set ups: conviene decirlo, para que no
+           parezca que las jugadas se perdieron en el camino */
+        if (!data.plays) {
+          showCopy('Se cargaron ' + r.setups + ' set ups. Este paquete es del formato anterior y no ' +
+            'traía jugadas: volvé a exportarlo desde la otra dirección con la app actualizada ' +
+            '(refrescá esa página con Ctrl+F5 antes de exportar) y el paquete nuevo va a traerlas.', texto);
+          return;
+        }
         toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas');
       } catch (err) { toast('No se pudo importar: ' + err.message); }
     }
