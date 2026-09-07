@@ -31,9 +31,11 @@ const html = read('index.html');
 const css = read('css/app.css');
 const js = SCRIPTS.map((f) => '/* ===== ' + f + ' ===== */\n' + read(f)).join('\n');
 
-/* cuerpo de index.html sin los <script src> ni el <link> */
+/* cuerpo de index.html sin los <script src> ni el <link>: arranca en la pantalla
+   de inicio, que es lo primero que se ve, y termina en el cierre de la pizarra */
+const desde = html.indexOf('<div id="home"');
 const body = html
-  .slice(html.indexOf('<div id="app">'), html.lastIndexOf('</div>') + 6)
+  .slice(desde >= 0 ? desde : html.indexOf('<div id="app">'), html.lastIndexOf('</div>') + 6)
   .trim();
 
 const head = '<title>Rugby Board</title>\n<style>\n' + css + '\n</style>';

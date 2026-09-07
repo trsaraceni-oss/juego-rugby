@@ -200,6 +200,13 @@ se pierde la base. En el selector, `✎` marca la versión propia, `★` la del 
 El dueño del club asciende a un entrenador a **admin del club** desde la pantalla de inicio; el
 administrador del producto se marca a mano en la base, a propósito.
 
+### Llevarlo de una dirección a otra
+
+Lo guardado en el navegador es de cada dirección web: lo armado en el visor de artifacts no
+aparece en `github.io`, porque para el navegador son dos lugares distintos. **Exportar** baja todo
+lo propio, set ups y jugadas, en un archivo; **Importar** lo trae, desde el archivo o pegando el
+texto, que es lo que sirve cuando el visor bloquea la descarga.
+
 ### Cómo se guarda
 
 El modelo trabaja siempre contra una copia local (`js/model.js`), y `js/sync.js` la sube y la baja.

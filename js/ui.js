@@ -32,7 +32,9 @@ RG.ui = (function () {
         ? '<input type="text" id="mdIn" value="' + escapeAttr(opts.value || '') + '" spellcheck="false">'
         : opts.kind === 'copy'
           ? '<textarea id="mdIn" readonly>' + escapeAttr(opts.value || '') + '</textarea>'
-          : '';
+          : opts.kind === 'paste'
+            ? '<textarea id="mdIn" spellcheck="false" placeholder="Pegá acá el contenido del paquete"></textarea>'
+            : '';
       back.innerHTML =
         '<div class="modal" role="dialog" aria-modal="true">' +
         '<p>' + escapeAttr(opts.message) + '</p>' + field +
@@ -44,19 +46,21 @@ RG.ui = (function () {
       document.body.appendChild(back);
       const input = back.querySelector('#mdIn');
       const close = (val) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(val); };
-      const accept = () => close(opts.kind === 'text' ? (input.value || null) : true);
+      const conTexto = opts.kind === 'text' || opts.kind === 'paste';
+      const accept = () => close(conTexto ? (input.value || null) : true);
       function onKey(ev) {
         ev.stopPropagation();
-        if (ev.key === 'Escape') { ev.preventDefault(); close(opts.kind === 'text' ? null : false); }
-        if (ev.key === 'Enter' && opts.kind !== 'copy') { ev.preventDefault(); accept(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); close(conTexto ? null : false); }
+        /* en el cuadro de pegar, Enter es una línea más: se acepta con el botón */
+        if (ev.key === 'Enter' && opts.kind !== 'copy' && opts.kind !== 'paste') { ev.preventDefault(); accept(); }
       }
       document.addEventListener('keydown', onKey, true);
       back.querySelector('#mdYes').addEventListener('click', accept);
       const alt = back.querySelector('#mdAlt');
       if (alt) alt.addEventListener('click', () => close('alt'));
       const no = back.querySelector('#mdNo');
-      if (no) no.addEventListener('click', () => close(opts.kind === 'text' ? null : false));
-      back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(opts.kind === 'text' ? null : false); });
+      if (no) no.addEventListener('click', () => close(conTexto ? null : false));
+      back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(conTexto ? null : false); });
       if (input) { input.focus(); input.select(); }
     });
   }
@@ -65,6 +69,7 @@ RG.ui = (function () {
   const askChoice = (message, ok, alt) => dialog({ message, ok, alt });
   const askText = (message, value) => dialog({ kind: 'text', message, value, ok: 'Agregar' });
   const showCopy = (message, value) => dialog({ kind: 'copy', message, value, ok: 'Listo' });
+  const askPaste = (message) => dialog({ kind: 'paste', message, ok: 'Cargar' });
 
   const HINTS = {
     select: 'Arrastrá jugadores. Doble click le da la pelota. Arrastrá el fondo para mover la vista.',
@@ -379,29 +384,43 @@ RG.ui = (function () {
       toast(M.FORMATIONS[key] ? 'Set up restaurado' : 'Set up borrado');
     });
 
-    /* paquete de set ups, para pasarlo a otro entrenador */
+    /* El paquete lleva todo lo propio: set ups y jugadas. Sirve para pasarle el
+       trabajo a otro entrenador y para mudarlo de una dirección web a otra. */
     $('btnExportSetups').addEventListener('click', async () => {
-      const data = M.exportSetups();
-      const n = Object.keys(data.overrides).length + Object.keys(data.own).length;
-      if (!n) return toast('Todavía no editaste ni creaste ningún set up');
-      const json = JSON.stringify(data, null, 2);
-      if (!(await saveFile('setups-rugby.json', 'application/json', json))) {
-        showCopy('No se pudo bajar el archivo. Copiá el contenido:', json);
-      }
+      const data = M.exportAll();
+      const n = data.rows.length + data.plays.length;
+      if (!n) return toast('Todavía no guardaste set ups ni jugadas propias');
+      const json = JSON.stringify(data);
+      const cuenta = data.rows.length + ' set ups y ' + data.plays.length + ' jugadas';
+      if (!(await saveFile('rugby-board.json', 'application/json', json))) {
+        showCopy('No se pudo bajar el archivo (' + cuenta + '). Copiá todo este texto y pegalo ' +
+          'en la otra dirección con el botón Importar:', json);
+      } else toast('Exportados ' + cuenta);
     });
 
-    $('btnImportSetups').addEventListener('click', () => $('setupsFile').click());
+    function cargarPaquete(texto) {
+      try {
+        const r = M.importAll(JSON.parse(texto), false);
+        refreshPresets();
+        refreshSaved();
+        toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas');
+      } catch (err) { toast('No se pudo importar: ' + err.message); }
+    }
+
+    $('btnImportSetups').addEventListener('click', async () => {
+      const r = await askChoice('¿De dónde traés el paquete?', 'Desde un archivo', 'Pegando el texto');
+      if (r === 'alt') {
+        const texto = await askPaste('Pegá el texto que copiaste en la otra dirección:');
+        if (texto) cargarPaquete(texto.trim());
+        return;
+      }
+      if (r === true) $('setupsFile').click();
+    });
     $('setupsFile').addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       const rd = new FileReader();
-      rd.onload = () => {
-        try {
-          const n = M.importSetups(JSON.parse(rd.result), false);
-          refreshPresets();
-          toast(n + ' set ups cargados');
-        } catch (err) { toast('No se pudo importar: ' + err.message); }
-      };
+      rd.onload = () => cargarPaquete(rd.result);
       rd.readAsText(file);
       e.target.value = '';
     });

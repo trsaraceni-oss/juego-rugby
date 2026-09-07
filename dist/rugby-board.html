@@ -324,6 +324,8 @@ body.presenting .stage{background:#000}
 </style>
 </head>
 <body>
+<div id="home" class="home" hidden><div class="hm-inner"><div class="hm-body"></div></div></div>
+
 <div id="app">
 
   <header class="topbar">
@@ -394,10 +396,10 @@ body.presenting .stage{background:#000}
       <label class="chk"><input type="checkbox" id="optGrid"> Grilla de 5 m</label>
       <label class="chk"><input type="checkbox" id="optNumbers" checked> Números</label>
 
-      <h3>Set ups</h3>
+      <h3>Set ups y jugadas</h3>
       <div class="view-grid">
-        <button class="btn sm" id="btnExportSetups" title="Bajar tus set ups para pasárselos a otro entrenador">Exportar</button>
-        <button class="btn sm" id="btnImportSetups" title="Cargar los set ups de otro entrenador">Importar</button>
+        <button class="btn sm" id="btnExportSetups" title="Bajar todo lo tuyo: set ups y jugadas">Exportar</button>
+        <button class="btn sm" id="btnImportSetups" title="Traer set ups y jugadas de un archivo o de un texto pegado">Importar</button>
       </div>
       <input id="setupsFile" type="file" accept="application/json" hidden>
 
@@ -1716,35 +1718,55 @@ RG.model = (function () {
 
   /* ---------- paquete para pasar los set ups a otro entrenador ---------- */
 
-  function exportSetups() {
+  /* Todo lo propio en un archivo: set ups y jugadas. Sirve para pasarle el
+     trabajo a otro entrenador y para mudarlo de una dirección web a otra, que es
+     el caso de siempre: lo guardado es de cada dirección, no viaja solo. */
+  function exportAll() {
     return {
-      v: 2, kind: 'rugbyboard-setups', saved: Date.now(),
+      v: 3, kind: 'rugbyboard-setups', saved: Date.now(),
       rows: rows.filter((r) => !r.deleted && r.scope === 'personal')
-        .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data }))
+        .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data })),
+      plays: playRows.filter((r) => !r.deleted && r.scope === 'personal')
+        .map((r) => ({ name: r.name, data: r.data }))
     };
   }
 
-  function importSetups(data, replace) {
-    if (!data || data.kind !== 'rugbyboard-setups') throw new Error('El archivo no es un paquete de set ups');
+  function importAll(data, replace) {
+    if (!data || data.kind !== 'rugbyboard-setups') throw new Error('Eso no es un paquete de Rugby Board');
     if (replace) {
       for (const r of rows.filter((x) => x.scope === 'personal')) borrarFila('setups', r.id);
+      for (const r of playRows.filter((x) => x.scope === 'personal')) borrarFila('plays', r.id);
     }
-    /* el formato viejo traía dos bolsas; el nuevo, filas */
+
+    /* la primera versión traía dos bolsas de set ups; después, filas */
     let filas = data.rows;
     if (!filas) {
       filas = [];
       for (const k of Object.keys(data.overrides || {})) if (BASE[k]) filas.push({ base_key: k, name: BASE[k].name, data: data.overrides[k] });
       for (const k of Object.keys(data.own || {})) filas.push({ base_key: null, name: (data.own[k] || {}).name || 'Set up', data: data.own[k] });
     }
-    let n = 0;
+
+    let setups = 0;
     for (const f of filas) {
       const previa = filaDeSetup('personal', f.base_key, f.name);
       if (previa) tocar('setups', previa, { name: f.name, data: f.data });
       else nuevaFila('setups', { scope: 'personal', club_id: null, base_key: f.base_key || null, name: f.name, data: f.data });
-      n++;
+      setups++;
     }
-    guardado('setups');
-    return n;
+    if (setups) guardado('setups');
+
+    let jugadas = 0;
+    for (const j of data.plays || []) {
+      if (!j.data || !Array.isArray(j.data.frames)) continue;
+      const nombre = j.name || j.data.name || '(sin nombre)';
+      const previa = filaDeJugada('personal', j.data.id, nombre);
+      if (previa) tocar('plays', previa, { name: nombre, data: j.data });
+      else nuevaFila('plays', { scope: 'personal', club_id: null, name: nombre, data: j.data });
+      jugadas++;
+    }
+    if (jugadas) guardado('plays');
+
+    return { setups: setups, plays: jugadas };
   }
 
   /* ---------- estado ---------- */
@@ -2184,7 +2206,7 @@ RG.model = (function () {
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
     loadUserFormations, saveFormation, saveIntoSetup, restoreSetup, deleteFormation,
     isUserFormation, isEditedSetup, isBaseSetup, setupOrigin, canEditSetup,
-    canWrite, writableLevels, whoAmI, exportSetups, importSetups,
+    canWrite, writableLevels, whoAmI, exportAll, importAll,
     useAccount, onChange, allRows, pending, adopt, forget, applyRemote,
     localLeftovers, adoptRows, playOrigin, playRow,
     addFrame, duplicateFrame, deleteFrame,
@@ -3695,7 +3717,9 @@ RG.ui = (function () {
         ? '<input type="text" id="mdIn" value="' + escapeAttr(opts.value || '') + '" spellcheck="false">'
         : opts.kind === 'copy'
           ? '<textarea id="mdIn" readonly>' + escapeAttr(opts.value || '') + '</textarea>'
-          : '';
+          : opts.kind === 'paste'
+            ? '<textarea id="mdIn" spellcheck="false" placeholder="Pegá acá el contenido del paquete"></textarea>'
+            : '';
       back.innerHTML =
         '<div class="modal" role="dialog" aria-modal="true">' +
         '<p>' + escapeAttr(opts.message) + '</p>' + field +
@@ -3707,19 +3731,21 @@ RG.ui = (function () {
       document.body.appendChild(back);
       const input = back.querySelector('#mdIn');
       const close = (val) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(val); };
-      const accept = () => close(opts.kind === 'text' ? (input.value || null) : true);
+      const conTexto = opts.kind === 'text' || opts.kind === 'paste';
+      const accept = () => close(conTexto ? (input.value || null) : true);
       function onKey(ev) {
         ev.stopPropagation();
-        if (ev.key === 'Escape') { ev.preventDefault(); close(opts.kind === 'text' ? null : false); }
-        if (ev.key === 'Enter' && opts.kind !== 'copy') { ev.preventDefault(); accept(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); close(conTexto ? null : false); }
+        /* en el cuadro de pegar, Enter es una línea más: se acepta con el botón */
+        if (ev.key === 'Enter' && opts.kind !== 'copy' && opts.kind !== 'paste') { ev.preventDefault(); accept(); }
       }
       document.addEventListener('keydown', onKey, true);
       back.querySelector('#mdYes').addEventListener('click', accept);
       const alt = back.querySelector('#mdAlt');
       if (alt) alt.addEventListener('click', () => close('alt'));
       const no = back.querySelector('#mdNo');
-      if (no) no.addEventListener('click', () => close(opts.kind === 'text' ? null : false));
-      back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(opts.kind === 'text' ? null : false); });
+      if (no) no.addEventListener('click', () => close(conTexto ? null : false));
+      back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(conTexto ? null : false); });
       if (input) { input.focus(); input.select(); }
     });
   }
@@ -3728,6 +3754,7 @@ RG.ui = (function () {
   const askChoice = (message, ok, alt) => dialog({ message, ok, alt });
   const askText = (message, value) => dialog({ kind: 'text', message, value, ok: 'Agregar' });
   const showCopy = (message, value) => dialog({ kind: 'copy', message, value, ok: 'Listo' });
+  const askPaste = (message) => dialog({ kind: 'paste', message, ok: 'Cargar' });
 
   const HINTS = {
     select: 'Arrastrá jugadores. Doble click le da la pelota. Arrastrá el fondo para mover la vista.',
@@ -4042,29 +4069,43 @@ RG.ui = (function () {
       toast(M.FORMATIONS[key] ? 'Set up restaurado' : 'Set up borrado');
     });
 
-    /* paquete de set ups, para pasarlo a otro entrenador */
+    /* El paquete lleva todo lo propio: set ups y jugadas. Sirve para pasarle el
+       trabajo a otro entrenador y para mudarlo de una dirección web a otra. */
     $('btnExportSetups').addEventListener('click', async () => {
-      const data = M.exportSetups();
-      const n = Object.keys(data.overrides).length + Object.keys(data.own).length;
-      if (!n) return toast('Todavía no editaste ni creaste ningún set up');
-      const json = JSON.stringify(data, null, 2);
-      if (!(await saveFile('setups-rugby.json', 'application/json', json))) {
-        showCopy('No se pudo bajar el archivo. Copiá el contenido:', json);
-      }
+      const data = M.exportAll();
+      const n = data.rows.length + data.plays.length;
+      if (!n) return toast('Todavía no guardaste set ups ni jugadas propias');
+      const json = JSON.stringify(data);
+      const cuenta = data.rows.length + ' set ups y ' + data.plays.length + ' jugadas';
+      if (!(await saveFile('rugby-board.json', 'application/json', json))) {
+        showCopy('No se pudo bajar el archivo (' + cuenta + '). Copiá todo este texto y pegalo ' +
+          'en la otra dirección con el botón Importar:', json);
+      } else toast('Exportados ' + cuenta);
     });
 
-    $('btnImportSetups').addEventListener('click', () => $('setupsFile').click());
+    function cargarPaquete(texto) {
+      try {
+        const r = M.importAll(JSON.parse(texto), false);
+        refreshPresets();
+        refreshSaved();
+        toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas');
+      } catch (err) { toast('No se pudo importar: ' + err.message); }
+    }
+
+    $('btnImportSetups').addEventListener('click', async () => {
+      const r = await askChoice('¿De dónde traés el paquete?', 'Desde un archivo', 'Pegando el texto');
+      if (r === 'alt') {
+        const texto = await askPaste('Pegá el texto que copiaste en la otra dirección:');
+        if (texto) cargarPaquete(texto.trim());
+        return;
+      }
+      if (r === true) $('setupsFile').click();
+    });
     $('setupsFile').addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       const rd = new FileReader();
-      rd.onload = () => {
-        try {
-          const n = M.importSetups(JSON.parse(rd.result), false);
-          refreshPresets();
-          toast(n + ' set ups cargados');
-        } catch (err) { toast('No se pudo importar: ' + err.message); }
-      };
+      rd.onload = () => cargarPaquete(rd.result);
       rd.readAsText(file);
       e.target.value = '';
     });

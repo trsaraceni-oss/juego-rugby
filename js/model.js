@@ -588,35 +588,55 @@ RG.model = (function () {
 
   /* ---------- paquete para pasar los set ups a otro entrenador ---------- */
 
-  function exportSetups() {
+  /* Todo lo propio en un archivo: set ups y jugadas. Sirve para pasarle el
+     trabajo a otro entrenador y para mudarlo de una dirección web a otra, que es
+     el caso de siempre: lo guardado es de cada dirección, no viaja solo. */
+  function exportAll() {
     return {
-      v: 2, kind: 'rugbyboard-setups', saved: Date.now(),
+      v: 3, kind: 'rugbyboard-setups', saved: Date.now(),
       rows: rows.filter((r) => !r.deleted && r.scope === 'personal')
-        .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data }))
+        .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data })),
+      plays: playRows.filter((r) => !r.deleted && r.scope === 'personal')
+        .map((r) => ({ name: r.name, data: r.data }))
     };
   }
 
-  function importSetups(data, replace) {
-    if (!data || data.kind !== 'rugbyboard-setups') throw new Error('El archivo no es un paquete de set ups');
+  function importAll(data, replace) {
+    if (!data || data.kind !== 'rugbyboard-setups') throw new Error('Eso no es un paquete de Rugby Board');
     if (replace) {
       for (const r of rows.filter((x) => x.scope === 'personal')) borrarFila('setups', r.id);
+      for (const r of playRows.filter((x) => x.scope === 'personal')) borrarFila('plays', r.id);
     }
-    /* el formato viejo traía dos bolsas; el nuevo, filas */
+
+    /* la primera versión traía dos bolsas de set ups; después, filas */
     let filas = data.rows;
     if (!filas) {
       filas = [];
       for (const k of Object.keys(data.overrides || {})) if (BASE[k]) filas.push({ base_key: k, name: BASE[k].name, data: data.overrides[k] });
       for (const k of Object.keys(data.own || {})) filas.push({ base_key: null, name: (data.own[k] || {}).name || 'Set up', data: data.own[k] });
     }
-    let n = 0;
+
+    let setups = 0;
     for (const f of filas) {
       const previa = filaDeSetup('personal', f.base_key, f.name);
       if (previa) tocar('setups', previa, { name: f.name, data: f.data });
       else nuevaFila('setups', { scope: 'personal', club_id: null, base_key: f.base_key || null, name: f.name, data: f.data });
-      n++;
+      setups++;
     }
-    guardado('setups');
-    return n;
+    if (setups) guardado('setups');
+
+    let jugadas = 0;
+    for (const j of data.plays || []) {
+      if (!j.data || !Array.isArray(j.data.frames)) continue;
+      const nombre = j.name || j.data.name || '(sin nombre)';
+      const previa = filaDeJugada('personal', j.data.id, nombre);
+      if (previa) tocar('plays', previa, { name: nombre, data: j.data });
+      else nuevaFila('plays', { scope: 'personal', club_id: null, name: nombre, data: j.data });
+      jugadas++;
+    }
+    if (jugadas) guardado('plays');
+
+    return { setups: setups, plays: jugadas };
   }
 
   /* ---------- estado ---------- */
@@ -1056,7 +1076,7 @@ RG.model = (function () {
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
     loadUserFormations, saveFormation, saveIntoSetup, restoreSetup, deleteFormation,
     isUserFormation, isEditedSetup, isBaseSetup, setupOrigin, canEditSetup,
-    canWrite, writableLevels, whoAmI, exportSetups, importSetups,
+    canWrite, writableLevels, whoAmI, exportAll, importAll,
     useAccount, onChange, allRows, pending, adopt, forget, applyRemote,
     localLeftovers, adoptRows, playOrigin, playRow,
     addFrame, duplicateFrame, deleteFrame,
