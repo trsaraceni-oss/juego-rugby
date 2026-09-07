@@ -1686,27 +1686,44 @@ RG.model = (function () {
 
   /* ---------- mudanza de lo guardado con el formato viejo ---------- */
 
+  /* Lo guardado con el formato anterior, leído tal cual, sin tocar nada. Se usa
+     para mudarlo y también al exportar: si la mudanza no llegó a escribirse (el
+     navegador tiene un tope de espacio), el paquete igual lo lleva. */
+  function viejoComoFilas(kind) {
+    const out = [];
+    if (kind === 'setups') {
+      const ov = leerJSON(OLD_SETUP_KEY, {});
+      for (const k of Object.keys(ov)) {
+        if (BASE[k]) out.push({ base_key: k, name: BASE[k].name, data: ov[k] });
+      }
+      const propios = leerJSON(OLD_FORM_KEY, {});
+      for (const k of Object.keys(propios)) {
+        const f = propios[k] || {};
+        out.push({ base_key: null, name: f.name || 'Set up', data: f });
+      }
+    } else {
+      const jug = leerJSON(OLD_PLAY_KEY, {});
+      for (const k of Object.keys(jug)) {
+        const j = jug[k];
+        if (j && Array.isArray(j.frames)) out.push({ name: j.name || '(sin nombre)', data: j });
+      }
+    }
+    return out;
+  }
+
+  /* Cada bolsa se muda por su cuenta: si una entró y la otra no, la que faltó se
+     vuelve a intentar la próxima vez. */
   function migrarViejo() {
-    if (rows.length || playRows.length) return 0;
     let n = 0;
-    const ov = leerJSON(OLD_SETUP_KEY, {});
-    for (const k of Object.keys(ov)) {
-      if (!BASE[k]) continue;
-      nuevaFila('setups', { scope: 'personal', club_id: null, base_key: k, name: BASE[k].name, data: ov[k] });
-      n++;
+    for (const kind of ['setups', 'plays']) {
+      if (bolsa(kind).length) continue;
+      const filas = viejoComoFilas(kind);
+      for (const f of filas) {
+        nuevaFila(kind, Object.assign({ scope: 'personal', club_id: null }, f));
+        n++;
+      }
+      if (filas.length) escribir(kind);
     }
-    const propios = leerJSON(OLD_FORM_KEY, {});
-    for (const k of Object.keys(propios)) {
-      const f = propios[k];
-      nuevaFila('setups', { scope: 'personal', club_id: null, base_key: null, name: f.name || 'Set up', data: f });
-      n++;
-    }
-    const jug = leerJSON(OLD_PLAY_KEY, {});
-    for (const k of Object.keys(jug)) {
-      nuevaFila('plays', { scope: 'personal', club_id: null, name: jug[k].name || '(sin nombre)', data: jug[k] });
-      n++;
-    }
-    if (n) { escribir('setups'); escribir('plays'); }
     return n;
   }
 
@@ -1722,13 +1739,22 @@ RG.model = (function () {
      trabajo a otro entrenador y para mudarlo de una dirección web a otra, que es
      el caso de siempre: lo guardado es de cada dirección, no viaja solo. */
   function exportAll() {
-    return {
-      v: 3, kind: 'rugbyboard-setups', saved: Date.now(),
-      rows: rows.filter((r) => !r.deleted && r.scope === 'personal')
-        .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data })),
-      plays: playRows.filter((r) => !r.deleted && r.scope === 'personal')
-        .map((r) => ({ name: r.name, data: r.data }))
-    };
+    const setups = rows.filter((r) => !r.deleted && r.scope === 'personal')
+      .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data }));
+    const plays = playRows.filter((r) => !r.deleted && r.scope === 'personal')
+      .map((r) => ({ name: r.name, data: r.data }));
+
+    /* Lo del formato anterior que todavía esté en esta máquina y no haya entrado
+       al catálogo: el paquete tiene que llevarse todo, aunque la mudanza falle. */
+    for (const f of viejoComoFilas('setups')) {
+      if (!setups.some((x) => (f.base_key ? x.base_key === f.base_key : x.name === f.name))) setups.push(f);
+    }
+    for (const f of viejoComoFilas('plays')) {
+      const id = f.data && f.data.id;
+      if (!plays.some((x) => (id && x.data && x.data.id === id) || x.name === f.name)) plays.push(f);
+    }
+
+    return { v: 3, kind: 'rugbyboard-setups', saved: Date.now(), rows: setups, plays: plays };
   }
 
   function importAll(data, replace) {
@@ -1746,14 +1772,14 @@ RG.model = (function () {
       for (const k of Object.keys(data.own || {})) filas.push({ base_key: null, name: (data.own[k] || {}).name || 'Set up', data: data.own[k] });
     }
 
-    let setups = 0;
+    let setups = 0, entro = true;
     for (const f of filas) {
       const previa = filaDeSetup('personal', f.base_key, f.name);
       if (previa) tocar('setups', previa, { name: f.name, data: f.data });
       else nuevaFila('setups', { scope: 'personal', club_id: null, base_key: f.base_key || null, name: f.name, data: f.data });
       setups++;
     }
-    if (setups) guardado('setups');
+    if (setups) entro = guardado('setups') && entro;
 
     let jugadas = 0;
     for (const j of data.plays || []) {
@@ -1764,9 +1790,11 @@ RG.model = (function () {
       else nuevaFila('plays', { scope: 'personal', club_id: null, name: nombre, data: j.data });
       jugadas++;
     }
-    if (jugadas) guardado('plays');
+    if (jugadas) entro = guardado('plays') && entro;
 
-    return { setups: setups, plays: jugadas };
+    /* 'entro' avisa si el navegador se quedó sin espacio: con cuenta no importa
+       tanto, porque igual sube, pero sin cuenta hay que decirlo. */
+    return { setups: setups, plays: jugadas, guardado: entro };
   }
 
   /* ---------- estado ---------- */
@@ -4097,7 +4125,8 @@ RG.ui = (function () {
             '(refrescá esa página con Ctrl+F5 antes de exportar) y el paquete nuevo va a traerlas.', texto);
           return;
         }
-        toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas');
+        toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas' +
+          (r.guardado ? '' : ' · ojo: este navegador se quedó sin espacio'));
       } catch (err) { toast('No se pudo importar: ' + err.message); }
     }
 

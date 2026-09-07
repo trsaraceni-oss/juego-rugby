@@ -412,7 +412,8 @@ RG.ui = (function () {
             '(refrescá esa página con Ctrl+F5 antes de exportar) y el paquete nuevo va a traerlas.', texto);
           return;
         }
-        toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas');
+        toast('Cargados ' + r.setups + ' set ups y ' + r.plays + ' jugadas' +
+          (r.guardado ? '' : ' · ojo: este navegador se quedó sin espacio'));
       } catch (err) { toast('No se pudo importar: ' + err.message); }
     }
 
