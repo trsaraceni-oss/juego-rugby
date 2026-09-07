@@ -66,6 +66,14 @@ publicando la base del club, una entrenadora guardando su versión encima de las
 entrenador de otro club viendo sólo lo global. También que la entrenadora no pueda publicar al
 club hasta que la asciendan, ni tocar lo global nunca.
 
+## 2d. Correr la tercera corrección: guardar sin duplicar
+
+La app guarda el mismo set up muchas veces, cada vez que se corrige una posición. Estas dos
+funciones deciden si es alta o corrección, en el nivel que corresponda, y avisan con un error
+cuando el nivel está fuera del alcance de quien guarda.
+
+Pegá y corré [`db/migration-3.sql`](../db/migration-3.sql).
+
 ## 3. Configurar la entrada por link de mail
 
 **Authentication** → **Providers** → **Email**. Dejá *Enable Email provider* activado y
