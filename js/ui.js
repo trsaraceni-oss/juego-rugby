@@ -341,9 +341,9 @@ RG.ui = (function () {
       }
     }
 
-    refreshLists = function () {
-      const abierto = presets.value;
-      refreshPresets(abierto && M.FORMATIONS[abierto.slice(2)] ? abierto : null);
+    refreshLists = function (key) {
+      const abierto = key ? 'f:' + key : presets.value;
+      refreshPresets(M.FORMATIONS[String(abierto).slice(2)] ? abierto : null);
       refreshSaved();
     };
     if (RG.sync) RG.sync.onRefresh(refreshLists);
@@ -676,5 +676,5 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: () => refreshLists(), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: (key) => refreshLists(key), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();

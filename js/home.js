@@ -53,14 +53,6 @@ RG.home = (function () {
 
   function misJugadas() { return M.listPlays(); }
 
-  function misSetups() {
-    return M.formationList()
-      .filter((f) => f.origen && f.origen !== 'base')
-      .map((f) => ({
-        key: f.key, name: f.name, propio: M.isUserFormation(f.key), origen: f.origen
-      }));
-  }
-
   /* ---------------------------------------------------------- pantallas ---- */
 
   function vistaCargando() {
@@ -124,23 +116,35 @@ RG.home = (function () {
       '</div>';
   }
 
+  /* Un desplegable en vez de una lista: con veinte jugadas la pantalla se hacía
+     larguísima, y los set ups de partido tienen que estar siempre a mano. */
   function listaJugadas() {
     const js = misJugadas();
     if (!js.length) return '<p class="hm-empty">Todavía no guardaste jugadas.</p>';
-    return '<ul class="hm-list">' + js.map((j) =>
-      '<li><button class="hm-item" data-play="' + esc(j.id) + '">' + esc(j.name) +
-      (ETIQUETA[j.origen] ? ' <span class="hm-tag">' + ETIQUETA[j.origen] + '</span>' : '') +
-      '</button></li>').join('') + '</ul>';
+    return '<div class="hm-pick">' +
+      '<select id="hmPlaySel">' + js.map((j) =>
+        '<option value="' + esc(j.id) + '">' + esc(j.name) +
+        (ETIQUETA[j.origen] ? ' · ' + ETIQUETA[j.origen] : '') + '</option>').join('') +
+      '</select><button class="btn" id="hmPlayGo">Abrir</button></div>';
   }
 
+  /* Acá van todos: las situaciones de partido que trae la app y las versiones
+     propias, del club o publicadas, con la marca de dónde sale cada una. */
+  const ORDEN_SETUPS = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras'];
+  const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
+
   function listaSetups() {
-    const ss = misSetups();
-    if (!ss.length) return '<p class="hm-empty">Todavía no hay set ups guardados. Los doce de ' +
-      'partido están siempre disponibles en la pizarra.</p>';
-    return '<ul class="hm-list">' + ss.map((s) =>
-      '<li><button class="hm-item" data-setup="' + esc(s.key) + '">' + esc(s.name) +
-      '<span class="hm-tag">' + (ETIQUETA[s.origen] || (s.propio ? 'tuyo' : 'tu versión')) + '</span>' +
-      '</button></li>').join('') + '</ul>';
+    const ss = M.formationList().filter((f) => f.group !== 'Crear set up');
+    const grupo = (g) => ss.filter((f) => f.group === g)
+      .map((f) => '<option value="' + esc(f.key) + '">' + esc(f.name) + (MARCA[f.origen] || '') + '</option>')
+      .join('');
+    return '<div class="hm-pick">' +
+      '<select id="hmSetupSel">' + ORDEN_SETUPS.map((g) => {
+        const items = grupo(g);
+        return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
+      }).join('') + '</select>' +
+      '<button class="btn" id="hmSetupGo">Abrir</button></div>' +
+      '<p class="hm-note">✎ tu versión · ★ del club · ◆ de la app</p>';
   }
 
   function vistaInicio() {
@@ -344,12 +348,17 @@ RG.home = (function () {
     const nuevoSetup = q('#hmNewSetup');
     if (nuevoSetup) nuevoSetup.addEventListener('click', () => abrirPizarra('setup'));
 
-    root.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => {
-      abrirPizarra('abrir-jugada', b.dataset.play);
-    }));
-    root.querySelectorAll('[data-setup]').forEach((b) => b.addEventListener('click', () => {
-      abrirPizarra('abrir-setup', b.dataset.setup);
-    }));
+    /* elegir y abrir: con el botón, con doble click o con Enter sobre la lista */
+    function abridor(sel, boton, modo) {
+      const lista = q(sel), btn = q(boton);
+      if (!lista || !btn) return;
+      const abrir = () => { if (lista.value) abrirPizarra(modo, lista.value); };
+      btn.addEventListener('click', abrir);
+      lista.addEventListener('dblclick', abrir);
+      lista.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); abrir(); } });
+    }
+    abridor('#hmPlaySel', '#hmPlayGo', 'abrir-jugada');
+    abridor('#hmSetupSel', '#hmSetupGo', 'abrir-setup');
   }
 
   /* --------------------------------------------------------- navegación ---- */

@@ -254,8 +254,8 @@
     ctx = view.resize();
     app.setStage(M.state.stage);
     /* los desplegables se arman con lo que hay ahora: al arrancar la app todavía
-       no había entrado a la cuenta */
-    RG.ui.refreshLists();
+       no había entrado a la cuenta. El de arriba queda en el set up que se abrió. */
+    RG.ui.refreshLists(modo === 'abrir-setup' ? id : M.state.setupKey);
     app.refreshAll();
   };
 
