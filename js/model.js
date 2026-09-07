@@ -255,45 +255,99 @@ RG.model = (function () {
     return Object.keys(FORMATIONS).map((k) => ({ key: k, name: FORMATIONS[k].name, group: FORMATIONS[k].group || 'Otras' }));
   }
 
-  /* ---------- formaciones propias ---------- */
+  /* ---------- set ups: los doce de fábrica son las situaciones, pero cada
+     entrenador guarda su propia disposición encima, con vuelta al original ---------- */
 
-  const FORM_KEY = 'rugbyboard.formations.v1';
+  const FORM_KEY = 'rugbyboard.formations.v1';   /* los que crea desde cero */
+  const SETUP_KEY = 'rugbyboard.setups.v1';      /* su versión de los de fábrica */
 
-  function readUserFormations() {
-    try { return JSON.parse(localStorage.getItem(FORM_KEY) || '{}'); } catch (e) { return {}; }
+  /* copia intacta de fábrica, para poder restaurar */
+  const BASE = {};
+  for (const k of Object.keys(FORMATIONS)) BASE[k] = JSON.parse(JSON.stringify(FORMATIONS[k]));
+
+  function readStoreAt(key) {
+    try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { return {}; }
   }
 
-  function writeUserFormations(obj) {
-    try { localStorage.setItem(FORM_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  function writeStoreAt(key, obj) {
+    try { localStorage.setItem(key, JSON.stringify(obj)); return true; } catch (e) { return false; }
   }
 
-  /* las guardadas se suman al catálogo al arrancar */
+  const readUserFormations = () => readStoreAt(FORM_KEY);
+  const readOverrides = () => readStoreAt(SETUP_KEY);
+
+  function applyOverride(key, ov) {
+    FORMATIONS[key] = Object.assign({}, BASE[key], ov, {
+      name: BASE[key].name, group: BASE[key].group, edited: true
+    });
+  }
+
+  /* al arrancar: primero la versión propia de los de fábrica, después los creados */
   function loadUserFormations() {
-    const store = readUserFormations();
-    for (const k of Object.keys(store)) FORMATIONS[k] = store[k];
-    return Object.keys(store).length;
+    const ov = readOverrides();
+    for (const k of Object.keys(ov)) if (BASE[k]) applyOverride(k, ov[k]);
+    const mine = readUserFormations();
+    for (const k of Object.keys(mine)) FORMATIONS[k] = mine[k];
+    return Object.keys(ov).length + Object.keys(mine).length;
   }
 
   const round2 = (n) => Math.round(n * 100) / 100;
 
-  /* toma la posición que hay en pantalla y la convierte en formación */
-  function saveFormation(name, frameIdx) {
+  /* toma la posición que hay en pantalla y la convierte en set up */
+  function captureSetup(name, frameIdx) {
     const fr = frame(frameIdx);
     const f = {
-      name: name, group: 'Mis set ups', only: true, user: true,
-      stage: state.stage, note: fr.note || '', ballCarrier: fr.ball.carrier, a: {}, b: {}
+      name: name, only: true, stage: state.stage, note: fr.note || '',
+      ballCarrier: fr.ball.carrier, a: {}, b: {}
     };
     for (const p of state.players) {
       const q = fr.pos[p.id];
       if (q) f[p.team][p.num] = [round2(q.x), round2(q.y)];
     }
+    return f;
+  }
+
+  /* guarda como set up nuevo, en el grupo propio */
+  function saveFormation(name, frameIdx) {
+    const f = captureSetup(name, frameIdx);
+    f.group = 'Mis set ups';
+    f.user = true;
     const store = readUserFormations();
-    /* mismo nombre: se reemplaza, para poder corregir una estructura y volver a guardarla */
+    /* mismo nombre: se reemplaza, para poder corregir uno y volver a guardarlo */
     let key = Object.keys(store).find((k) => store[k].name === name);
     if (!key) key = 'u:' + uid();
     store[key] = f;
     FORMATIONS[key] = f;
-    return writeUserFormations(store) ? key : null;
+    return writeStoreAt(FORM_KEY, store) ? key : null;
+  }
+
+  /* guarda encima del set up que está abierto, sea de fábrica o propio */
+  function saveIntoSetup(key, frameIdx) {
+    if (!FORMATIONS[key]) return false;
+    const f = captureSetup(FORMATIONS[key].name, frameIdx);
+    if (BASE[key]) {
+      const ov = readOverrides();
+      ov[key] = f;
+      if (!writeStoreAt(SETUP_KEY, ov)) return false;
+      applyOverride(key, f);
+      return true;
+    }
+    const store = readUserFormations();
+    f.group = 'Mis set ups';
+    f.user = true;
+    store[key] = f;
+    FORMATIONS[key] = f;
+    return writeStoreAt(FORM_KEY, store);
+  }
+
+  /* vuelve un set up de fábrica a como venía */
+  function restoreSetup(key) {
+    if (!BASE[key]) return false;
+    const ov = readOverrides();
+    if (!ov[key]) return false;
+    delete ov[key];
+    FORMATIONS[key] = JSON.parse(JSON.stringify(BASE[key]));
+    return writeStoreAt(SETUP_KEY, ov);
   }
 
   function deleteFormation(key) {
@@ -301,10 +355,33 @@ RG.model = (function () {
     if (!store[key]) return false;
     delete store[key];
     delete FORMATIONS[key];
-    return writeUserFormations(store);
+    return writeStoreAt(FORM_KEY, store);
   }
 
   function isUserFormation(key) { return !!(FORMATIONS[key] && FORMATIONS[key].user); }
+  function isEditedSetup(key) { return !!(FORMATIONS[key] && FORMATIONS[key].edited); }
+  function isBaseSetup(key) { return !!BASE[key]; }
+
+  /* ---------- paquete para pasar los set ups a otro entrenador ---------- */
+
+  function exportSetups() {
+    return { v: 1, kind: 'rugbyboard-setups', saved: Date.now(), overrides: readOverrides(), own: readUserFormations() };
+  }
+
+  function importSetups(data, replace) {
+    if (!data || data.kind !== 'rugbyboard-setups') throw new Error('El archivo no es un paquete de set ups');
+    const ov = replace ? {} : readOverrides();
+    const mine = replace ? {} : readUserFormations();
+    for (const k of Object.keys(data.overrides || {})) if (BASE[k]) ov[k] = data.overrides[k];
+    for (const k of Object.keys(data.own || {})) mine[k] = data.own[k];
+    writeStoreAt(SETUP_KEY, ov);
+    writeStoreAt(FORM_KEY, mine);
+    /* releer todo desde cero para que el catálogo quede consistente */
+    for (const k of Object.keys(FORMATIONS)) if (!BASE[k]) delete FORMATIONS[k];
+    for (const k of Object.keys(BASE)) FORMATIONS[k] = JSON.parse(JSON.stringify(BASE[k]));
+    loadUserFormations();
+    return Object.keys(ov).length + Object.keys(mine).length;
+  }
 
   /* ---------- estado ---------- */
 
@@ -313,6 +390,7 @@ RG.model = (function () {
     name: 'Jugada sin nombre',
     squad: 15,
     lastFormation: 'kickoff_for',
+    setupKey: 'kickoff_for',
     stage: 'field',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
@@ -357,6 +435,7 @@ RG.model = (function () {
     const f = FORMATIONS[key];
     if (!f) return;
     state.lastFormation = key;
+    state.setupKey = key;
     state.players = rosterFor(f, withB !== false);
     const fr = frame(frameIdx);
     fr.pos = {};
@@ -718,7 +797,8 @@ RG.model = (function () {
     state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
     blankFrame, frame, frameCount, player, activePlayers, pos,
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
-    loadUserFormations, saveFormation, deleteFormation, isUserFormation,
+    loadUserFormations, saveFormation, saveIntoSetup, restoreSetup, deleteFormation,
+    isUserFormation, isEditedSetup, isBaseSetup, exportSetups, importSetups,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,

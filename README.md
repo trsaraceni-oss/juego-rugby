@@ -56,11 +56,22 @@ izquierda con el campo abierto hacia la derecha.
 **Sin rival**: destildando *con rival* el set up que apliques trae sólo tu equipo, y el rival que
 hubiera sale de la cancha. Volviendo a tildarlo reaparece según el último aplicado.
 
-**Set ups propios**: el botón *Nuevo set up* deja la cancha limpia con la herramienta Jugador
-lista; se suman los jugadores que hagan falta y el botón `＋` guarda la posición con nombre, en el
-grupo *Mis set ups* del mismo selector. Repetir el nombre reemplaza el anterior, así uno se
-corrige aplicándolo, moviendo jugadores y volviéndolo a guardar. El `🗑` borra el propio elegido;
-los de fábrica no se tocan. Viven en el navegador (`localStorage`), igual que las jugadas.
+**Cada entrenador edita sus set ups base**: los doce son las situaciones, pero la disposición es
+de cada uno. Aplicá el set up, acomodá a los jugadores y tocá `＋`: la app pregunta si eso pasa a
+ser *tu versión de ese set up* o si preferís crear uno aparte. Guardado encima, ese set up queda
+marcado con `✎` en el selector y de ahí en más se aplica el tuyo. El botón de al lado se convierte
+en `↺` y lo devuelve a como venía de fábrica; sobre un set up propio ese mismo botón es `🗑`.
+
+El original nunca se pisa: se guarda una capa propia por encima (`rugbyboard.setups.v1`), separada
+de los set ups creados desde cero (`rugbyboard.formations.v1`).
+
+**Set ups nuevos**: el botón *Nuevo set up* deja la cancha limpia con la herramienta Jugador lista;
+se suman los jugadores que hagan falta y `＋` los guarda con nombre en el grupo *Mis set ups*.
+
+**Pasarlos a otro entrenador**: en el panel izquierdo, *Set ups → Exportar* baja un archivo con tu
+versión de los doce más los que hayas creado. El otro entrenador lo carga con *Importar* y le
+quedan tus disposiciones sobre las mismas situaciones. Importar suma a lo que ya haya; los set ups
+con la misma clave se reemplazan.
 
 **Plantel a mano**: la herramienta Jugador suma los que quieras al equipo elegido en el panel, con
 el número corregible desde el panel derecho, que también los quita de a uno. Los set ups definen

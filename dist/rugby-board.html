@@ -286,6 +286,13 @@ body.presenting .stage{background:#000}
       <label class="chk"><input type="checkbox" id="optGrid"> Grilla de 5 m</label>
       <label class="chk"><input type="checkbox" id="optNumbers" checked> Números</label>
 
+      <h3>Set ups</h3>
+      <div class="view-grid">
+        <button class="btn sm" id="btnExportSetups" title="Bajar tus set ups para pasárselos a otro entrenador">Exportar</button>
+        <button class="btn sm" id="btnImportSetups" title="Cargar los set ups de otro entrenador">Importar</button>
+      </div>
+      <input id="setupsFile" type="file" accept="application/json" hidden>
+
       <h3>Plantel</h3>
       <div class="squad-row">
         <label>Formato</label>
@@ -767,45 +774,99 @@ RG.model = (function () {
     return Object.keys(FORMATIONS).map((k) => ({ key: k, name: FORMATIONS[k].name, group: FORMATIONS[k].group || 'Otras' }));
   }
 
-  /* ---------- formaciones propias ---------- */
+  /* ---------- set ups: los doce de fábrica son las situaciones, pero cada
+     entrenador guarda su propia disposición encima, con vuelta al original ---------- */
 
-  const FORM_KEY = 'rugbyboard.formations.v1';
+  const FORM_KEY = 'rugbyboard.formations.v1';   /* los que crea desde cero */
+  const SETUP_KEY = 'rugbyboard.setups.v1';      /* su versión de los de fábrica */
 
-  function readUserFormations() {
-    try { return JSON.parse(localStorage.getItem(FORM_KEY) || '{}'); } catch (e) { return {}; }
+  /* copia intacta de fábrica, para poder restaurar */
+  const BASE = {};
+  for (const k of Object.keys(FORMATIONS)) BASE[k] = JSON.parse(JSON.stringify(FORMATIONS[k]));
+
+  function readStoreAt(key) {
+    try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { return {}; }
   }
 
-  function writeUserFormations(obj) {
-    try { localStorage.setItem(FORM_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  function writeStoreAt(key, obj) {
+    try { localStorage.setItem(key, JSON.stringify(obj)); return true; } catch (e) { return false; }
   }
 
-  /* las guardadas se suman al catálogo al arrancar */
+  const readUserFormations = () => readStoreAt(FORM_KEY);
+  const readOverrides = () => readStoreAt(SETUP_KEY);
+
+  function applyOverride(key, ov) {
+    FORMATIONS[key] = Object.assign({}, BASE[key], ov, {
+      name: BASE[key].name, group: BASE[key].group, edited: true
+    });
+  }
+
+  /* al arrancar: primero la versión propia de los de fábrica, después los creados */
   function loadUserFormations() {
-    const store = readUserFormations();
-    for (const k of Object.keys(store)) FORMATIONS[k] = store[k];
-    return Object.keys(store).length;
+    const ov = readOverrides();
+    for (const k of Object.keys(ov)) if (BASE[k]) applyOverride(k, ov[k]);
+    const mine = readUserFormations();
+    for (const k of Object.keys(mine)) FORMATIONS[k] = mine[k];
+    return Object.keys(ov).length + Object.keys(mine).length;
   }
 
   const round2 = (n) => Math.round(n * 100) / 100;
 
-  /* toma la posición que hay en pantalla y la convierte en formación */
-  function saveFormation(name, frameIdx) {
+  /* toma la posición que hay en pantalla y la convierte en set up */
+  function captureSetup(name, frameIdx) {
     const fr = frame(frameIdx);
     const f = {
-      name: name, group: 'Mis set ups', only: true, user: true,
-      stage: state.stage, note: fr.note || '', ballCarrier: fr.ball.carrier, a: {}, b: {}
+      name: name, only: true, stage: state.stage, note: fr.note || '',
+      ballCarrier: fr.ball.carrier, a: {}, b: {}
     };
     for (const p of state.players) {
       const q = fr.pos[p.id];
       if (q) f[p.team][p.num] = [round2(q.x), round2(q.y)];
     }
+    return f;
+  }
+
+  /* guarda como set up nuevo, en el grupo propio */
+  function saveFormation(name, frameIdx) {
+    const f = captureSetup(name, frameIdx);
+    f.group = 'Mis set ups';
+    f.user = true;
     const store = readUserFormations();
-    /* mismo nombre: se reemplaza, para poder corregir una estructura y volver a guardarla */
+    /* mismo nombre: se reemplaza, para poder corregir uno y volver a guardarlo */
     let key = Object.keys(store).find((k) => store[k].name === name);
     if (!key) key = 'u:' + uid();
     store[key] = f;
     FORMATIONS[key] = f;
-    return writeUserFormations(store) ? key : null;
+    return writeStoreAt(FORM_KEY, store) ? key : null;
+  }
+
+  /* guarda encima del set up que está abierto, sea de fábrica o propio */
+  function saveIntoSetup(key, frameIdx) {
+    if (!FORMATIONS[key]) return false;
+    const f = captureSetup(FORMATIONS[key].name, frameIdx);
+    if (BASE[key]) {
+      const ov = readOverrides();
+      ov[key] = f;
+      if (!writeStoreAt(SETUP_KEY, ov)) return false;
+      applyOverride(key, f);
+      return true;
+    }
+    const store = readUserFormations();
+    f.group = 'Mis set ups';
+    f.user = true;
+    store[key] = f;
+    FORMATIONS[key] = f;
+    return writeStoreAt(FORM_KEY, store);
+  }
+
+  /* vuelve un set up de fábrica a como venía */
+  function restoreSetup(key) {
+    if (!BASE[key]) return false;
+    const ov = readOverrides();
+    if (!ov[key]) return false;
+    delete ov[key];
+    FORMATIONS[key] = JSON.parse(JSON.stringify(BASE[key]));
+    return writeStoreAt(SETUP_KEY, ov);
   }
 
   function deleteFormation(key) {
@@ -813,10 +874,33 @@ RG.model = (function () {
     if (!store[key]) return false;
     delete store[key];
     delete FORMATIONS[key];
-    return writeUserFormations(store);
+    return writeStoreAt(FORM_KEY, store);
   }
 
   function isUserFormation(key) { return !!(FORMATIONS[key] && FORMATIONS[key].user); }
+  function isEditedSetup(key) { return !!(FORMATIONS[key] && FORMATIONS[key].edited); }
+  function isBaseSetup(key) { return !!BASE[key]; }
+
+  /* ---------- paquete para pasar los set ups a otro entrenador ---------- */
+
+  function exportSetups() {
+    return { v: 1, kind: 'rugbyboard-setups', saved: Date.now(), overrides: readOverrides(), own: readUserFormations() };
+  }
+
+  function importSetups(data, replace) {
+    if (!data || data.kind !== 'rugbyboard-setups') throw new Error('El archivo no es un paquete de set ups');
+    const ov = replace ? {} : readOverrides();
+    const mine = replace ? {} : readUserFormations();
+    for (const k of Object.keys(data.overrides || {})) if (BASE[k]) ov[k] = data.overrides[k];
+    for (const k of Object.keys(data.own || {})) mine[k] = data.own[k];
+    writeStoreAt(SETUP_KEY, ov);
+    writeStoreAt(FORM_KEY, mine);
+    /* releer todo desde cero para que el catálogo quede consistente */
+    for (const k of Object.keys(FORMATIONS)) if (!BASE[k]) delete FORMATIONS[k];
+    for (const k of Object.keys(BASE)) FORMATIONS[k] = JSON.parse(JSON.stringify(BASE[k]));
+    loadUserFormations();
+    return Object.keys(ov).length + Object.keys(mine).length;
+  }
 
   /* ---------- estado ---------- */
 
@@ -825,6 +909,7 @@ RG.model = (function () {
     name: 'Jugada sin nombre',
     squad: 15,
     lastFormation: 'kickoff_for',
+    setupKey: 'kickoff_for',
     stage: 'field',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
@@ -869,6 +954,7 @@ RG.model = (function () {
     const f = FORMATIONS[key];
     if (!f) return;
     state.lastFormation = key;
+    state.setupKey = key;
     state.players = rosterFor(f, withB !== false);
     const fr = frame(frameIdx);
     fr.pos = {};
@@ -1230,7 +1316,8 @@ RG.model = (function () {
     state, POSITION_NAMES, SQUADS, FORMATIONS, formationList,
     blankFrame, frame, frameCount, player, activePlayers, pos,
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
-    loadUserFormations, saveFormation, deleteFormation, isUserFormation,
+    loadUserFormations, saveFormation, saveIntoSetup, restoreSetup, deleteFormation,
+    isUserFormation, isEditedSetup, isBaseSetup, exportSetups, importSetups,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,
@@ -2959,7 +3046,8 @@ RG.ui = (function () {
     const presets = $('presetSelect');
     const ORDEN = ['Mis set ups', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
-      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
+      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) +
+        (M.isEditedSetup(f.key) ? ' ✎' : '') + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
@@ -2972,31 +3060,91 @@ RG.ui = (function () {
     }
 
     function syncFormationButtons() {
-      const val = presets.value || '';
-      $('btnDelFormation').disabled = !(val.slice(0, 2) === 'f:' && M.isUserFormation(val.slice(2)));
+      const key = (presets.value || '').slice(2);
+      const btn = $('btnDelFormation');
+      if (M.isUserFormation(key)) {
+        btn.disabled = false;
+        btn.textContent = '🗑';
+        btn.title = 'Borrar este set up propio';
+      } else if (M.isEditedSetup(key)) {
+        btn.disabled = false;
+        btn.textContent = '↺';
+        btn.title = 'Volver este set up a como venía de fábrica';
+      } else {
+        btn.disabled = true;
+        btn.textContent = '🗑';
+        btn.title = 'Sin cambios propios para borrar';
+      }
     }
 
     refreshPresets();
     presets.addEventListener('change', syncFormationButtons);
 
-    $('btnSaveFormation').addEventListener('click', async () => {
-      const sugerido = M.state.name && M.state.name !== 'Jugada sin nombre' ? M.state.name : '';
-      const nombre = await askText('Nombre del set up (si repetís uno, se reemplaza):', sugerido);
+    async function guardarComoNuevo() {
+      const sugerido = M.state.name && M.state.name.indexOf('sin nombre') < 0 ? M.state.name : '';
+      const nombre = await askText('Nombre del set up nuevo:', sugerido);
       if (!nombre) return;
       const key = M.saveFormation(nombre.trim(), app.frameIdx);
       if (!key) return toast('No se pudo guardar en este navegador');
       refreshPresets('f:' + key);
       toast('Set up guardado en "Mis set ups"');
+    }
+
+    $('btnSaveFormation').addEventListener('click', async () => {
+      const key = M.state.setupKey;
+      const abierto = key && M.FORMATIONS[key] && key !== 'empty' && key !== 'manual';
+      if (!abierto) return guardarComoNuevo();
+      const nombre = M.FORMATIONS[key].name;
+      const r = await askChoice('Guardá esta disposición como tu versión de «' + nombre + '», o creá un set up aparte.',
+        'Guardar en ' + nombre, 'Crear uno nuevo');
+      if (r === 'alt') return guardarComoNuevo();
+      if (r !== true) return;
+      if (!M.saveIntoSetup(key, app.frameIdx)) return toast('No se pudo guardar en este navegador');
+      refreshPresets('f:' + key);
+      toast('«' + nombre + '» quedó con tu disposición');
     });
 
     $('btnDelFormation').addEventListener('click', async () => {
-      const val = presets.value || '';
-      const key = val.slice(2);
-      if (!M.isUserFormation(key)) return;
-      if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
-      M.deleteFormation(key);
-      refreshPresets();
-      toast('Set up borrado');
+      const key = (presets.value || '').slice(2);
+      if (M.isUserFormation(key)) {
+        if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
+        M.deleteFormation(key);
+        refreshPresets();
+        return toast('Set up borrado');
+      }
+      if (M.isEditedSetup(key)) {
+        if (!(await askConfirm('¿Volver «' + M.FORMATIONS[key].name + '» a como venía de fábrica? Se pierde tu versión.', 'Restaurar'))) return;
+        M.restoreSetup(key);
+        refreshPresets('f:' + key);
+        toast('Set up restaurado');
+      }
+    });
+
+    /* paquete de set ups, para pasarlo a otro entrenador */
+    $('btnExportSetups').addEventListener('click', async () => {
+      const data = M.exportSetups();
+      const n = Object.keys(data.overrides).length + Object.keys(data.own).length;
+      if (!n) return toast('Todavía no editaste ni creaste ningún set up');
+      const json = JSON.stringify(data, null, 2);
+      if (!(await saveFile('setups-rugby.json', 'application/json', json))) {
+        showCopy('No se pudo bajar el archivo. Copiá el contenido:', json);
+      }
+    });
+
+    $('btnImportSetups').addEventListener('click', () => $('setupsFile').click());
+    $('setupsFile').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const n = M.importSetups(JSON.parse(rd.result), false);
+          refreshPresets();
+          toast(n + ' set ups cargados');
+        } catch (err) { toast('No se pudo importar: ' + err.message); }
+      };
+      rd.readAsText(file);
+      e.target.value = '';
     });
 
     /* espacio para armar uno nuevo: cancha limpia y la herramienta lista */

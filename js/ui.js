@@ -259,7 +259,8 @@ RG.ui = (function () {
     const presets = $('presetSelect');
     const ORDEN = ['Mis set ups', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
-      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
+      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) +
+        (M.isEditedSetup(f.key) ? ' ✎' : '') + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
@@ -272,31 +273,91 @@ RG.ui = (function () {
     }
 
     function syncFormationButtons() {
-      const val = presets.value || '';
-      $('btnDelFormation').disabled = !(val.slice(0, 2) === 'f:' && M.isUserFormation(val.slice(2)));
+      const key = (presets.value || '').slice(2);
+      const btn = $('btnDelFormation');
+      if (M.isUserFormation(key)) {
+        btn.disabled = false;
+        btn.textContent = '🗑';
+        btn.title = 'Borrar este set up propio';
+      } else if (M.isEditedSetup(key)) {
+        btn.disabled = false;
+        btn.textContent = '↺';
+        btn.title = 'Volver este set up a como venía de fábrica';
+      } else {
+        btn.disabled = true;
+        btn.textContent = '🗑';
+        btn.title = 'Sin cambios propios para borrar';
+      }
     }
 
     refreshPresets();
     presets.addEventListener('change', syncFormationButtons);
 
-    $('btnSaveFormation').addEventListener('click', async () => {
-      const sugerido = M.state.name && M.state.name !== 'Jugada sin nombre' ? M.state.name : '';
-      const nombre = await askText('Nombre del set up (si repetís uno, se reemplaza):', sugerido);
+    async function guardarComoNuevo() {
+      const sugerido = M.state.name && M.state.name.indexOf('sin nombre') < 0 ? M.state.name : '';
+      const nombre = await askText('Nombre del set up nuevo:', sugerido);
       if (!nombre) return;
       const key = M.saveFormation(nombre.trim(), app.frameIdx);
       if (!key) return toast('No se pudo guardar en este navegador');
       refreshPresets('f:' + key);
       toast('Set up guardado en "Mis set ups"');
+    }
+
+    $('btnSaveFormation').addEventListener('click', async () => {
+      const key = M.state.setupKey;
+      const abierto = key && M.FORMATIONS[key] && key !== 'empty' && key !== 'manual';
+      if (!abierto) return guardarComoNuevo();
+      const nombre = M.FORMATIONS[key].name;
+      const r = await askChoice('Guardá esta disposición como tu versión de «' + nombre + '», o creá un set up aparte.',
+        'Guardar en ' + nombre, 'Crear uno nuevo');
+      if (r === 'alt') return guardarComoNuevo();
+      if (r !== true) return;
+      if (!M.saveIntoSetup(key, app.frameIdx)) return toast('No se pudo guardar en este navegador');
+      refreshPresets('f:' + key);
+      toast('«' + nombre + '» quedó con tu disposición');
     });
 
     $('btnDelFormation').addEventListener('click', async () => {
-      const val = presets.value || '';
-      const key = val.slice(2);
-      if (!M.isUserFormation(key)) return;
-      if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
-      M.deleteFormation(key);
-      refreshPresets();
-      toast('Set up borrado');
+      const key = (presets.value || '').slice(2);
+      if (M.isUserFormation(key)) {
+        if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
+        M.deleteFormation(key);
+        refreshPresets();
+        return toast('Set up borrado');
+      }
+      if (M.isEditedSetup(key)) {
+        if (!(await askConfirm('¿Volver «' + M.FORMATIONS[key].name + '» a como venía de fábrica? Se pierde tu versión.', 'Restaurar'))) return;
+        M.restoreSetup(key);
+        refreshPresets('f:' + key);
+        toast('Set up restaurado');
+      }
+    });
+
+    /* paquete de set ups, para pasarlo a otro entrenador */
+    $('btnExportSetups').addEventListener('click', async () => {
+      const data = M.exportSetups();
+      const n = Object.keys(data.overrides).length + Object.keys(data.own).length;
+      if (!n) return toast('Todavía no editaste ni creaste ningún set up');
+      const json = JSON.stringify(data, null, 2);
+      if (!(await saveFile('setups-rugby.json', 'application/json', json))) {
+        showCopy('No se pudo bajar el archivo. Copiá el contenido:', json);
+      }
+    });
+
+    $('btnImportSetups').addEventListener('click', () => $('setupsFile').click());
+    $('setupsFile').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const n = M.importSetups(JSON.parse(rd.result), false);
+          refreshPresets();
+          toast(n + ' set ups cargados');
+        } catch (err) { toast('No se pudo importar: ' + err.message); }
+      };
+      rd.readAsText(file);
+      e.target.value = '';
     });
 
     /* espacio para armar uno nuevo: cancha limpia y la herramienta lista */
