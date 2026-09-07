@@ -37,6 +37,35 @@ veía su propio perfil, así que la lista del club salía sin nombres.
 Repetí el paso anterior con [`db/migration-1.sql`](../db/migration-1.sql): **SQL Editor** → **New
 query** → pegar → **Run**. Se puede correr más de una vez sin romper nada.
 
+## 2c. Correr la segunda corrección: los tres niveles
+
+Los set ups y las jugadas pasan a tener nivel:
+
+| Nivel | Quién lo publica | Quién lo ve |
+|---|---|---|
+| **global** | el administrador del producto | cualquier entrenador, de cualquier club |
+| **club** | el dueño o un admin del club | los entrenadores de ese club |
+| **personal** | cada entrenador | sólo él |
+
+Los tres conviven sobre la misma situación: el entrenador abre la del club, y si no hay, la
+global; guarda su versión y esa pasa a ser la suya, sin tocar las de abajo.
+
+Pegá y corré [`db/migration-2.sql`](../db/migration-2.sql) igual que las anteriores.
+
+**Después, date de alta como administrador del producto.** En el SQL Editor, con tu mail:
+
+```sql
+update profiles set is_admin = true where email = 'tu@mail.com';
+```
+
+Eso es lo único que se hace a mano: no hay pantalla para volverse admin, a propósito. Para los
+admins de club sí la hay: el dueño asciende a un entrenador desde la app.
+
+Probado en Postgres simulando cuatro cuentas: el admin publicando global, el dueño de un club
+publicando la base del club, una entrenadora guardando su versión encima de las dos, y un
+entrenador de otro club viendo sólo lo global. También que la entrenadora no pueda publicar al
+club hasta que la asciendan, ni tocar lo global nunca.
+
 ## 3. Configurar la entrada por link de mail
 
 **Authentication** → **Providers** → **Email**. Dejá *Enable Email provider* activado y
