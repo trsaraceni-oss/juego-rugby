@@ -190,15 +190,51 @@ RG.ui = (function () {
 
   function escapeAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
+  const NIVEL = {
+    personal: { label: 'Sólo para mí', note: 'Tu versión: nadie más la ve ni la toca.' },
+    club: { label: 'Base del club', note: 'La ven todos los entrenadores del club.' },
+    global: { label: 'Base de la app', note: 'La ven todos los clubes. Sos administrador.' }
+  };
+
+  /* Cuando el entrenador puede publicar en más de una capa, hay que preguntar
+     dónde guarda. Si sólo puede en la suya, no se le pregunta nada. */
+  function askLevel(mensaje) {
+    const niveles = M.writableLevels();
+    if (niveles.length < 2) return Promise.resolve(niveles[0] || 'personal');
+    return new Promise((resolve) => {
+      const back = document.createElement('div');
+      back.className = 'modal-back';
+      back.innerHTML =
+        '<div class="modal" role="dialog" aria-modal="true">' +
+        '<p>' + escapeAttr(mensaje) + '</p>' +
+        '<div class="modal-levels">' +
+        niveles.map((n) => '<button class="lvl" data-lvl="' + n + '"><b>' + NIVEL[n].label +
+          '</b><span>' + NIVEL[n].note + '</span></button>').join('') +
+        '</div>' +
+        '<div class="modal-actions"><button class="btn" id="mdNo">Cancelar</button></div>' +
+        '</div>';
+      document.body.appendChild(back);
+      const close = (v) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); };
+      function onKey(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); close(null); } }
+      document.addEventListener('keydown', onKey, true);
+      back.querySelectorAll('[data-lvl]').forEach((b) => b.addEventListener('click', () => close(b.dataset.lvl)));
+      back.querySelector('#mdNo').addEventListener('click', () => close(null));
+      back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(null); });
+    });
+  }
+
   /* ---------- guardado ---------- */
 
   function refreshSaved() {
     const sel = $('savedPlays');
     const plays = M.listPlays();
+    const marca = { club: ' ★', global: ' ◆' };
     sel.innerHTML = plays.length
-      ? plays.map((p) => '<option value="' + p.id + '">' + escapeAttr(p.name) + '</option>').join('')
+      ? plays.map((p) => '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) +
+          (marca[p.origen] || '') + '</option>').join('')
       : '<option value="">(sin jugadas guardadas)</option>';
-    if (plays.some((p) => p.id === M.state.id)) sel.value = M.state.id;
+    const abierta = plays.find((p) => p.id === M.playRow());
+    if (abierta) sel.value = abierta.id;
   }
 
   /* En claude.ai la descarga directa está bloqueada: si existe la capability
@@ -257,10 +293,12 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Mis set ups', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
+    const ORDEN = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
+    /* la marca dice de qué capa salió lo que se está viendo */
+    const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
       .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) +
-        (M.isEditedSetup(f.key) ? ' ✎' : '') + '</option>').join('');
+        (MARCA[f.origen] || '') + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
@@ -272,21 +310,26 @@ RG.ui = (function () {
       syncFormationButtons();
     }
 
+    const DE = { personal: 'tuya', club: 'del club', global: 'de la app' };
+
     function syncFormationButtons() {
       const key = (presets.value || '').slice(2);
       const btn = $('btnDelFormation');
-      if (M.isUserFormation(key)) {
-        btn.disabled = false;
-        btn.textContent = '🗑';
-        btn.title = 'Borrar este set up propio';
-      } else if (M.isEditedSetup(key)) {
-        btn.disabled = false;
-        btn.textContent = '↺';
-        btn.title = 'Volver este set up a como venía de fábrica';
-      } else {
+      const origen = M.setupOrigin(key);
+      if (!M.canEditSetup(key)) {
         btn.disabled = true;
         btn.textContent = '🗑';
-        btn.title = 'Sin cambios propios para borrar';
+        btn.title = origen === 'base' ? 'Sin cambios propios para borrar'
+          : 'Esta versión es ' + DE[origen] + ': no la podés sacar';
+        return;
+      }
+      btn.disabled = false;
+      if (M.isUserFormation(key)) {
+        btn.textContent = '🗑';
+        btn.title = 'Borrar este set up (versión ' + DE[origen] + ')';
+      } else {
+        btn.textContent = '↺';
+        btn.title = 'Sacar la versión ' + DE[origen] + ' y volver a la de abajo';
       }
     }
 
@@ -297,10 +340,12 @@ RG.ui = (function () {
       const sugerido = M.state.name && M.state.name.indexOf('sin nombre') < 0 ? M.state.name : '';
       const nombre = await askText('Nombre del set up nuevo:', sugerido);
       if (!nombre) return;
-      const key = M.saveFormation(nombre.trim(), app.frameIdx);
-      if (!key) return toast('No se pudo guardar en este navegador');
+      const nivel = await askLevel('¿Dónde guardás «' + nombre.trim() + '»?');
+      if (!nivel) return;
+      const key = M.saveFormation(nombre.trim(), app.frameIdx, nivel);
+      if (!key) return toast('No se pudo guardar');
       refreshPresets('f:' + key);
-      toast('Set up guardado en "Mis set ups"');
+      toast('Set up guardado ' + (nivel === 'personal' ? 'en "Mis set ups"' : 'como ' + NIVEL[nivel].label.toLowerCase()));
     }
 
     $('btnSaveFormation').addEventListener('click', async () => {
@@ -312,25 +357,26 @@ RG.ui = (function () {
         'Guardar en ' + nombre, 'Crear uno nuevo');
       if (r === 'alt') return guardarComoNuevo();
       if (r !== true) return;
-      if (!M.saveIntoSetup(key, app.frameIdx)) return toast('No se pudo guardar en este navegador');
+      const nivel = await askLevel('¿Dónde guardás esta versión de «' + nombre + '»?');
+      if (!nivel) return;
+      if (!M.saveIntoSetup(key, app.frameIdx, nivel)) return toast('No se pudo guardar');
       refreshPresets('f:' + key);
-      toast('«' + nombre + '» quedó con tu disposición');
+      toast(nivel === 'personal' ? '«' + nombre + '» quedó con tu disposición'
+        : '«' + nombre + '» quedó como ' + NIVEL[nivel].label.toLowerCase());
     });
 
     $('btnDelFormation').addEventListener('click', async () => {
       const key = (presets.value || '').slice(2);
-      if (M.isUserFormation(key)) {
-        if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
-        M.deleteFormation(key);
-        refreshPresets();
-        return toast('Set up borrado');
-      }
-      if (M.isEditedSetup(key)) {
-        if (!(await askConfirm('¿Volver «' + M.FORMATIONS[key].name + '» a como venía de fábrica? Se pierde tu versión.', 'Restaurar'))) return;
-        M.restoreSetup(key);
-        refreshPresets('f:' + key);
-        toast('Set up restaurado');
-      }
+      if (!M.canEditSetup(key)) return;
+      const nombre = M.FORMATIONS[key].name;
+      const origen = M.setupOrigin(key);
+      const aviso = M.isUserFormation(key)
+        ? '¿Borrar el set up "' + nombre + '" (versión ' + DE[origen] + ')?'
+        : '¿Sacar la versión ' + DE[origen] + ' de «' + nombre + '»? Queda la de abajo.';
+      if (!(await askConfirm(aviso, M.isUserFormation(key) ? 'Borrar' : 'Sacar'))) return;
+      M.restoreSetup(key);
+      refreshPresets(M.FORMATIONS[key] ? 'f:' + key : null);
+      toast(M.FORMATIONS[key] ? 'Set up restaurado' : 'Set up borrado');
     });
 
     /* paquete de set ups, para pasarlo a otro entrenador */
@@ -485,20 +531,28 @@ RG.ui = (function () {
     $('btnZoomFit').addEventListener('click', () => { app.fitPlay(); app.requestDraw(); });
 
     /* guardado */
-    $('btnSave').addEventListener('click', () => {
+    $('btnSave').addEventListener('click', async () => {
       M.state.name = $('playName').value.trim() || 'Jugada sin nombre';
-      if (M.savePlay()) { refreshSaved(); toast('Jugada guardada'); }
-      else toast('No se pudo guardar en este navegador');
+      const nivel = await askLevel('¿Dónde guardás «' + M.state.name + '»?');
+      if (!nivel) return;
+      if (M.savePlay(nivel)) {
+        refreshSaved();
+        toast(nivel === 'personal' ? 'Jugada guardada' : 'Jugada guardada como ' + NIVEL[nivel].label.toLowerCase());
+      } else toast('No se pudo guardar');
     });
     $('btnLoad').addEventListener('click', () => {
       const id = $('savedPlays').value;
       if (!id) return toast('No hay jugadas guardadas');
-      if (M.loadPlay(id)) { app.frameIdx = 0; app.time = 0; app.selection = null; app.setStage(M.state.stage); app.refreshAll(); toast('Jugada abierta'); }
+      if (M.loadPlay(id)) {
+        app.frameIdx = 0; app.time = 0; app.selection = null; app.setStage(M.state.stage); app.refreshAll();
+        toast('Jugada abierta');
+      }
     });
     $('btnDeletePlay').addEventListener('click', async () => {
       const id = $('savedPlays').value;
       if (!id) return;
       const name = $('savedPlays').selectedOptions[0].textContent;
+      if (!M.canWrite(M.playOrigin(id))) return toast('Esa jugada es de otro nivel: no la podés borrar');
       if (!(await askConfirm('¿Borrar la jugada guardada "' + name + '"?', 'Borrar'))) return;
       M.deletePlay(id); refreshSaved(); toast('Jugada borrada');
     });

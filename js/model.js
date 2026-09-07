@@ -251,44 +251,129 @@ RG.model = (function () {
     }
   };
 
-  function formationList() {
-    return Object.keys(FORMATIONS).map((k) => ({ key: k, name: FORMATIONS[k].name, group: FORMATIONS[k].group || 'Otras' }));
-  }
+  /* ---------- catálogo de set ups ----------
 
-  /* ---------- set ups: los doce de fábrica son las situaciones, pero cada
-     entrenador guarda su propia disposición encima, con vuelta al original ---------- */
+     Cuatro capas, cada una encima de la anterior:
 
-  const FORM_KEY = 'rugbyboard.formations.v1';   /* los que crea desde cero */
-  const SETUP_KEY = 'rugbyboard.setups.v1';      /* su versión de los de fábrica */
+       fábrica   las doce situaciones que trae la app
+       global    lo que publica el administrador del producto
+       club      la base que deja el club
+       personal  el trabajo de cada entrenador
+
+     El catálogo son filas, con la misma forma que las del servidor. El navegador
+     guarda una copia: así la app abre sin esperar la red y sigue andando sin
+     cuenta. sync.js es el que las sube y las baja. */
+
+  const CAT_KEY = 'rugbyboard.catalog.v1';
+  const PLAY_KEY = 'rugbyboard.playrows.v1';
+  const OLD_FORM_KEY = 'rugbyboard.formations.v1';   /* lo de antes, sólo para mudarlo */
+  const OLD_SETUP_KEY = 'rugbyboard.setups.v1';
+  const OLD_PLAY_KEY = 'rugbyboard.plays.v1';
 
   /* copia intacta de fábrica, para poder restaurar */
   const BASE = {};
   for (const k of Object.keys(FORMATIONS)) BASE[k] = JSON.parse(JSON.stringify(FORMATIONS[k]));
 
-  function readStoreAt(key) {
-    try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { return {}; }
+  /* quién está trabajando. Sin cuenta es 'local': todo queda en esta máquina. */
+  const me = { user: 'local', club: null, admin: false, clubAdmin: false, cuenta: false };
+
+  let rows = [];        /* filas de set ups */
+  let playRows = [];    /* filas de jugadas */
+  let avisar = null;    /* sync.js engancha acá para subir lo que cambió */
+
+  const CAPA = { global: 1, club: 2, personal: 3 };
+  const GRUPO = { global: 'De la app', club: 'Del club', personal: 'Mis set ups' };
+
+  function suf() { return me.user === 'local' ? '' : '.' + me.user; }
+  function bolsa(kind) { return kind === 'plays' ? playRows : rows; }
+  function clave(kind) { return (kind === 'plays' ? PLAY_KEY : CAT_KEY) + suf(); }
+
+  function leerJSON(key, vacio) {
+    try { const r = JSON.parse(localStorage.getItem(key) || 'null'); return r == null ? vacio : r; }
+    catch (e) { return vacio; }
+  }
+  function escribir(kind) {
+    try { localStorage.setItem(clave(kind), JSON.stringify(bolsa(kind))); return true; }
+    catch (e) { return false; }
   }
 
-  function writeStoreAt(key, obj) {
-    try { localStorage.setItem(key, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  /* la fila se ve si es global, si es de un club mío, o si es mía */
+  function visible(r) {
+    if (r.deleted) return false;
+    if (r.scope === 'global') return true;
+    if (r.scope === 'club') return !!me.club && r.club_id === me.club;
+    return !r.owner_id || r.owner_id === me.user;
   }
 
-  const readUserFormations = () => readStoreAt(FORM_KEY);
-  const readOverrides = () => readStoreAt(SETUP_KEY);
+  function keyDe(r) { return r.base_key || ('c:' + r.id); }
 
-  function applyOverride(key, ov) {
-    FORMATIONS[key] = Object.assign({}, BASE[key], ov, {
-      name: BASE[key].name, group: BASE[key].group, edited: true
-    });
+  /* arma FORMATIONS: fábrica abajo, después global, club y lo personal */
+  function rebuild() {
+    for (const k of Object.keys(FORMATIONS)) if (!BASE[k]) delete FORMATIONS[k];
+    for (const k of Object.keys(BASE)) FORMATIONS[k] = JSON.parse(JSON.stringify(BASE[k]));
+    const puestas = rows.filter(visible).slice().sort((a, b) => CAPA[a.scope] - CAPA[b.scope]);
+    for (const r of puestas) {
+      const k = keyDe(r);
+      const d = r.data || {};
+      if (BASE[k]) {
+        FORMATIONS[k] = Object.assign({}, BASE[k], d, {
+          name: BASE[k].name, group: BASE[k].group, edited: true, origen: r.scope, rowId: r.id
+        });
+      } else {
+        FORMATIONS[k] = Object.assign({}, d, {
+          name: r.name, group: GRUPO[r.scope] || 'Mis set ups', user: true, origen: r.scope, rowId: r.id
+        });
+      }
+    }
   }
 
-  /* al arrancar: primero la versión propia de los de fábrica, después los creados */
-  function loadUserFormations() {
-    const ov = readOverrides();
-    for (const k of Object.keys(ov)) if (BASE[k]) applyOverride(k, ov[k]);
-    const mine = readUserFormations();
-    for (const k of Object.keys(mine)) FORMATIONS[k] = mine[k];
-    return Object.keys(ov).length + Object.keys(mine).length;
+  function formationList() {
+    return Object.keys(FORMATIONS).map((k) => ({
+      key: k, name: FORMATIONS[k].name, group: FORMATIONS[k].group || 'Otras',
+      origen: FORMATIONS[k].origen || 'base'
+    }));
+  }
+
+  /* ---------- quién puede escribir en cada capa ---------- */
+
+  function canWrite(scope) {
+    if (scope === 'personal') return true;
+    if (scope === 'club') return !!me.club && me.clubAdmin;
+    if (scope === 'global') return !!me.admin;
+    return false;
+  }
+  function writableLevels() { return ['personal', 'club', 'global'].filter(canWrite); }
+  function whoAmI() { return Object.assign({}, me); }
+
+  /* ---------- alta y corrección de filas ---------- */
+
+  function nuevaFila(kind, campos) {
+    const r = Object.assign({ id: 'l:' + uid(), owner_id: me.user }, campos);
+    r.updated = Date.now(); r.dirty = true;
+    bolsa(kind).push(r);
+    return r;
+  }
+
+  function tocar(kind, r, campos) {
+    Object.assign(r, campos, { updated: Date.now(), dirty: true, deleted: false });
+    return r;
+  }
+
+  function guardado(kind) {
+    const ok = escribir(kind);
+    rebuild();
+    if (avisar) { try { avisar(kind); } catch (e) { /* sin cuenta no hay a quién avisar */ } }
+    return ok;
+  }
+
+  /* la fila queda marcada para borrar: sync la baja del servidor y recién ahí sale */
+  function borrarFila(kind, id) {
+    const b = bolsa(kind);
+    const i = b.findIndex((r) => r.id === id);
+    if (i < 0) return false;
+    if (String(id).indexOf('l:') === 0) b.splice(i, 1);   /* nunca llegó al servidor */
+    else { b[i].deleted = true; b[i].dirty = true; b[i].updated = Date.now(); }
+    return guardado(kind);
   }
 
   const round2 = (n) => Math.round(n * 100) / 100;
@@ -307,80 +392,227 @@ RG.model = (function () {
     return f;
   }
 
-  /* guarda como set up nuevo, en el grupo propio */
-  function saveFormation(name, frameIdx) {
+  function filaDeSetup(scope, baseKey, nombre) {
+    return rows.find((r) => !r.deleted && r.scope === scope &&
+      (scope !== 'club' || r.club_id === me.club) &&
+      (scope !== 'personal' || !r.owner_id || r.owner_id === me.user) &&
+      (baseKey ? r.base_key === baseKey : (!r.base_key && r.name === nombre)));
+  }
+
+  /* guarda como set up nuevo, en la capa que se pida */
+  function saveFormation(name, frameIdx, scope) {
+    scope = scope || 'personal';
+    if (!canWrite(scope)) return null;
     const f = captureSetup(name, frameIdx);
-    f.group = 'Mis set ups';
-    f.user = true;
-    const store = readUserFormations();
-    /* mismo nombre: se reemplaza, para poder corregir uno y volver a guardarlo */
-    let key = Object.keys(store).find((k) => store[k].name === name);
-    if (!key) key = 'u:' + uid();
-    store[key] = f;
-    FORMATIONS[key] = f;
-    return writeStoreAt(FORM_KEY, store) ? key : null;
+    const previa = filaDeSetup(scope, null, name);   /* mismo nombre: se corrige */
+    const fila = previa
+      ? tocar('setups', previa, { name: name, data: f })
+      : nuevaFila('setups', { scope: scope, club_id: scope === 'club' ? me.club : null, base_key: null, name: name, data: f });
+    guardado('setups');
+    return keyDe(fila);
   }
 
   /* guarda encima del set up que está abierto, sea de fábrica o propio */
-  function saveIntoSetup(key, frameIdx) {
-    if (!FORMATIONS[key]) return false;
-    const f = captureSetup(FORMATIONS[key].name, frameIdx);
-    if (BASE[key]) {
-      const ov = readOverrides();
-      ov[key] = f;
-      if (!writeStoreAt(SETUP_KEY, ov)) return false;
-      applyOverride(key, f);
-      return true;
+  function saveIntoSetup(key, frameIdx, scope) {
+    const actual = FORMATIONS[key];
+    if (!actual) return false;
+    scope = scope || 'personal';
+    if (!canWrite(scope)) return false;
+    const f = captureSetup(actual.name, frameIdx);
+
+    if (BASE[key]) {   /* una de las doce: cada capa guarda su versión */
+      const previa = filaDeSetup(scope, key, actual.name);
+      if (previa) tocar('setups', previa, { name: actual.name, data: f });
+      else nuevaFila('setups', { scope: scope, club_id: scope === 'club' ? me.club : null, base_key: key, name: actual.name, data: f });
+      return guardado('setups');
     }
-    const store = readUserFormations();
-    f.group = 'Mis set ups';
-    f.user = true;
-    store[key] = f;
-    FORMATIONS[key] = f;
-    return writeStoreAt(FORM_KEY, store);
+
+    /* uno creado: si cambia de capa se muda, no se duplica */
+    const fila = rows.find((r) => r.id === actual.rowId);
+    if (fila && fila.scope === scope) { tocar('setups', fila, { data: f }); return guardado('setups'); }
+    if (fila && canWrite(fila.scope)) borrarFila('setups', fila.id);
+    nuevaFila('setups', { scope: scope, club_id: scope === 'club' ? me.club : null, base_key: null, name: actual.name, data: f });
+    return guardado('setups');
   }
 
-  /* vuelve un set up de fábrica a como venía */
+  /* saca la versión de arriba: el set up vuelve a la capa de abajo */
   function restoreSetup(key) {
-    if (!BASE[key]) return false;
-    const ov = readOverrides();
-    if (!ov[key]) return false;
-    delete ov[key];
-    FORMATIONS[key] = JSON.parse(JSON.stringify(BASE[key]));
-    return writeStoreAt(SETUP_KEY, ov);
+    const f = FORMATIONS[key];
+    if (!f || !f.rowId || !canWrite(f.origen)) return false;
+    return borrarFila('setups', f.rowId);
   }
 
-  function deleteFormation(key) {
-    const store = readUserFormations();
-    if (!store[key]) return false;
-    delete store[key];
-    delete FORMATIONS[key];
-    return writeStoreAt(FORM_KEY, store);
-  }
+  const deleteFormation = restoreSetup;
 
   function isUserFormation(key) { return !!(FORMATIONS[key] && FORMATIONS[key].user); }
   function isEditedSetup(key) { return !!(FORMATIONS[key] && FORMATIONS[key].edited); }
   function isBaseSetup(key) { return !!BASE[key]; }
+  function setupOrigin(key) { return (FORMATIONS[key] && FORMATIONS[key].origen) || 'base'; }
+  /* ¿puedo sacar lo que hay encima de este set up? */
+  function canEditSetup(key) {
+    const f = FORMATIONS[key];
+    return !!(f && f.rowId && canWrite(f.origen));
+  }
+
+  /* ---------- lo que usa sync.js ---------- */
+
+  /* entra a la cuenta (o vuelve a lo local con null) y lee el espejo que corresponda */
+  function useAccount(info) {
+    me.user = info && info.user ? info.user : 'local';
+    me.club = (info && info.club) || null;
+    me.admin = !!(info && info.admin);
+    me.clubAdmin = !!(info && info.clubAdmin);
+    me.cuenta = !!(info && info.user);
+    rows = leerJSON(clave('setups'), []);
+    playRows = leerJSON(clave('plays'), []);
+    let mudado = 0;
+    if (!me.cuenta) {
+      mudado = migrarViejo();       /* lo guardado con el formato anterior */
+    } else if (!rows.length && !playRows.length) {
+      const suelto = localLeftovers(true);   /* lo que venía trabajando sin cuenta */
+      mudado = adoptRows('setups', suelto.setups) + adoptRows('plays', suelto.plays);
+    }
+    rebuild();
+    return mudado;
+  }
+
+  function onChange(fn) { avisar = fn; }
+  function allRows(kind) { return bolsa(kind).slice(); }
+  function pending(kind) { return bolsa(kind).filter((r) => r.dirty || r.deleted); }
+
+  /* la fila local ya está en el servidor: se queda con el id de allá */
+  function adopt(kind, localId, servidor) {
+    const b = bolsa(kind);
+    const i = b.findIndex((r) => r.id === localId);
+    if (i < 0) return;
+    b[i] = Object.assign({}, b[i], servidor || {}, { dirty: false, updated: Date.now() });
+    escribir(kind); rebuild();
+  }
+
+  function forget(kind, id) {
+    const b = bolsa(kind);
+    const i = b.findIndex((r) => r.id === id);
+    if (i >= 0) b.splice(i, 1);
+    escribir(kind); rebuild();
+  }
+
+  /* llega la lista del servidor: manda ella, salvo en lo que todavía no subió */
+  function applyRemote(kind, filas) {
+    const sinSubir = bolsa(kind).filter((r) => r.dirty || r.deleted);
+    const nuevas = (filas || []).filter((r) => !sinSubir.some((p) => p.id === r.id));
+    const b = sinSubir.concat(nuevas);
+    if (kind === 'plays') playRows = b; else rows = b;
+    escribir(kind); rebuild();
+  }
+
+  /* Lo que quedó en esta máquina trabajando sin cuenta, para subirlo al entrar.
+     Se marca lo que ya se llevó: si dos entrenadores usan la misma máquina, el
+     trabajo suelto va a la cuenta del primero y no se le copia al segundo. */
+  function localLeftovers(marcar) {
+    const cuenta = me.user;
+    me.user = 'local';
+    const s = leerJSON(clave('setups'), []);
+    const p = leerJSON(clave('plays'), []);
+    const sueltas = (b) => b.filter((r) => !r.deleted && !r.mudado);
+    const salida = { setups: sueltas(s), plays: sueltas(p) };
+    if (marcar) {
+      for (const r of salida.setups) r.mudado = true;
+      for (const r of salida.plays) r.mudado = true;
+      try {
+        localStorage.setItem(clave('setups'), JSON.stringify(s));
+        localStorage.setItem(clave('plays'), JSON.stringify(p));
+      } catch (e) { /* si no entra, se vuelve a ofrecer la próxima vez */ }
+    }
+    me.user = cuenta;
+    return salida;
+  }
+
+  /* mete filas de otro lado como propias, sin pisar lo que ya hay */
+  function adoptRows(kind, filas) {
+    let n = 0;
+    for (const r of filas || []) {
+      const copia = Object.assign({}, r, {
+        id: 'l:' + uid(), owner_id: me.user, scope: 'personal', club_id: null,
+        dirty: true, deleted: false, mudado: false, updated: Date.now()
+      });
+      if (kind === 'setups') {
+        if (filaDeSetup('personal', copia.base_key, copia.name)) continue;
+        rows.push(copia);
+      } else {
+        const yaEsta = playRows.some((x) => !x.deleted && x.scope === 'personal' &&
+          x.data && copia.data && x.data.id === copia.data.id);
+        if (yaEsta) continue;
+        playRows.push(copia);
+      }
+      n++;
+    }
+    if (n) guardado(kind);
+    return n;
+  }
+
+  /* ---------- mudanza de lo guardado con el formato viejo ---------- */
+
+  function migrarViejo() {
+    if (rows.length || playRows.length) return 0;
+    let n = 0;
+    const ov = leerJSON(OLD_SETUP_KEY, {});
+    for (const k of Object.keys(ov)) {
+      if (!BASE[k]) continue;
+      nuevaFila('setups', { scope: 'personal', club_id: null, base_key: k, name: BASE[k].name, data: ov[k] });
+      n++;
+    }
+    const propios = leerJSON(OLD_FORM_KEY, {});
+    for (const k of Object.keys(propios)) {
+      const f = propios[k];
+      nuevaFila('setups', { scope: 'personal', club_id: null, base_key: null, name: f.name || 'Set up', data: f });
+      n++;
+    }
+    const jug = leerJSON(OLD_PLAY_KEY, {});
+    for (const k of Object.keys(jug)) {
+      nuevaFila('plays', { scope: 'personal', club_id: null, name: jug[k].name || '(sin nombre)', data: jug[k] });
+      n++;
+    }
+    if (n) { escribir('setups'); escribir('plays'); }
+    return n;
+  }
+
+  /* al arrancar: lee el espejo de esta máquina */
+  function loadUserFormations() {
+    useAccount(null);
+    return rows.length;
+  }
 
   /* ---------- paquete para pasar los set ups a otro entrenador ---------- */
 
   function exportSetups() {
-    return { v: 1, kind: 'rugbyboard-setups', saved: Date.now(), overrides: readOverrides(), own: readUserFormations() };
+    return {
+      v: 2, kind: 'rugbyboard-setups', saved: Date.now(),
+      rows: rows.filter((r) => !r.deleted && r.scope === 'personal')
+        .map((r) => ({ base_key: r.base_key, name: r.name, data: r.data }))
+    };
   }
 
   function importSetups(data, replace) {
     if (!data || data.kind !== 'rugbyboard-setups') throw new Error('El archivo no es un paquete de set ups');
-    const ov = replace ? {} : readOverrides();
-    const mine = replace ? {} : readUserFormations();
-    for (const k of Object.keys(data.overrides || {})) if (BASE[k]) ov[k] = data.overrides[k];
-    for (const k of Object.keys(data.own || {})) mine[k] = data.own[k];
-    writeStoreAt(SETUP_KEY, ov);
-    writeStoreAt(FORM_KEY, mine);
-    /* releer todo desde cero para que el catálogo quede consistente */
-    for (const k of Object.keys(FORMATIONS)) if (!BASE[k]) delete FORMATIONS[k];
-    for (const k of Object.keys(BASE)) FORMATIONS[k] = JSON.parse(JSON.stringify(BASE[k]));
-    loadUserFormations();
-    return Object.keys(ov).length + Object.keys(mine).length;
+    if (replace) {
+      for (const r of rows.filter((x) => x.scope === 'personal')) borrarFila('setups', r.id);
+    }
+    /* el formato viejo traía dos bolsas; el nuevo, filas */
+    let filas = data.rows;
+    if (!filas) {
+      filas = [];
+      for (const k of Object.keys(data.overrides || {})) if (BASE[k]) filas.push({ base_key: k, name: BASE[k].name, data: data.overrides[k] });
+      for (const k of Object.keys(data.own || {})) filas.push({ base_key: null, name: (data.own[k] || {}).name || 'Set up', data: data.own[k] });
+    }
+    let n = 0;
+    for (const f of filas) {
+      const previa = filaDeSetup('personal', f.base_key, f.name);
+      if (previa) tocar('setups', previa, { name: f.name, data: f.data });
+      else nuevaFila('setups', { scope: 'personal', club_id: null, base_key: f.base_key || null, name: f.name, data: f.data });
+      n++;
+    }
+    guardado('setups');
+    return n;
   }
 
   /* ---------- estado ---------- */
@@ -733,8 +965,6 @@ RG.model = (function () {
 
   /* ---------- serializacion / guardado ---------- */
 
-  const STORE_KEY = 'rugbyboard.plays.v1';
-
   function serialize() {
     return {
       v: 1, id: state.id, name: state.name, squad: state.squad, showB: state.showB,
@@ -760,38 +990,60 @@ RG.model = (function () {
     resetHistory();
   }
 
-  function readStore() {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch (e) { return {}; }
+  /* Las jugadas guardadas viven en filas, igual que los set ups: la capa dice si
+     son propias, del club o de la app. */
+
+  let filaAbierta = null;   /* la fila del catálogo que se está editando */
+
+  function filaDeJugada(scope, playId, nombre) {
+    return playRows.find((r) => !r.deleted && r.scope === scope &&
+      (scope !== 'club' || r.club_id === me.club) &&
+      (scope !== 'personal' || !r.owner_id || r.owner_id === me.user) &&
+      ((playId && r.data && r.data.id === playId) || (!playId && r.name === nombre)));
   }
 
-  function writeStore(obj) {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
-  }
-
-  function savePlay() {
-    const store = readStore();
-    store[state.id] = serialize();
-    return writeStore(store);
+  function savePlay(scope) {
+    scope = scope || 'personal';
+    if (!canWrite(scope)) return false;
+    const data = serialize();
+    const previa = filaDeJugada(scope, state.id, state.name);
+    const fila = previa
+      ? tocar('plays', previa, { name: state.name, data: data })
+      : nuevaFila('plays', { scope: scope, club_id: scope === 'club' ? me.club : null, name: state.name, data: data });
+    filaAbierta = fila.id;
+    guardado('plays');
+    return fila.id;
   }
 
   function listPlays() {
-    const store = readStore();
-    return Object.keys(store)
-      .map((k) => ({ id: k, name: store[k].name || '(sin nombre)', saved: store[k].saved || 0 }))
+    return playRows.filter(visible)
+      .map((r) => ({
+        id: r.id, name: (r.data && r.data.name) || r.name || '(sin nombre)',
+        saved: (r.data && r.data.saved) || r.updated || 0,
+        origen: r.scope, propia: r.scope === 'personal'
+      }))
       .sort((x, y) => y.saved - x.saved);
   }
 
   function loadPlay(id) {
-    const store = readStore();
-    if (!store[id]) return false;
-    load(store[id]);
+    const r = playRows.find((x) => x.id === id && !x.deleted);
+    if (!r || !r.data) return false;
+    load(r.data);
+    filaAbierta = r.id;
     return true;
   }
 
   function deletePlay(id) {
-    const store = readStore();
-    delete store[id];
-    return writeStore(store);
+    const r = playRows.find((x) => x.id === id);
+    if (!r || !canWrite(r.scope)) return false;
+    return borrarFila('plays', id);
+  }
+
+  function playRow() { return filaAbierta; }
+
+  function playOrigin(id) {
+    const r = playRows.find((x) => x.id === id);
+    return r ? r.scope : 'personal';
   }
 
   return {
@@ -799,7 +1051,10 @@ RG.model = (function () {
     blankFrame, frame, frameCount, player, activePlayers, pos,
     newPlay, rebuildSquad, applyFormation, addPlayer, removePlayer, nextNumber,
     loadUserFormations, saveFormation, saveIntoSetup, restoreSetup, deleteFormation,
-    isUserFormation, isEditedSetup, isBaseSetup, exportSetups, importSetups,
+    isUserFormation, isEditedSetup, isBaseSetup, setupOrigin, canEditSetup,
+    canWrite, writableLevels, whoAmI, exportSetups, importSetups,
+    useAccount, onChange, allRows, pending, adopt, forget, applyRemote,
+    localLeftovers, adoptRows, playOrigin, playRow,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,

@@ -37,20 +37,28 @@ RG.home = (function () {
     estado.teams = estado.club ? await C.teams(estado.club.id) : [];
     estado.members = estado.club ? await C.members(estado.club.id) : [];
     if (estado.club) localStorage.setItem('rugbyboard.club', estado.club.id);
+
+    /* los set ups y las jugadas pasan a ser los de la cuenta */
+    if (RG.sync) await RG.sync.cuenta(estado.user, estado.club);
   }
+
+  const soyDueño = () => !!(estado.club && estado.club.role === 'owner');
 
   function equipoActual() {
     const id = localStorage.getItem('rugbyboard.team');
     return estado.teams.find((t) => t.id === id) || estado.teams[0] || null;
   }
 
-  /* lo que hay guardado en esta máquina, hasta que la sincronización esté lista */
+  const ETIQUETA = { club: 'del club', global: 'de la app', personal: '' };
+
   function misJugadas() { return M.listPlays(); }
 
   function misSetups() {
     return M.formationList()
-      .filter((f) => M.isUserFormation(f.key) || M.isEditedSetup(f.key))
-      .map((f) => ({ key: f.key, name: f.name, propio: M.isUserFormation(f.key) }));
+      .filter((f) => f.origen && f.origen !== 'base')
+      .map((f) => ({
+        key: f.key, name: f.name, propio: M.isUserFormation(f.key), origen: f.origen
+      }));
   }
 
   /* ---------------------------------------------------------- pantallas ---- */
@@ -120,16 +128,19 @@ RG.home = (function () {
     const js = misJugadas();
     if (!js.length) return '<p class="hm-empty">Todavía no guardaste jugadas.</p>';
     return '<ul class="hm-list">' + js.map((j) =>
-      '<li><button class="hm-item" data-play="' + j.id + '">' + esc(j.name) + '</button></li>').join('') + '</ul>';
+      '<li><button class="hm-item" data-play="' + esc(j.id) + '">' + esc(j.name) +
+      (ETIQUETA[j.origen] ? ' <span class="hm-tag">' + ETIQUETA[j.origen] + '</span>' : '') +
+      '</button></li>').join('') + '</ul>';
   }
 
   function listaSetups() {
     const ss = misSetups();
-    if (!ss.length) return '<p class="hm-empty">Todavía no guardaste set ups propios. Los doce de ' +
+    if (!ss.length) return '<p class="hm-empty">Todavía no hay set ups guardados. Los doce de ' +
       'partido están siempre disponibles en la pizarra.</p>';
     return '<ul class="hm-list">' + ss.map((s) =>
       '<li><button class="hm-item" data-setup="' + esc(s.key) + '">' + esc(s.name) +
-      (s.propio ? '' : ' <span class="hm-tag">tu versión</span>') + '</button></li>').join('') + '</ul>';
+      '<span class="hm-tag">' + (ETIQUETA[s.origen] || (s.propio ? 'tuyo' : 'tu versión')) + '</span>' +
+      '</button></li>').join('') + '</ul>';
   }
 
   function vistaInicio() {
@@ -141,7 +152,8 @@ RG.home = (function () {
       '<h1>' + esc(sinCuenta ? 'Rugby Board' : estado.club.name) + '</h1>' +
       '<p class="hm-lead">' + (sinCuenta
         ? 'Estás trabajando sin cuenta: todo se guarda en este navegador.'
-        : esc(estado.user.name) + (estado.club.role === 'owner' ? ' · dueño del club' : ' · entrenador') +
+        : esc(estado.user.name) + ' · ' + (estado.club.role === 'owner' ? 'dueño del club'
+          : estado.club.role === 'admin' ? 'admin del club' : 'entrenador') +
           (eq ? ' · ' + esc(eq.name) : '')) + '</p>' +
       '</div>' +
       '<div class="hm-actions-top">' +
@@ -160,10 +172,11 @@ RG.home = (function () {
       '<div class="hm-cols">' +
 
       '<div class="hm-card">' +
-      '<h2>Mis jugadas</h2>' + listaJugadas() +
-      '<h2>Mis set ups</h2>' + listaSetups() +
-      '<p class="hm-note">Por ahora se guardan en este navegador. La sincronización con el club es ' +
-      'el próximo paso.</p>' +
+      '<h2>Jugadas</h2>' + listaJugadas() +
+      '<h2>Set ups</h2>' + listaSetups() +
+      '<p class="hm-note">' + (sinCuenta
+        ? 'Se guardan en este navegador. Al entrar con tu cuenta se suben solos.'
+        : esc(estadoSync())) + '</p>' +
       '</div>' +
 
       (sinCuenta ? '' :
@@ -186,14 +199,33 @@ RG.home = (function () {
       estado.members.map((m) => '<li class="hm-member"><span>' + esc(m.name) +
         (m.me ? '<span class="hm-tag">vos</span>' : '') +
         (m.role === 'owner' ? '<span class="hm-tag">dueño</span>' : '') +
-        '</span><small>' + esc(m.email) + '</small></li>').join('') +
+        (m.role === 'admin' ? '<span class="hm-tag">admin del club</span>' : '') +
+        '</span><small>' + esc(m.email) + '</small>' +
+        (soyDueño() && !m.me && m.role !== 'owner'
+          ? '<button class="hm-role" data-role="' + esc(m.id) + '" data-to="' +
+            (m.role === 'admin' ? 'coach' : 'admin') + '">' +
+            (m.role === 'admin' ? 'Sacar admin' : 'Hacer admin') + '</button>'
+          : '') +
+        '</li>').join('') +
       '</ul>' +
+      (soyDueño() ? '<p class="hm-note">Un admin del club deja los set ups y las jugadas base ' +
+        'que ven todos los entrenadores del club.</p>' : '') +
       '<h3>Invitar</h3>' +
       '<p class="hm-code" id="hmCodeBox" title="Click para copiarlo">' + esc(estado.club.join_code) + '</p>' +
       '<p class="hm-note">Con ese código entran al club desde su mail.</p>' +
       '</div>') +
 
       '</div>';
+  }
+
+  /* en una línea: si está todo arriba, si falta subir algo o si falló */
+  function estadoSync() {
+    if (!RG.sync) return '';
+    const e = RG.sync.estado();
+    if (!e.activa) return 'Se guardan en este navegador.';
+    if (e.error) return 'Guardado en esta máquina. No se pudo sincronizar: ' + e.error;
+    if (e.pendientes) return 'Subiendo ' + e.pendientes + ' cambios a tu cuenta…';
+    return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
   }
 
   function pintar() {
@@ -285,6 +317,10 @@ RG.home = (function () {
       correr(() => C.deleteTeam(estado.club.id, t.id));
     }));
 
+    root.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => {
+      correr(() => C.setClubRole(estado.club.id, b.dataset.role, b.dataset.to));
+    }));
+
     const salir = q('#hmOut');
     if (salir) salir.addEventListener('click', () => correr(async () => {
       pendiente = null;
@@ -333,6 +369,9 @@ RG.home = (function () {
   async function init(_app) {
     app = _app;
     root = document.getElementById('home');
+
+    /* cuando termina de subir o bajar, la pantalla se pone al día sola */
+    if (RG.sync) RG.sync.onRefresh(() => { if (!root.hidden && !cargando) pintar(); });
 
     const volverAlInicio = document.getElementById('btnHome');
     if (volverAlInicio) volverAlInicio.addEventListener('click', async () => {

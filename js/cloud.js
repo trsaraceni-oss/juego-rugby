@@ -128,14 +128,93 @@ RG.cloud = (function () {
         write(db);
       },
 
+      /* set ups y jugadas, con el mismo modelo de niveles que el servidor */
+      async listSetups(clubId) {
+        const db = read();
+        return (db.setups || []).filter((r) =>
+          r.scope === 'global' || r.owner_id === db.session ||
+          (r.scope === 'club' && r.club_id === clubId))
+          .map((r) => Object.assign({}, r, { mine: r.owner_id === db.session }));
+      },
+
+      async saveSetup(row) {
+        await wait(120);
+        const db = read();
+        db.setups = db.setups || [];
+        const igual = (r) => r.scope === row.scope &&
+          (row.scope !== 'personal' || r.owner_id === db.session) &&
+          (row.scope !== 'club' || r.club_id === row.club_id) &&
+          (row.base_key ? r.base_key === row.base_key : (!r.base_key && r.name === row.name));
+        let fila = db.setups.find(igual);
+        if (!fila) {
+          fila = Object.assign({ id: uid(), owner_id: db.session }, row);
+          db.setups.push(fila);
+        } else {
+          Object.assign(fila, row);
+        }
+        write(db);
+        return fila;
+      },
+
+      async deleteSetup(id) {
+        const db = read();
+        db.setups = (db.setups || []).filter((r) => r.id !== id);
+        write(db);
+      },
+
+      async listPlays(clubId) {
+        const db = read();
+        return (db.plays || []).filter((r) =>
+          r.scope === 'global' || r.owner_id === db.session ||
+          (r.scope === 'club' && r.club_id === clubId))
+          .map((r) => Object.assign({}, r, { mine: r.owner_id === db.session }));
+      },
+
+      async savePlay(row) {
+        await wait(120);
+        const db = read();
+        db.plays = db.plays || [];
+        let fila = db.plays.find((r) => r.scope === row.scope && r.name === row.name &&
+          (row.scope !== 'personal' || r.owner_id === db.session) &&
+          (row.scope !== 'club' || r.club_id === row.club_id));
+        if (!fila) {
+          fila = Object.assign({ id: uid(), owner_id: db.session }, row);
+          db.plays.push(fila);
+        } else {
+          Object.assign(fila, row);
+        }
+        write(db);
+        return fila;
+      },
+
+      async deletePlay(id) {
+        const db = read();
+        db.plays = (db.plays || []).filter((r) => r.id !== id);
+        write(db);
+      },
+
+      async amAdmin() { return false; },
+
       async members(clubId) {
         const db = read();
         return (db.members[clubId] || []).map((m) => ({
+          id: m.user,
           role: m.role,
           name: (db.users[m.user] || {}).name || '(sin nombre)',
           email: (db.users[m.user] || {}).email || '',
           me: m.user === db.session
         }));
+      },
+
+      async setClubRole(clubId, userId, role) {
+        const db = read();
+        const yo = (db.members[clubId] || []).find((m) => m.user === db.session);
+        if (!yo || yo.role !== 'owner') throw new Error('Sólo el dueño del club cambia los roles');
+        const otro = (db.members[clubId] || []).find((m) => m.user === userId);
+        if (!otro) throw new Error('No está en el club');
+        otro.role = role;
+        write(db);
+        return role;
       }
     };
   })();
@@ -318,15 +397,66 @@ RG.cloud = (function () {
         await pedir('/rest/v1/teams?id=eq.' + encodeURIComponent(teamId), { method: 'DELETE' });
       },
 
+      async listSetups() {
+        return await pedir('/rest/v1/setups?select=id,scope,club_id,base_key,name,data,owner_id') || [];
+      },
+
+      async saveSetup(row) {
+        const r = await pedir('/rest/v1/rpc/save_setup', {
+          method: 'POST',
+          body: {
+            p_scope: row.scope, p_club: row.club_id || null, p_base_key: row.base_key || null,
+            p_name: row.name, p_data: row.data
+          }
+        });
+        return Array.isArray(r) ? r[0] : r;
+      },
+
+      async deleteSetup(id) {
+        await pedir('/rest/v1/setups?id=eq.' + encodeURIComponent(id), { method: 'DELETE' });
+      },
+
+      async listPlays() {
+        return await pedir('/rest/v1/plays?select=id,scope,club_id,name,data,owner_id') || [];
+      },
+
+      async savePlay(row) {
+        const r = await pedir('/rest/v1/rpc/save_play', {
+          method: 'POST',
+          body: { p_scope: row.scope, p_club: row.club_id || null, p_name: row.name, p_data: row.data }
+        });
+        return Array.isArray(r) ? r[0] : r;
+      },
+
+      async deletePlay(id) {
+        await pedir('/rest/v1/plays?id=eq.' + encodeURIComponent(id), { method: 'DELETE' });
+      },
+
+      /* ¿es administrador del producto? lo dice el servidor, no el navegador */
+      async amAdmin() {
+        try {
+          const r = await pedir('/rest/v1/rpc/is_admin', { method: 'POST', body: {} });
+          return r === true;
+        } catch (e) { return false; }
+      },
+
       async members(clubId) {
         const yo = await this.session();
         const filas = await pedir('/rest/v1/memberships?select=role,user_id,profiles(name,email)&club_id=eq.' + encodeURIComponent(clubId));
         return (filas || []).map((f) => ({
+          id: f.user_id,
           role: f.role,
           name: (f.profiles && f.profiles.name) || '(sin nombre)',
           email: (f.profiles && f.profiles.email) || '',
           me: !!(yo && f.user_id === yo.id)
         }));
+      },
+
+      /* el dueño asciende a un entrenador a admin del club, o lo baja */
+      async setClubRole(clubId, userId, role) {
+        return await pedir('/rest/v1/rpc/set_club_role', {
+          method: 'POST', body: { club: clubId, member: userId, new_role: role }
+        });
       }
     };
   })();
@@ -345,6 +475,14 @@ RG.cloud = (function () {
     teams: (clubId) => backend().teams(clubId),
     createTeam: (clubId, name) => backend().createTeam(clubId, name),
     deleteTeam: (clubId, teamId) => backend().deleteTeam(clubId, teamId),
-    members: (clubId) => backend().members(clubId)
+    listSetups: (clubId) => backend().listSetups(clubId),
+    saveSetup: (row) => backend().saveSetup(row),
+    deleteSetup: (id) => backend().deleteSetup(id),
+    listPlays: (clubId) => backend().listPlays(clubId),
+    savePlay: (row) => backend().savePlay(row),
+    deletePlay: (id) => backend().deletePlay(id),
+    amAdmin: () => backend().amAdmin(),
+    members: (clubId) => backend().members(clubId),
+    setClubRole: (clubId, userId, role) => backend().setClubRole(clubId, userId, role)
   };
 })();

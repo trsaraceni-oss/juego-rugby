@@ -122,5 +122,10 @@ Cualquiera sirve. GitHub Pages es un paso menos.
 
 ## Qué pasa con lo que ya tenés guardado
 
-Nada se pierde. Al entrar con tu cuenta por primera vez, la app va a ofrecer subir los set ups y
-jugadas que tengas en ese navegador. Los que no subas siguen ahí, en esa máquina, como hasta ahora.
+Nada se pierde. La primera vez que entrás con tu cuenta, los set ups y las jugadas que tengas en
+ese navegador se suben solos y quedan como tuyos. Si después entra otro entrenador en la misma
+máquina, no se le copian.
+
+Ojo con una cosa: lo guardado es de cada dirección web. Lo que armaste abriendo la app desde el
+visor de Claude no aparece en `github.io`, porque para el navegador son dos lugares distintos. Para
+llevarlo de uno a otro, en la pizarra: **Exportar set ups** de un lado, **Importar** del otro.

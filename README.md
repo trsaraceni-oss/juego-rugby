@@ -135,6 +135,7 @@ js/mp4.js           muxer de MP4 progresivo
 js/video.js         codificación de la animación a video
 js/input.js         mouse y touch sobre el canvas
 js/ui.js            paneles, timeline e inspector
+js/sync.js          puente entre lo guardado en la máquina y la cuenta
 js/home.js          pantalla de inicio: cuenta, club, equipos y arranque
 js/cloud.js         cuentas y club contra Supabase, con un modo simulado
 js/config.js        claves públicas del proyecto de Supabase
@@ -175,17 +176,42 @@ textos siguen derechos y el modelo sigue trabajando en metros de cancha.
 
 ## Cuentas de entrenador
 
-Los set ups y las jugadas viven hoy en el navegador de cada máquina. `db/schema.sql` tiene el
-esquema de la base para que cada entrenador tenga su cuenta: clubes con equipos, set ups y jugadas
-propios de cada uno, y la opción de compartirlos al equipo. Las reglas de acceso están probadas
-contra Postgres: cada entrenador ve y edita lo suyo, ve lo compartido de sus equipos y no puede
-tocar lo ajeno. Los pasos para montarlo están en [docs/backend.md](docs/backend.md).
+Cada entrenador entra con su mail, sin contraseña, y sus set ups y jugadas quedan en su cuenta.
+Los pasos para montar el servidor están en [docs/backend.md](docs/backend.md).
+
+### Las cuatro capas
+
+Un set up se arma sobre el anterior, y el de arriba tapa al de abajo sin borrarlo:
+
+| Capa | Quién la deja | Quién la ve |
+|---|---|---|
+| fábrica | viene con la app | todos |
+| global | el administrador del producto | todos los clubes |
+| club | el dueño o un admin del club | los entrenadores de ese club |
+| personal | cada entrenador | sólo él |
+
+Al guardar, la app pregunta en qué capa, y sólo ofrece las que esa cuenta puede escribir: un
+entrenador raso ni ve la pregunta. Sacar la versión de arriba deja a la vista la de abajo: nunca
+se pierde la base. En el selector, `✎` marca la versión propia, `★` la del club y `◆` la global.
+
+El dueño del club asciende a un entrenador a **admin del club** desde la pantalla de inicio; el
+administrador del producto se marca a mano en la base, a propósito.
+
+### Cómo se guarda
+
+El modelo trabaja siempre contra una copia local (`js/model.js`), y `js/sync.js` la sube y la baja.
+La app abre sin esperar la red, se puede seguir trabajando sin conexión y lo pendiente sube solo
+cuando vuelve. Lo que se venía guardando sin cuenta se muda a la cuenta la primera vez que entra,
+sin duplicarse si después entra otro entrenador en la misma máquina.
+
+Las reglas de acceso están probadas contra Postgres y el armado de capas contra el modelo: un
+entrenador ve lo global, la base de su club y lo suyo; no puede publicar donde no le corresponde;
+y su versión no toca la del club.
 
 ## Para seguir
 
-Lo próximo, en orden: conectar la app a las cuentas de entrenador, y después el modo joystick, con
-los jugadores entrando desde el teléfono con un código de sala para mover su ficha y comparar el
-recorrido que hicieron contra el de la jugada.
+Lo próximo es el modo joystick: los jugadores entrando desde el teléfono con un código de sala para
+mover su ficha y comparar el recorrido que hicieron contra el de la jugada.
 
 Otras ideas anotadas: medir distancias y tiempos sobre la cancha, vista vertical, y jugadores con
 velocidad propia para simular llegadas en vez de interpolar por tiempo fijo.
