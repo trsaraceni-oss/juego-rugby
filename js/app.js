@@ -234,7 +234,7 @@
   RG.ui.init(app);
   RG.input.attach(app);
 
-  RG.demos.load('lineout_backs');
+  M.newPlay(15, 'kickoff_for');
   ctx = view.resize();
   app.setStage(M.state.stage);
   app.refreshAll();

@@ -236,72 +236,18 @@ RG.model = (function () {
 
     /* ---------- otras ---------- */
 
-    attack: {
-      name: 'Ataque en fase (1-3-3-1)', group: 'Otras', ballCarrier: 'a9',
-      a: {
-        1: [45.5, 33.2], 2: [45.5, 36.8], 3: [43.8, 40.5], 4: [42.2, 46.5], 6: [43.4, 48.4],
-        8: [41.4, 48.8], 5: [39.4, 58.5], 7: [38.2, 60.4], 9: [43.6, 35], 10: [40, 41.5],
-        12: [36.5, 52], 13: [33.5, 58.5], 11: [29.5, 66.5], 14: [33, 9], 15: [28, 44]
-      },
-      b: {
-        8: [46.6, 22], 5: [46.4, 26], 7: [46.2, 29.8], 1: [46, 33], 2: [46, 37.4],
-        9: [47.6, 35], 3: [46.8, 41.5], 4: [46.8, 45.6], 6: [46.8, 49.8],
-        10: [46.8, 54], 12: [46.8, 58], 13: [46.8, 62], 11: [46.6, 67],
-        15: [37, 54], 14: [39, 14]
-      }
-    },
+    /* ---------- punto de partida para armar uno nuevo ---------- */
 
-    defense22: {
-      name: 'Defensa en 22 propia', group: 'Otras', ballCarrier: 'b9',
-      a: {
-        1: [19, 20], 2: [19, 24], 3: [19, 28], 4: [19, 32], 5: [19, 36],
-        6: [19, 40], 8: [19, 44], 7: [19, 48], 9: [17, 35],
-        10: [19, 52], 12: [19, 56], 13: [19, 60], 11: [19, 65],
-        15: [10, 42], 14: [12, 14]
-      },
-      b: {
-        9: [23.5, 30], 1: [23, 25], 2: [23, 21], 8: [24, 17], 3: [25, 34],
-        10: [26, 40], 4: [27, 45], 6: [28, 47], 5: [29, 49],
-        12: [30, 52], 13: [33, 58], 11: [36, 66], 7: [26, 12], 14: [33, 10], 15: [31, 40]
-      }
-    },
-
-    lineout_field: {
-      name: 'Line-out con backs (en cancha)', group: 'Otras', ballCarrier: 'a2',
-      a: {
-        2: [40, 0.6], 1: [38.8, 5.5], 3: [38.8, 7], 4: [38.8, 8.5], 5: [38.8, 10],
-        6: [38.8, 11.5], 7: [38.8, 13], 8: [38.8, 14.5],
-        9: [37.4, 9], 10: [34.5, 17], 12: [32, 24], 13: [29.5, 31],
-        11: [26, 44], 14: [31, 4.5], 15: [24, 20]
-      },
-      b: {
-        2: [41.8, 2.5], 1: [41.2, 5.5], 3: [41.2, 7], 4: [41.2, 8.5], 5: [41.2, 10],
-        6: [41.2, 11.5], 7: [41.2, 13], 8: [41.2, 14.5],
-        9: [42.6, 9], 10: [44.5, 16], 12: [46.5, 24], 13: [48.5, 32],
-        11: [50, 46], 14: [44, 4.5], 15: [52, 22]
-      }
-    },
-
-    unit_backline: {
-      name: 'Línea de tres cuartos sola', group: 'Otras', only: true, ballCarrier: 'a9',
-      a: {
-        9: [44, 35], 10: [40, 41], 12: [37, 47], 13: [34, 53], 11: [30, 64],
-        14: [37, 12], 15: [28, 40]
-      },
-      b: {
-        9: [48, 35], 10: [49, 42], 12: [49, 48], 13: [49, 54], 11: [49, 64],
-        14: [48, 14], 15: [42, 46]
-      }
+    empty: {
+      name: 'Cancha vacía', group: 'Crear set up', only: true, ballCarrier: null,
+      note: 'Sumá jugadores con la herramienta Jugador y guardá el set up',
+      a: {}, b: {}
     },
 
     manual: {
-      name: 'Equipos alineados (armar a mano)', group: 'Otras', ballCarrier: null,
+      name: 'Equipos alineados 1 a 15', group: 'Crear set up', ballCarrier: null,
+      note: 'Arrastrá a cada uno a su lugar y guardá el set up',
       a: lineUp(30), b: lineUp(70)
-    },
-
-    empty: {
-      name: 'Cancha vacía (agregar jugadores)', group: 'Otras', only: true, ballCarrier: null,
-      a: {}, b: {}
     }
   };
 
@@ -334,7 +280,7 @@ RG.model = (function () {
   function saveFormation(name, frameIdx) {
     const fr = frame(frameIdx);
     const f = {
-      name: name, group: 'Mis formaciones', only: true, user: true,
+      name: name, group: 'Mis set ups', only: true, user: true,
       stage: state.stage, note: fr.note || '', ballCarrier: fr.ball.carrier, a: {}, b: {}
     };
     for (const p of state.players) {
@@ -366,7 +312,7 @@ RG.model = (function () {
     id: uid(),
     name: 'Jugada sin nombre',
     squad: 15,
-    lastFormation: 'attack',
+    lastFormation: 'kickoff_for',
     stage: 'field',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
@@ -483,7 +429,7 @@ RG.model = (function () {
     state.showB = true;
     state.players = makePlayers(state.squad);
     state.frames = [blankFrame()];
-    applyFormation(formationKey || 'attack', 0);
+    applyFormation(formationKey || 'kickoff_for', 0);
     resetHistory();
   }
 

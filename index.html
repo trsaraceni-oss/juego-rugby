@@ -14,11 +14,12 @@
     <input id="playName" class="name-input" type="text" value="Jugada sin nombre" spellcheck="false">
     <div class="spacer"></div>
     <div class="group">
-      <select id="presetSelect" title="Formaciones"></select>
+      <select id="presetSelect" title="Set ups"></select>
       <label class="chk inline" title="Si lo destildás, la formación trae sólo tu equipo"><input type="checkbox" id="optWithB" checked> con rival</label>
       <button id="btnPreset" class="btn">Aplicar</button>
-      <button id="btnSaveFormation" class="btn icon" title="Guardar la posición actual como formación propia">＋</button>
-      <button id="btnDelFormation" class="btn icon danger" title="Borrar la formación propia elegida">🗑</button>
+      <button id="btnSaveFormation" class="btn icon" title="Guardar la posición actual como set up propio">＋</button>
+      <button id="btnDelFormation" class="btn icon danger" title="Borrar el set up propio elegido">🗑</button>
+      <button id="btnNewSetup" class="btn" title="Empezar un set up desde la cancha vacía">Nuevo set up</button>
     </div>
     <div class="group">
       <button id="btnUndo" class="btn icon" title="Deshacer (Ctrl+Z)">↶</button>
@@ -171,7 +172,6 @@
 
 <script src="js/geom.js"></script>
 <script src="js/model.js"></script>
-<script src="js/demos.js"></script>
 <script src="js/field.js"></script>
 <script src="js/render.js"></script>
 <script src="js/mp4.js"></script>

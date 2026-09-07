@@ -37,42 +37,41 @@ guarda solo la posición de partida.
 `Supr` borra la selección, `Ctrl+Z` deshace, `Ctrl+S` guarda, `F` entra al modo presentación
 (`Esc` sale). La rueda del mouse hace zoom.
 
-**Formaciones y ejemplos**: el selector de arriba trae tres jugadas armadas (line-out, scrum al
-lado ciego, contraataque desde patada) y las posiciones de partido, agrupadas:
+**Set ups**: el selector de arriba tiene las posiciones de partido, agrupadas:
 
-| Grupo | Formaciones |
+| Grupo | Set ups |
 |---|---|
 | Salidas | mitad de cancha a favor y en contra, 22 a favor y en contra |
 | Scrums | de izquierda a derecha, de derecha a izquierda, en mitad de cancha |
 | Line-outs | line de 7, de 5 y de 4 (abren el escenario de line-out) |
 | Estructuras | canal 3 Fuego, canal 3 Agua |
-| Otras | ataque en fase, defensa en 22, line-out con backs, línea de tres cuartos sola, equipos alineados, cancha vacía |
+| Crear set up | cancha vacía, equipos alineados 1 a 15 |
 
-Cada una deja su descripción en la nota del primer frame. Cargar una reemplaza la jugada actual.
-
-**Formaciones propias**: el botón `＋` al lado de *Aplicar* guarda la posición que hay en pantalla
-como formación, en el grupo *Mis formaciones* del mismo selector. Repetir el nombre reemplaza la
-anterior, así una estructura se corrige aplicándola, moviendo jugadores y volviéndola a guardar.
-El `🗑` de al lado borra la propia que esté elegida; las de fábrica no se tocan. Viven en el
-navegador (`localStorage`), igual que las jugadas guardadas.
+Cada uno deja su descripción en la nota del primer frame. Aplicar uno reemplaza la jugada actual.
 
 Los lados se nombran desde el equipo propio, que ataca hacia `x` creciente: *izquierda* es la
 touch de `y = 0` y *derecha* la de `y = 70`. Un scrum "de izquierda a derecha" está sobre la touch
 izquierda con el campo abierto hacia la derecha.
 
-**Sin rival**: destildando *Con equipo rival* la formación que apliques trae sólo tu equipo, y el
-rival que hubiera sale de la cancha. Volviendo a tildarlo reaparece según la última formación.
+**Sin rival**: destildando *con rival* el set up que apliques trae sólo tu equipo, y el rival que
+hubiera sale de la cancha. Volviendo a tildarlo reaparece según el último aplicado.
 
-**Plantel a mano**: partiendo de *Cancha vacía*, la herramienta Jugador suma los que quieras, con
-el número corregible desde el panel derecho, que también los quita de a uno. Las formaciones
-parciales definen su propio plantel; el selector de formato sólo manda en las completas.
+**Set ups propios**: el botón *Nuevo set up* deja la cancha limpia con la herramienta Jugador
+lista; se suman los jugadores que hagan falta y el botón `＋` guarda la posición con nombre, en el
+grupo *Mis set ups* del mismo selector. Repetir el nombre reemplaza el anterior, así uno se
+corrige aplicándolo, moviendo jugadores y volviéndolo a guardar. El `🗑` borra el propio elegido;
+los de fábrica no se tocan. Viven en el navegador (`localStorage`), igual que las jugadas.
+
+**Plantel a mano**: la herramienta Jugador suma los que quieras al equipo elegido en el panel, con
+el número corregible desde el panel derecho, que también los quita de a uno. Los set ups definen
+su propio plantel; el selector de formato sólo manda en los que traen los quince.
 
 **Espacio de line-out**: el botón del panel *Vista* cambia el escenario por el corredor de
 line-out visto de costado, con la línea de touch a la izquierda, las marcas de un metro y las
 líneas de 5 m y 15 m. Es un espacio cerrado: la cámara tiene límites (`view.setBounds`), así que
 no se puede alejar hasta ver la cancha entera ni salirse del área de trabajo. Los ejes quedan intercambiados (la distancia a la touch corre en
-horizontal), así los saltadores se alinean a lo ancho de la pantalla. La formación *Line-out solo*
-lo abre sola. Todo lo demás funciona igual ahí: recorridos, pases, frames y animación.
+horizontal), así los saltadores se alinean a lo ancho de la pantalla. Los set ups de line
+lo abren solos. Todo lo demás funciona igual ahí: recorridos, pases, frames y animación.
 
 En la cancha las fichas van a escala real, porque la distancia entre jugadores es el dato. En el
 escenario de line-out, que trabaja muy ampliado, se dibujan más chicas que el jugador real
@@ -104,8 +103,7 @@ como imagen.
 index.html          interfaz
 css/app.css         estilos
 js/geom.js          geometría: interpolación, longitud de arco, suavizado de trazos
-js/model.js         estado de la jugada, frames, formaciones, historial, guardado
-js/demos.js         jugadas de ejemplo
+js/model.js         estado de la jugada, frames, set ups, historial, guardado
 js/field.js         medidas reglamentarias, cámara y dibujo de los escenarios
 js/render.js        jugadores, rutas, pelota y anotaciones
 js/mp4.js           muxer de MP4 progresivo

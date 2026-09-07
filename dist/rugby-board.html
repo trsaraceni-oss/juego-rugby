@@ -224,11 +224,12 @@ body.presenting .stage{background:#000}
     <input id="playName" class="name-input" type="text" value="Jugada sin nombre" spellcheck="false">
     <div class="spacer"></div>
     <div class="group">
-      <select id="presetSelect" title="Formaciones"></select>
+      <select id="presetSelect" title="Set ups"></select>
       <label class="chk inline" title="Si lo destildás, la formación trae sólo tu equipo"><input type="checkbox" id="optWithB" checked> con rival</label>
       <button id="btnPreset" class="btn">Aplicar</button>
-      <button id="btnSaveFormation" class="btn icon" title="Guardar la posición actual como formación propia">＋</button>
-      <button id="btnDelFormation" class="btn icon danger" title="Borrar la formación propia elegida">🗑</button>
+      <button id="btnSaveFormation" class="btn icon" title="Guardar la posición actual como set up propio">＋</button>
+      <button id="btnDelFormation" class="btn icon danger" title="Borrar el set up propio elegido">🗑</button>
+      <button id="btnNewSetup" class="btn" title="Empezar un set up desde la cancha vacía">Nuevo set up</button>
     </div>
     <div class="group">
       <button id="btnUndo" class="btn icon" title="Deshacer (Ctrl+Z)">↶</button>
@@ -747,72 +748,18 @@ RG.model = (function () {
 
     /* ---------- otras ---------- */
 
-    attack: {
-      name: 'Ataque en fase (1-3-3-1)', group: 'Otras', ballCarrier: 'a9',
-      a: {
-        1: [45.5, 33.2], 2: [45.5, 36.8], 3: [43.8, 40.5], 4: [42.2, 46.5], 6: [43.4, 48.4],
-        8: [41.4, 48.8], 5: [39.4, 58.5], 7: [38.2, 60.4], 9: [43.6, 35], 10: [40, 41.5],
-        12: [36.5, 52], 13: [33.5, 58.5], 11: [29.5, 66.5], 14: [33, 9], 15: [28, 44]
-      },
-      b: {
-        8: [46.6, 22], 5: [46.4, 26], 7: [46.2, 29.8], 1: [46, 33], 2: [46, 37.4],
-        9: [47.6, 35], 3: [46.8, 41.5], 4: [46.8, 45.6], 6: [46.8, 49.8],
-        10: [46.8, 54], 12: [46.8, 58], 13: [46.8, 62], 11: [46.6, 67],
-        15: [37, 54], 14: [39, 14]
-      }
-    },
+    /* ---------- punto de partida para armar uno nuevo ---------- */
 
-    defense22: {
-      name: 'Defensa en 22 propia', group: 'Otras', ballCarrier: 'b9',
-      a: {
-        1: [19, 20], 2: [19, 24], 3: [19, 28], 4: [19, 32], 5: [19, 36],
-        6: [19, 40], 8: [19, 44], 7: [19, 48], 9: [17, 35],
-        10: [19, 52], 12: [19, 56], 13: [19, 60], 11: [19, 65],
-        15: [10, 42], 14: [12, 14]
-      },
-      b: {
-        9: [23.5, 30], 1: [23, 25], 2: [23, 21], 8: [24, 17], 3: [25, 34],
-        10: [26, 40], 4: [27, 45], 6: [28, 47], 5: [29, 49],
-        12: [30, 52], 13: [33, 58], 11: [36, 66], 7: [26, 12], 14: [33, 10], 15: [31, 40]
-      }
-    },
-
-    lineout_field: {
-      name: 'Line-out con backs (en cancha)', group: 'Otras', ballCarrier: 'a2',
-      a: {
-        2: [40, 0.6], 1: [38.8, 5.5], 3: [38.8, 7], 4: [38.8, 8.5], 5: [38.8, 10],
-        6: [38.8, 11.5], 7: [38.8, 13], 8: [38.8, 14.5],
-        9: [37.4, 9], 10: [34.5, 17], 12: [32, 24], 13: [29.5, 31],
-        11: [26, 44], 14: [31, 4.5], 15: [24, 20]
-      },
-      b: {
-        2: [41.8, 2.5], 1: [41.2, 5.5], 3: [41.2, 7], 4: [41.2, 8.5], 5: [41.2, 10],
-        6: [41.2, 11.5], 7: [41.2, 13], 8: [41.2, 14.5],
-        9: [42.6, 9], 10: [44.5, 16], 12: [46.5, 24], 13: [48.5, 32],
-        11: [50, 46], 14: [44, 4.5], 15: [52, 22]
-      }
-    },
-
-    unit_backline: {
-      name: 'Línea de tres cuartos sola', group: 'Otras', only: true, ballCarrier: 'a9',
-      a: {
-        9: [44, 35], 10: [40, 41], 12: [37, 47], 13: [34, 53], 11: [30, 64],
-        14: [37, 12], 15: [28, 40]
-      },
-      b: {
-        9: [48, 35], 10: [49, 42], 12: [49, 48], 13: [49, 54], 11: [49, 64],
-        14: [48, 14], 15: [42, 46]
-      }
+    empty: {
+      name: 'Cancha vacía', group: 'Crear set up', only: true, ballCarrier: null,
+      note: 'Sumá jugadores con la herramienta Jugador y guardá el set up',
+      a: {}, b: {}
     },
 
     manual: {
-      name: 'Equipos alineados (armar a mano)', group: 'Otras', ballCarrier: null,
+      name: 'Equipos alineados 1 a 15', group: 'Crear set up', ballCarrier: null,
+      note: 'Arrastrá a cada uno a su lugar y guardá el set up',
       a: lineUp(30), b: lineUp(70)
-    },
-
-    empty: {
-      name: 'Cancha vacía (agregar jugadores)', group: 'Otras', only: true, ballCarrier: null,
-      a: {}, b: {}
     }
   };
 
@@ -845,7 +792,7 @@ RG.model = (function () {
   function saveFormation(name, frameIdx) {
     const fr = frame(frameIdx);
     const f = {
-      name: name, group: 'Mis formaciones', only: true, user: true,
+      name: name, group: 'Mis set ups', only: true, user: true,
       stage: state.stage, note: fr.note || '', ballCarrier: fr.ball.carrier, a: {}, b: {}
     };
     for (const p of state.players) {
@@ -877,7 +824,7 @@ RG.model = (function () {
     id: uid(),
     name: 'Jugada sin nombre',
     squad: 15,
-    lastFormation: 'attack',
+    lastFormation: 'kickoff_for',
     stage: 'field',
     showB: true,
     colors: { a: '#e8503a', b: '#3f7fe0' },
@@ -994,7 +941,7 @@ RG.model = (function () {
     state.showB = true;
     state.players = makePlayers(state.squad);
     state.frames = [blankFrame()];
-    applyFormation(formationKey || 'attack', 0);
+    applyFormation(formationKey || 'kickoff_for', 0);
     resetHistory();
   }
 
@@ -1292,171 +1239,6 @@ RG.model = (function () {
     commit, undo, redo, resetHistory, history,
     serialize, load, savePlay, listPlays, loadPlay, deletePlay
   };
-})();
-
-/* ===== js/demos.js ===== */
-/* demos.js - jugadas de ejemplo armadas con la API del modelo */
-window.RG = window.RG || {};
-
-RG.demos = (function () {
-  const M = RG.model;
-
-  /* Un paso describe el frame siguiente: a donde va cada jugador (un punto = recta,
-     varios puntos = recorrido dibujado) y quien queda con la pelota. */
-  function build(spec) {
-    M.state.name = spec.name;
-    M.state.squad = 15;
-    M.state.showB = true;
-    M.state.players = M.state.players.length ? M.state.players : [];
-    M.rebuildSquad(15, null);
-    M.state.frames = [M.blankFrame()];
-    M.applyFormation(spec.formation, 0);
-    M.frame(0).note = spec.note || '';
-
-    spec.steps.forEach((step) => {
-      const k = M.addFrame(M.frameCount() - 1);
-      const fr = M.frame(k);
-      fr.dur = step.dur || 1.1;
-      fr.note = step.note || '';
-      for (const id of Object.keys(step.moves || {})) {
-        const pts = step.moves[id].map((q) => ({ x: q[0], y: q[1] }));
-        if (pts.length === 1) M.setPos(k, id, pts[0], false);
-        else M.setRoute(k, id, RG.geom.smooth(pts, 6), 'run');
-      }
-      if (step.carrier !== undefined) M.setCarrier(k, step.carrier);
-      for (const a of step.ann || []) M.addAnnotation(k, a);
-    });
-
-    M.state.id = RG.geom.uid();
-    M.resetHistory();
-  }
-
-  const PLAYS = {
-    lineout_backs: {
-      name: 'Line-out: salto de 5 y juego de backs',
-      formation: 'lineout_field',
-      note: 'Line-out de 7 en la touch izquierda',
-      steps: [
-        {
-          dur: 1.0, carrier: 'a9', note: 'Salto del 5, pelota limpia al 9',
-          moves: {
-            a9: [[37.4, 11]], a5: [[38.8, 10.6]], a4: [[39, 8.7]], a6: [[39, 12]],
-            a10: [[36, 19]], a12: [[33.5, 26]], a13: [[31, 33]], a15: [[26, 22]], a11: [[27.5, 45]],
-            b9: [[43.5, 13]], b10: [[44, 18]], b12: [[46, 26]], b13: [[48, 34]]
-          }
-        },
-        {
-          dur: 1.0, carrier: 'a10', note: 'Pase al 10, que ataca la línea',
-          moves: {
-            a10: [[36, 19], [38, 22], [40, 25]],
-            a12: [[36.5, 30]], a13: [[33.5, 37]], a11: [[30, 48]], a15: [[31, 33]],
-            a9: [[38, 17]],
-            b10: [[43.5, 24]], b12: [[45, 32]], b13: [[47, 40]], b11: [[48, 52]]
-          }
-        },
-        {
-          dur: 1.1, carrier: 'a12', note: 'El 12 recibe y busca el corte',
-          moves: {
-            a12: [[36.5, 30], [39.5, 33], [42.5, 35]],
-            a13: [[37, 42]], a15: [[35, 37]], a11: [[33, 51]], a10: [[39, 27]],
-            b10: [[42, 29]], b12: [[44, 36]], b13: [[46, 44]], b11: [[47, 56]], b15: [[44, 40]]
-          }
-        },
-        {
-          dur: 1.2, carrier: 'a15', note: 'Entra el 15 por adentro y rompe',
-          moves: {
-            a15: [[35, 37], [39, 40], [44, 42], [49, 43]],
-            a12: [[44, 34]], a13: [[41, 45]], a11: [[38, 54]],
-            b12: [[45, 37]], b13: [[46.5, 45]], b15: [[47, 43]], b11: [[48, 57]]
-          }
-        }
-      ]
-    },
-
-    scrum_blindside: {
-      name: 'Scrum: ciego del 8 con el 9 y el wing',
-      formation: 'scrum_mid',
-      note: 'Scrum propio en mitad de cancha',
-      steps: [
-        {
-          dur: 1.0, carrier: 'a8', note: 'El 8 levanta la pelota y sale al lado ciego',
-          moves: {
-            a8: [[45.9, 35], [45.6, 31.5], [46, 28]],
-            a9: [[46.5, 30.5]], a10: [[42, 41]], a14: [[40, 13]], a15: [[31, 34]],
-            b9: [[54.5, 34]], b7: [[52.5, 33]]
-          }
-        },
-        {
-          dur: 1.0, carrier: 'a9', note: 'Pase corto al 9, que fija al ala',
-          moves: {
-            a9: [[46.5, 30.5], [48.5, 26.5], [50.5, 23]],
-            a8: [[47, 26]], a14: [[43, 12]], a11: [[33, 60]], a15: [[35, 26]],
-            b7: [[52, 27]], b9: [[53, 30]], b14: [[57, 20]], b15: [[64, 30]]
-          }
-        },
-        {
-          dur: 1.2, carrier: 'a14', note: 'Habilita al 14 con espacio afuera',
-          moves: {
-            a14: [[43, 12], [49, 10], [56, 9]],
-            a9: [[52, 20]], a15: [[42, 22]], a8: [[50, 24]],
-            b14: [[59, 14]], b7: [[55, 22]], b15: [[62, 20]]
-          }
-        },
-        {
-          dur: 1.2, carrier: 'a15', note: 'El 15 entra por dentro para el apoyo',
-          moves: {
-            a14: [[62, 9]], a15: [[42, 22], [50, 18], [58, 15]],
-            a9: [[56, 19]],
-            b15: [[64, 13]], b14: [[63, 10]], b13: [[60, 22]]
-          }
-        }
-      ]
-    },
-
-    counter_kick: {
-      name: 'Contra desde patada: recepción del 15',
-      formation: 'defense22',
-      note: 'El rival patea al fondo, el 15 contraataca',
-      steps: [
-        {
-          dur: 1.1, carrier: 'a15', note: 'El 15 toma en el aire',
-          moves: {
-            a15: [[10, 42], [11, 38], [13, 35]],
-            a11: [[16, 58]], a14: [[15, 16]], a10: [[17, 46]], a9: [[15, 33]],
-            b10: [[24, 38]], b12: [[27, 46]], b13: [[30, 54]]
-          }
-        },
-        {
-          dur: 1.1, carrier: 'a15', note: 'Arranca hacia el hueco entre el 12 y el 13',
-          moves: {
-            a15: [[13, 35], [17, 34], [22, 36]],
-            a11: [[21, 56]], a10: [[21, 44]], a14: [[20, 18]], a9: [[19, 32]],
-            b12: [[26, 44]], b13: [[29, 52]], b10: [[24, 36]], b11: [[31, 62]]
-          }
-        },
-        {
-          dur: 1.2, carrier: 'a11', note: 'Descarga al 11 que dobla por afuera',
-          moves: {
-            a11: [[21, 56], [28, 58], [36, 60]],
-            a15: [[28, 40]], a10: [[27, 46]], a9: [[25, 34]],
-            b13: [[33, 56]], b11: [[36, 64]], b15: [[40, 52]]
-          }
-        }
-      ]
-    }
-  };
-
-  function list() {
-    return Object.keys(PLAYS).map((k) => ({ key: k, name: PLAYS[k].name }));
-  }
-
-  function load(key) {
-    if (!PLAYS[key]) return false;
-    build(PLAYS[key]);
-    return true;
-  }
-
-  return { PLAYS, list, load, build };
 })();
 
 /* ===== js/field.js ===== */
@@ -3175,15 +2957,12 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Mis formaciones', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
+    const ORDEN = ['Mis set ups', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
       .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
-        '<optgroup label="Jugadas de ejemplo">' +
-        RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-        '</optgroup>' +
         ORDEN.map((g) => {
           const items = porGrupo(g);
           return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
@@ -3202,22 +2981,39 @@ RG.ui = (function () {
 
     $('btnSaveFormation').addEventListener('click', async () => {
       const sugerido = M.state.name && M.state.name !== 'Jugada sin nombre' ? M.state.name : '';
-      const nombre = await askText('Nombre de la formación (si repetís uno, se reemplaza):', sugerido);
+      const nombre = await askText('Nombre del set up (si repetís uno, se reemplaza):', sugerido);
       if (!nombre) return;
       const key = M.saveFormation(nombre.trim(), app.frameIdx);
       if (!key) return toast('No se pudo guardar en este navegador');
       refreshPresets('f:' + key);
-      toast('Formación guardada en "Mis formaciones"');
+      toast('Set up guardado en "Mis set ups"');
     });
 
     $('btnDelFormation').addEventListener('click', async () => {
       const val = presets.value || '';
       const key = val.slice(2);
       if (!M.isUserFormation(key)) return;
-      if (!(await askConfirm('¿Borrar la formación "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
+      if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
       M.deleteFormation(key);
       refreshPresets();
-      toast('Formación borrada');
+      toast('Set up borrado');
+    });
+
+    /* espacio para armar uno nuevo: cancha limpia y la herramienta lista */
+    $('btnNewSetup').addEventListener('click', async () => {
+      if (M.state.frames.length > 1 && !(await askConfirm('Esto reemplaza lo que tenés armado. ¿Empezar un set up nuevo?', 'Empezar'))) return;
+      M.commit();
+      M.state.frames = [M.blankFrame()];
+      M.state.id = RG.geom.uid();
+      M.state.name = 'Set up sin nombre';
+      app.frameIdx = 0; app.time = 0;
+      M.applyFormation('empty', 0, $('optWithB').checked);
+      app.selection = null;
+      app.setStage('field');
+      setTool('add');
+      refreshPresets('f:empty');
+      app.refreshAll();
+      toast('Cancha vacía: sumá jugadores y guardá con el +');
     });
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -3235,16 +3031,9 @@ RG.ui = (function () {
 
     $('btnPreset').addEventListener('click', async () => {
       const val = presets.value || '';
-      const kind = val.slice(0, 2), key = val.slice(2);
+      const key = val.slice(2);
+      if (!M.FORMATIONS[key]) return;
       if (M.state.frames.length > 1 && !(await askConfirm('Esto reemplaza la jugada que tenés armada. ¿Seguir?', 'Reemplazar'))) return;
-      if (kind === 'd:') {
-        RG.demos.load(key);
-        app.frameIdx = 0; app.time = 0; app.selection = null;
-        app.setStage('field');
-        app.refreshAll();
-        toast('Jugada de ejemplo cargada: apretá play');
-        return;
-      }
       M.commit();
       M.state.frames = [M.blankFrame()];
       M.state.id = RG.geom.uid();
@@ -3255,7 +3044,7 @@ RG.ui = (function () {
       app.selection = null;
       app.fitPlay();
       app.refreshAll();
-      toast('Formación aplicada');
+      toast('Set up aplicado');
     });
 
     $('squadSize').addEventListener('change', (e) => {
@@ -3278,7 +3067,7 @@ RG.ui = (function () {
         toast('Rival sacado de la cancha');
       } else if (!M.state.players.some((p) => p.team === 'b')) {
         M.applyFormation(M.state.lastFormation || 'attack', app.frameIdx, true);
-        toast('Rival agregado según la formación');
+        toast('Rival agregado según el set up');
       }
       app.selection = null;
       app.refreshAll();
@@ -3673,7 +3462,7 @@ RG.ui = (function () {
   RG.ui.init(app);
   RG.input.attach(app);
 
-  RG.demos.load('lineout_backs');
+  M.newPlay(15, 'kickoff_for');
   ctx = view.resize();
   app.setStage(M.state.stage);
   app.refreshAll();

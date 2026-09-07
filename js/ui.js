@@ -257,15 +257,12 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Mis formaciones', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Otras'];
+    const ORDEN = ['Mis set ups', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
       .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
-        '<optgroup label="Jugadas de ejemplo">' +
-        RG.demos.list().map((d) => '<option value="d:' + d.key + '">' + d.name + '</option>').join('') +
-        '</optgroup>' +
         ORDEN.map((g) => {
           const items = porGrupo(g);
           return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
@@ -284,22 +281,39 @@ RG.ui = (function () {
 
     $('btnSaveFormation').addEventListener('click', async () => {
       const sugerido = M.state.name && M.state.name !== 'Jugada sin nombre' ? M.state.name : '';
-      const nombre = await askText('Nombre de la formación (si repetís uno, se reemplaza):', sugerido);
+      const nombre = await askText('Nombre del set up (si repetís uno, se reemplaza):', sugerido);
       if (!nombre) return;
       const key = M.saveFormation(nombre.trim(), app.frameIdx);
       if (!key) return toast('No se pudo guardar en este navegador');
       refreshPresets('f:' + key);
-      toast('Formación guardada en "Mis formaciones"');
+      toast('Set up guardado en "Mis set ups"');
     });
 
     $('btnDelFormation').addEventListener('click', async () => {
       const val = presets.value || '';
       const key = val.slice(2);
       if (!M.isUserFormation(key)) return;
-      if (!(await askConfirm('¿Borrar la formación "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
+      if (!(await askConfirm('¿Borrar el set up "' + M.FORMATIONS[key].name + '"?', 'Borrar'))) return;
       M.deleteFormation(key);
       refreshPresets();
-      toast('Formación borrada');
+      toast('Set up borrado');
+    });
+
+    /* espacio para armar uno nuevo: cancha limpia y la herramienta lista */
+    $('btnNewSetup').addEventListener('click', async () => {
+      if (M.state.frames.length > 1 && !(await askConfirm('Esto reemplaza lo que tenés armado. ¿Empezar un set up nuevo?', 'Empezar'))) return;
+      M.commit();
+      M.state.frames = [M.blankFrame()];
+      M.state.id = RG.geom.uid();
+      M.state.name = 'Set up sin nombre';
+      app.frameIdx = 0; app.time = 0;
+      M.applyFormation('empty', 0, $('optWithB').checked);
+      app.selection = null;
+      app.setStage('field');
+      setTool('add');
+      refreshPresets('f:empty');
+      app.refreshAll();
+      toast('Cancha vacía: sumá jugadores y guardá con el +');
     });
 
     document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -317,16 +331,9 @@ RG.ui = (function () {
 
     $('btnPreset').addEventListener('click', async () => {
       const val = presets.value || '';
-      const kind = val.slice(0, 2), key = val.slice(2);
+      const key = val.slice(2);
+      if (!M.FORMATIONS[key]) return;
       if (M.state.frames.length > 1 && !(await askConfirm('Esto reemplaza la jugada que tenés armada. ¿Seguir?', 'Reemplazar'))) return;
-      if (kind === 'd:') {
-        RG.demos.load(key);
-        app.frameIdx = 0; app.time = 0; app.selection = null;
-        app.setStage('field');
-        app.refreshAll();
-        toast('Jugada de ejemplo cargada: apretá play');
-        return;
-      }
       M.commit();
       M.state.frames = [M.blankFrame()];
       M.state.id = RG.geom.uid();
@@ -337,7 +344,7 @@ RG.ui = (function () {
       app.selection = null;
       app.fitPlay();
       app.refreshAll();
-      toast('Formación aplicada');
+      toast('Set up aplicado');
     });
 
     $('squadSize').addEventListener('change', (e) => {
@@ -360,7 +367,7 @@ RG.ui = (function () {
         toast('Rival sacado de la cancha');
       } else if (!M.state.players.some((p) => p.team === 'b')) {
         M.applyFormation(M.state.lastFormation || 'attack', app.frameIdx, true);
-        toast('Rival agregado según la formación');
+        toast('Rival agregado según el set up');
       }
       app.selection = null;
       app.refreshAll();
