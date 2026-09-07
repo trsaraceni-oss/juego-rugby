@@ -16,12 +16,12 @@ RG.sync = (function () {
   let encolada = false;         /* ya hay una esperando: no hace falta otra */
   let subiendo = false;
   let ultimoError = null;
-  let alRefrescar = null;
+  const alRefrescar = [];   /* la pantalla de inicio y la pizarra, las dos escuchan */
 
   const esLocal = (id) => String(id).indexOf('l:') === 0;
 
   function avisarPantalla() {
-    if (alRefrescar) { try { alRefrescar(); } catch (e) { /* la pantalla ya no está */ } }
+    for (const fn of alRefrescar) { try { fn(); } catch (e) { /* esa pantalla ya no está */ } }
   }
 
   /* ---------- subir lo que cambió ---------- */
@@ -127,7 +127,7 @@ RG.sync = (function () {
     };
   }
 
-  function onRefresh(fn) { alRefrescar = fn; }
+  function onRefresh(fn) { if (fn && alRefrescar.indexOf(fn) < 0) alRefrescar.push(fn); }
 
   return { cuenta, agendar, estado, onRefresh };
 })();

@@ -253,6 +253,9 @@
     app.selection = null;
     ctx = view.resize();
     app.setStage(M.state.stage);
+    /* los desplegables se arman con lo que hay ahora: al arrancar la app todavía
+       no había entrado a la cuenta */
+    RG.ui.refreshLists();
     app.refreshAll();
   };
 

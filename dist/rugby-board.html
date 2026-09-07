@@ -3719,6 +3719,9 @@ RG.ui = (function () {
   const G = RG.geom;
   let app = null;
   const $ = (id) => document.getElementById(id);
+  /* vuelve a armar los dos desplegables de la pizarra: set ups y jugadas.
+     Se llama también cuando la sincronización trae algo de la cuenta. */
+  let refreshLists = function () {};
 
   /* ---------- avisos ---------- */
 
@@ -4051,6 +4054,13 @@ RG.ui = (function () {
       }
     }
 
+    refreshLists = function () {
+      const abierto = presets.value;
+      refreshPresets(abierto && M.FORMATIONS[abierto.slice(2)] ? abierto : null);
+      refreshSaved();
+    };
+    if (RG.sync) RG.sync.onRefresh(refreshLists);
+
     refreshPresets();
     presets.addEventListener('change', syncFormationButtons);
 
@@ -4379,7 +4389,7 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: () => refreshLists(), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();
 
 /* ===== js/sync.js ===== */
@@ -4401,12 +4411,12 @@ RG.sync = (function () {
   let encolada = false;         /* ya hay una esperando: no hace falta otra */
   let subiendo = false;
   let ultimoError = null;
-  let alRefrescar = null;
+  const alRefrescar = [];   /* la pantalla de inicio y la pizarra, las dos escuchan */
 
   const esLocal = (id) => String(id).indexOf('l:') === 0;
 
   function avisarPantalla() {
-    if (alRefrescar) { try { alRefrescar(); } catch (e) { /* la pantalla ya no está */ } }
+    for (const fn of alRefrescar) { try { fn(); } catch (e) { /* esa pantalla ya no está */ } }
   }
 
   /* ---------- subir lo que cambió ---------- */
@@ -4512,7 +4522,7 @@ RG.sync = (function () {
     };
   }
 
-  function onRefresh(fn) { alRefrescar = fn; }
+  function onRefresh(fn) { if (fn && alRefrescar.indexOf(fn) < 0) alRefrescar.push(fn); }
 
   return { cuenta, agendar, estado, onRefresh };
 })();
@@ -5172,6 +5182,9 @@ RG.home = (function () {
     app.selection = null;
     ctx = view.resize();
     app.setStage(M.state.stage);
+    /* los desplegables se arman con lo que hay ahora: al arrancar la app todavía
+       no había entrado a la cuenta */
+    RG.ui.refreshLists();
     app.refreshAll();
   };
 

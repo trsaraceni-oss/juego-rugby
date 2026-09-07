@@ -6,6 +6,9 @@ RG.ui = (function () {
   const G = RG.geom;
   let app = null;
   const $ = (id) => document.getElementById(id);
+  /* vuelve a armar los dos desplegables de la pizarra: set ups y jugadas.
+     Se llama también cuando la sincronización trae algo de la cuenta. */
+  let refreshLists = function () {};
 
   /* ---------- avisos ---------- */
 
@@ -338,6 +341,13 @@ RG.ui = (function () {
       }
     }
 
+    refreshLists = function () {
+      const abierto = presets.value;
+      refreshPresets(abierto && M.FORMATIONS[abierto.slice(2)] ? abierto : null);
+      refreshSaved();
+    };
+    if (RG.sync) RG.sync.onRefresh(refreshLists);
+
     refreshPresets();
     presets.addEventListener('change', syncFormationButtons);
 
@@ -666,5 +676,5 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: () => refreshLists(), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();
