@@ -121,6 +121,13 @@ RG.cloud = (function () {
         return team;
       },
 
+      async deleteTeam(clubId, teamId) {
+        await wait(150);
+        const db = read();
+        db.teams[clubId] = (db.teams[clubId] || []).filter((t) => t.id !== teamId);
+        write(db);
+      },
+
       async members(clubId) {
         const db = read();
         return (db.members[clubId] || []).map((m) => ({
@@ -307,6 +314,10 @@ RG.cloud = (function () {
         return team;
       },
 
+      async deleteTeam(clubId, teamId) {
+        await pedir('/rest/v1/teams?id=eq.' + encodeURIComponent(teamId), { method: 'DELETE' });
+      },
+
       async members(clubId) {
         const yo = await this.session();
         const filas = await pedir('/rest/v1/memberships?select=role,user_id,profiles(name,email)&club_id=eq.' + encodeURIComponent(clubId));
@@ -333,6 +344,7 @@ RG.cloud = (function () {
     joinClub: (code) => backend().joinClub(code),
     teams: (clubId) => backend().teams(clubId),
     createTeam: (clubId, name) => backend().createTeam(clubId, name),
+    deleteTeam: (clubId, teamId) => backend().deleteTeam(clubId, teamId),
     members: (clubId) => backend().members(clubId)
   };
 })();

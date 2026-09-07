@@ -230,9 +230,35 @@
     app.draw();
   }
 
+  /* qué hacer cuando se entra a la pizarra desde el inicio */
+  app.onEntrar = function (modo, id) {
+    if (modo === 'setup') {
+      M.state.frames = [M.blankFrame()];
+      M.state.id = G.uid();
+      M.state.name = 'Set up sin nombre';
+      M.applyFormation('empty', 0, true);
+      RG.ui.setTool('add');
+    } else if (modo === 'abrir-jugada') {
+      M.loadPlay(id);
+    } else if (modo === 'abrir-setup') {
+      M.state.frames = [M.blankFrame()];
+      M.state.id = G.uid();
+      M.state.name = M.FORMATIONS[id] ? M.FORMATIONS[id].name : 'Jugada sin nombre';
+      M.applyFormation(id, 0, true);
+    } else {
+      M.newPlay(15, M.state.lastFormation || 'kickoff_for');
+    }
+    app.frameIdx = 0;
+    app.time = 0;
+    app.selection = null;
+    ctx = view.resize();
+    app.setStage(M.state.stage);
+    app.refreshAll();
+  };
+
   M.loadUserFormations();
   RG.ui.init(app);
-  if (RG.account) RG.account.init();
+  if (RG.home) RG.home.init(app);
   RG.input.attach(app);
 
   M.newPlay(15, 'kickoff_for');

@@ -10,6 +10,15 @@ Doble click en `index.html`. Nada más.
 
 Para publicarlo online: Settings → Pages → Deploy from a branch → rama `main`, carpeta `/ (root)`.
 
+## Pantallas
+
+La app abre en el **inicio**: entrar con el mail, gestionar el club (equipos, cuerpo técnico,
+código de invitación) y dos botones para arrancar, *Nueva jugada* y *Nueva situación*. Ahí también
+están las jugadas y los set ups guardados, para abrirlos de una. La **pizarra** es la otra
+pantalla, y se vuelve al inicio con el botón de arriba a la izquierda.
+
+Entrar es opcional: *Entrar sin cuenta* lleva derecho a trabajar guardando en ese navegador.
+
 ## Cómo se usa
 
 La jugada es una secuencia de **frames**. El frame 1 es la posición inicial; cada frame siguiente
@@ -126,6 +135,9 @@ js/mp4.js           muxer de MP4 progresivo
 js/video.js         codificación de la animación a video
 js/input.js         mouse y touch sobre el canvas
 js/ui.js            paneles, timeline e inspector
+js/home.js          pantalla de inicio: cuenta, club, equipos y arranque
+js/cloud.js         cuentas y club contra Supabase, con un modo simulado
+js/config.js        claves públicas del proyecto de Supabase
 js/app.js           bucle de animación, teclado y arranque
 ```
 

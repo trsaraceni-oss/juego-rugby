@@ -175,59 +175,96 @@ kbd{
 .modal input[type=text]:focus,.modal textarea:focus{outline:none;border-color:var(--accent-2)}
 .modal-actions{display:flex;justify-content:flex-end;gap:7px}
 
-/* ---------- cuenta ---------- */
-.btn.account{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btn.account.on{border-color:var(--accent-2);color:var(--accent)}
-.ac-back{align-items:flex-start;padding:34px 20px;overflow-y:auto}
-.ac-modal{position:relative;width:min(720px,100%);max-width:720px;padding:24px 26px 20px}
-.ac-close{
-  position:absolute;top:12px;right:12px;background:none;border:none;color:var(--muted);
-  font-size:15px;cursor:pointer;padding:4px 7px;border-radius:6px;
+/* ---------- pantalla de inicio ---------- */
+.btn.account{white-space:nowrap}
+.home{
+  position:fixed;inset:0;z-index:40;overflow-y:auto;
+  background:radial-gradient(1200px 600px at 20% -10%, #1b2a22 0%, var(--bg) 60%);
 }
-.ac-close:hover{background:var(--panel-2);color:var(--text)}
-.ac-body h2{margin:0 0 6px;font-size:20px;letter-spacing:-.2px}
-.ac-body h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
-.ac-lead{margin:0 0 16px;color:var(--muted);line-height:1.55;max-width:60ch}
-.ac-opt{color:var(--muted);font-weight:400}
-.ac-form{display:flex;flex-direction:column;gap:10px;max-width:340px}
-.ac-form label,.ac-card label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
-.ac-form input,.ac-card input,.ac-inline input{
-  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
-  border-radius:7px;padding:8px 10px;font:inherit;
-}
-.ac-form input:focus,.ac-card input:focus,.ac-inline input:focus{outline:none;border-color:var(--accent-2)}
-.ac-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.ac-card{
-  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px;
+.hm-inner{max-width:960px;margin:0 auto;padding:48px 24px 64px}
+.hm-body{display:flex;flex-direction:column;gap:20px}
+
+.hm-hero h1{margin:0 0 6px;font-size:32px;letter-spacing:-.5px}
+.hm-hero.hm-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hm-lead{margin:0;color:var(--muted);line-height:1.6;max-width:62ch}
+.hm-note{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
+.hm-warn{margin:10px 0 0;color:#ffc9a3;font-size:12.5px;line-height:1.5}
+.hm-opt{color:var(--muted);font-weight:400}
+.hm-empty{color:var(--muted);font-size:12.5px;margin:0}
+
+.hm-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;
   display:flex;flex-direction:column;gap:10px;
 }
-.ac-inline{display:flex;gap:6px}
-.ac-inline input{flex:1;min-width:0}
-.ac-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
-.ac-team{
-  width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);
-  color:var(--text);border-radius:7px;padding:7px 10px;cursor:pointer;font:inherit;
+.hm-card h2{margin:0;font-size:15px;letter-spacing:-.1px}
+.hm-card h3{margin:8px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.hm-narrow{max-width:420px}
+.hm-center{text-align:center;align-items:center}
+.hm-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+
+.hm-form{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.hm-card label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+.hm-card input[type=text],.hm-card input[type=email],.hm-inline input{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:10px 12px;font:inherit;
 }
-.ac-team:hover{border-color:#3a4553}
-.ac-team.on{border-color:var(--accent-2);background:#16301f;color:var(--accent)}
-.ac-member{display:flex;flex-direction:column;font-size:13px;padding:3px 0}
-.ac-member small{color:var(--muted);font-size:11px}
-.ac-name{display:flex;align-items:center;gap:5px}
-.ac-tag{
-  background:var(--panel);border:1px solid var(--line);border-radius:20px;
-  padding:1px 7px;font-size:10px;color:var(--muted);flex:0 0 auto;
+.hm-card input:focus,.hm-inline input:focus{outline:none;border-color:var(--accent-2)}
+.btn.big{padding:11px 16px;font-size:14px}
+.hm-alt{margin:14px 0 0;text-align:center}
+.hm-link{
+  background:none;border:none;color:var(--muted);text-decoration:underline;
+  cursor:pointer;font:inherit;font-size:12.5px;padding:0;
 }
-.ac-empty{color:var(--muted);font-size:12px}
-.ac-code{
-  margin:0;font:700 22px/1.2 ui-monospace,monospace;letter-spacing:3px;color:var(--accent);
-  background:var(--panel);border:1px dashed var(--accent-2);border-radius:8px;
-  padding:10px;text-align:center;cursor:pointer;
+.hm-link:hover{color:var(--text)}
+
+.hm-start{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hm-big{
+  text-align:left;background:var(--accent-2);border:1px solid var(--accent-2);color:#04140a;
+  border-radius:14px;padding:20px 22px;cursor:pointer;font:inherit;
+  display:flex;flex-direction:column;gap:5px;
 }
-.ac-code.copiado{background:#16301f}
-.ac-note{margin:0;font-size:11.5px;color:var(--muted);line-height:1.5}
-.ac-warn{color:#ffc9a3}
-.ac-foot{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
-@media (max-width:620px){ .ac-cols{grid-template-columns:1fr} }
+.hm-big b{font-size:17px}
+.hm-big span{font-size:12.5px;opacity:.82;line-height:1.45}
+.hm-big:hover{background:var(--accent);border-color:var(--accent)}
+.hm-big.alt{background:var(--panel);border-color:var(--line);color:var(--text)}
+.hm-big.alt span{color:var(--muted);opacity:1}
+.hm-big.alt:hover{border-color:var(--accent-2)}
+
+.hm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.hm-item{
+  width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);
+  color:var(--text);border-radius:8px;padding:9px 12px;cursor:pointer;font:inherit;
+}
+.hm-item:hover{border-color:#3a4553}
+.hm-item.on{border-color:var(--accent-2);background:#16301f;color:var(--accent)}
+.hm-team-row{display:flex;gap:6px}
+.hm-team-row .hm-item{flex:1}
+.hm-x{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+  border-radius:8px;padding:0 11px;cursor:pointer;font:inherit;
+}
+.hm-x:hover{border-color:var(--danger);color:#ff9b91}
+.hm-inline{display:flex;gap:6px}
+.hm-inline input{flex:1;min-width:0}
+.hm-member{display:flex;flex-direction:column;font-size:13px;padding:3px 0}
+.hm-member small{color:var(--muted);font-size:11px}
+.hm-tag{
+  display:inline-block;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;
+  padding:0 7px;font-size:10px;color:var(--muted);margin-left:6px;vertical-align:1px;
+}
+.hm-code{
+  margin:0;font:700 24px/1.2 ui-monospace,monospace;letter-spacing:4px;color:var(--accent);
+  background:var(--panel-2);border:1px dashed var(--accent-2);border-radius:10px;
+  padding:12px;text-align:center;cursor:pointer;
+}
+.hm-code.copiado{background:#16301f}
+.hm-actions-top{display:flex;gap:8px}
+
+@media (max-width:760px){
+  .hm-cols,.hm-start{grid-template-columns:1fr}
+  .hm-inner{padding:28px 16px 48px}
+  .hm-hero h1{font-size:26px}
+}
 
 .toast{
   position:fixed;left:50%;bottom:118px;transform:translateX(-50%);
@@ -276,7 +313,7 @@ body.presenting .stage{background:#000}
   <header class="topbar">
     <div class="brand"><span class="ball">🏉</span> Rugby Board</div>
     <input id="playName" class="name-input" type="text" value="Jugada sin nombre" spellcheck="false">
-    <button id="btnAccount" class="btn account" title="Tu cuenta, club y equipos">Entrar</button>
+    <button id="btnHome" class="btn account" title="Volver al inicio">‹ Inicio</button>
     <div class="spacer"></div>
     <div class="group">
       <select id="presetSelect" title="Set ups"></select>
@@ -577,6 +614,13 @@ RG.cloud = (function () {
         return team;
       },
 
+      async deleteTeam(clubId, teamId) {
+        await wait(150);
+        const db = read();
+        db.teams[clubId] = (db.teams[clubId] || []).filter((t) => t.id !== teamId);
+        write(db);
+      },
+
       async members(clubId) {
         const db = read();
         return (db.members[clubId] || []).map((m) => ({
@@ -763,6 +807,10 @@ RG.cloud = (function () {
         return team;
       },
 
+      async deleteTeam(clubId, teamId) {
+        await pedir('/rest/v1/teams?id=eq.' + encodeURIComponent(teamId), { method: 'DELETE' });
+      },
+
       async members(clubId) {
         const yo = await this.session();
         const filas = await pedir('/rest/v1/memberships?select=role,user_id,profiles(name,email)&club_id=eq.' + encodeURIComponent(clubId));
@@ -789,6 +837,7 @@ RG.cloud = (function () {
     joinClub: (code) => backend().joinClub(code),
     teams: (clubId) => backend().teams(clubId),
     createTeam: (clubId, name) => backend().createTeam(clubId, name),
+    deleteTeam: (clubId, teamId) => backend().deleteTeam(clubId, teamId),
     members: (clubId) => backend().members(clubId)
   };
 })();
@@ -3787,21 +3836,24 @@ RG.ui = (function () {
   return { init, toast, askConfirm, askChoice, askText, showCopy, refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();
 
-/* ===== js/account.js ===== */
-/* account.js - pantalla de cuenta: entrar, crear el club, armar los equipos e
-   invitar al resto del cuerpo técnico. Habla con RG.cloud, así que no le importa
-   si atrás está el backend simulado o el servidor. */
+/* ===== js/home.js ===== */
+/* home.js - la puerta de entrada: entrar con el mail, gestionar el club y sus
+   equipos, y arrancar a trabajar. La pizarra queda del otro lado, para cuando
+   hay algo que dibujar. */
 window.RG = window.RG || {};
 
-RG.account = (function () {
+RG.home = (function () {
   const C = RG.cloud;
+  const M = RG.model;
+  const SIN_CUENTA = 'rugbyboard.sinCuenta';
+
+  let app = null, root = null, pendiente = null, cargando = true;
   let estado = { user: null, clubs: [], club: null, teams: [], members: [] };
-  let root = null, cerrar = null, pendiente = null;
 
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
-  /* ---------------------------------------------------------- datos ---- */
+  /* ------------------------------------------------------------- datos ---- */
 
   async function refrescar() {
     estado.user = await C.session();
@@ -3810,6 +3862,7 @@ RG.account = (function () {
     estado.club = estado.clubs.find((c) => c.id === guardado) || estado.clubs[0] || null;
     estado.teams = estado.club ? await C.teams(estado.club.id) : [];
     estado.members = estado.club ? await C.members(estado.club.id) : [];
+    if (estado.club) localStorage.setItem('rugbyboard.club', estado.club.id);
   }
 
   function equipoActual() {
@@ -3817,125 +3870,184 @@ RG.account = (function () {
     return estado.teams.find((t) => t.id === id) || estado.teams[0] || null;
   }
 
-  /* ---------------------------------------------------------- pantalla ---- */
+  /* lo que hay guardado en esta máquina, hasta que la sincronización esté lista */
+  function misJugadas() { return M.listPlays(); }
+
+  function misSetups() {
+    return M.formationList()
+      .filter((f) => M.isUserFormation(f.key) || M.isEditedSetup(f.key))
+      .map((f) => ({ key: f.key, name: f.name, propio: M.isUserFormation(f.key) }));
+  }
+
+  /* ---------------------------------------------------------- pantallas ---- */
+
+  function vistaCargando() {
+    return '<div class="hm-card hm-center"><p class="hm-lead">Cargando…</p></div>';
+  }
 
   function vistaEntrar() {
     return '' +
-      '<h2>Entrá con tu mail</h2>' +
-      '<p class="ac-lead">Tus set ups y jugadas quedan asociados a tu cuenta y los abrís desde ' +
-      'cualquier dispositivo. Sin cuenta la app funciona igual, guardando en este navegador.</p>' +
-      '<div id="acForm" class="ac-form">' +
-      '<label>Mail<input type="email" id="acEmail" placeholder="entrenador@club.com" required autocomplete="email"></label>' +
-      '<label>Nombre <span class="ac-opt">(opcional)</span><input type="text" id="acName" placeholder="Cómo te ven los demás"></label>' +
-      '<button class="btn primary" id="acGo">Entrar</button>' +
+      '<div class="hm-hero">' +
+      '<h1>Rugby Board</h1>' +
+      '<p class="hm-lead">La pizarra del club: armá los set ups de partido, dibujá las jugadas, ' +
+      'animalas y mandáselas al plantel en video.</p>' +
       '</div>' +
-      (C.configured() ? '<p class="ac-note">Te llega un link al mail para entrar, sin contraseña.</p>'
-        : '<p class="ac-note ac-warn">Todavía no hay servidor conectado: esto corre simulado en tu ' +
-          'navegador, para probar la pantalla. Los datos no salen de esta máquina.</p>');
+      '<div class="hm-card hm-narrow">' +
+      '<h2>Entrá con tu mail</h2>' +
+      '<p class="hm-note">Sin contraseña: te llega un link y entrás. Tus set ups y jugadas quedan ' +
+      'en tu cuenta y los abrís desde cualquier dispositivo.</p>' +
+      '<div id="hmForm" class="hm-form">' +
+      '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email"></label>' +
+      '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+      '<button class="btn primary big" id="hmGo">Entrar</button>' +
+      '</div>' +
+      (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
+      '<p class="hm-alt"><button class="hm-link" id="hmSkip">Entrar sin cuenta y trabajar en esta máquina</button></p>' +
+      '</div>';
   }
 
-  /* con servidor real la sesión llega recién cuando abre el link del mail */
   function vistaPendiente() {
     return '' +
+      '<div class="hm-card hm-narrow hm-center">' +
       '<h2>Revisá tu mail</h2>' +
-      '<p class="ac-lead">Te mandamos un link a <b>' + esc(pendiente) + '</b>. Abrilo desde este mismo ' +
-      'dispositivo y volvés directo a la app, ya con tu cuenta.</p>' +
-      '<p class="ac-note">Si no llega en un par de minutos, mirá en spam. El link vale una sola vez.</p>' +
-      '<div class="ac-foot"><span class="grow"></span><button class="btn" id="acBack">Usar otro mail</button></div>';
+      '<p class="hm-lead">Te mandamos un link a <b>' + esc(pendiente) + '</b>. Abrilo desde este ' +
+      'mismo dispositivo y volvés a la app con tu cuenta lista.</p>' +
+      '<p class="hm-note">Si no llega en un par de minutos, mirá en spam. El link sirve una sola vez.</p>' +
+      '<button class="btn" id="hmBack">Usar otro mail</button>' +
+      '</div>';
   }
 
   function vistaSinClub() {
     return '' +
-      '<h2>Hola, ' + esc(estado.user.name) + '</h2>' +
-      '<p class="ac-lead">Todavía no estás en ningún club. Creá el tuyo o sumate a uno con el código ' +
-      'que te pase quien lo creó.</p>' +
-      '<div class="ac-cols">' +
-      '<div id="acNewClub" class="ac-card">' +
-      '<h3>Crear un club</h3>' +
-      '<label>Nombre del club<input type="text" id="acClubName" placeholder="Club Atlético Sur" required></label>' +
-      '<label>Primer equipo<input type="text" id="acTeamName" value="Primera"></label>' +
-      '<button class="btn primary" id="acCreate">Crear club</button>' +
+      '<div class="hm-hero"><h1>Hola, ' + esc(estado.user.name) + '</h1>' +
+      '<p class="hm-lead">Falta el club. Creá el tuyo y invitá al resto del cuerpo técnico, o ' +
+      'sumate a uno con el código que te pasen.</p></div>' +
+      '<div class="hm-cols">' +
+      '<div id="hmNewClub" class="hm-card">' +
+      '<h2>Crear un club</h2>' +
+      '<label>Nombre del club<input type="text" id="hmClubName" placeholder="Club Atlético Sur"></label>' +
+      '<label>Primer equipo<input type="text" id="hmTeamName" value="Primera"></label>' +
+      '<button class="btn primary" id="hmCreate">Crear club</button>' +
       '</div>' +
-      '<div id="acJoin" class="ac-card">' +
-      '<h3>Sumarme a uno</h3>' +
-      '<label>Código de invitación<input type="text" id="acCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters" required></label>' +
-      '<button class="btn" id="acJoinGo">Sumarme</button>' +
+      '<div id="hmJoin" class="hm-card">' +
+      '<h2>Sumarme a uno</h2>' +
+      '<label>Código de invitación<input type="text" id="hmCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>' +
+      '<button class="btn" id="hmJoinGo">Sumarme</button>' +
       '</div>' +
       '</div>';
   }
 
-  function vistaClub() {
+  function listaJugadas() {
+    const js = misJugadas();
+    if (!js.length) return '<p class="hm-empty">Todavía no guardaste jugadas.</p>';
+    return '<ul class="hm-list">' + js.map((j) =>
+      '<li><button class="hm-item" data-play="' + j.id + '">' + esc(j.name) + '</button></li>').join('') + '</ul>';
+  }
+
+  function listaSetups() {
+    const ss = misSetups();
+    if (!ss.length) return '<p class="hm-empty">Todavía no guardaste set ups propios. Los doce de ' +
+      'partido están siempre disponibles en la pizarra.</p>';
+    return '<ul class="hm-list">' + ss.map((s) =>
+      '<li><button class="hm-item" data-setup="' + esc(s.key) + '">' + esc(s.name) +
+      (s.propio ? '' : ' <span class="hm-tag">tu versión</span>') + '</button></li>').join('') + '</ul>';
+  }
+
+  function vistaInicio() {
     const eq = equipoActual();
+    const sinCuenta = !estado.user;
     return '' +
-      '<h2>' + esc(estado.club.name) + '</h2>' +
-      '<p class="ac-lead">Entraste como ' + esc(estado.user.name) + ' · ' + esc(estado.user.email) +
-      (estado.club.role === 'owner' ? ' · dueño del club' : ' · entrenador') + '</p>' +
+      '<div class="hm-hero hm-row">' +
+      '<div>' +
+      '<h1>' + esc(sinCuenta ? 'Rugby Board' : estado.club.name) + '</h1>' +
+      '<p class="hm-lead">' + (sinCuenta
+        ? 'Estás trabajando sin cuenta: todo se guarda en este navegador.'
+        : esc(estado.user.name) + (estado.club.role === 'owner' ? ' · dueño del club' : ' · entrenador') +
+          (eq ? ' · ' + esc(eq.name) : '')) + '</p>' +
+      '</div>' +
+      '<div class="hm-actions-top">' +
+      (sinCuenta ? '<button class="btn" id="hmLogin">Entrar con mi cuenta</button>'
+        : '<button class="btn" id="hmOut">Salir</button>') +
+      '</div>' +
+      '</div>' +
 
-      '<div class="ac-cols">' +
+      '<div class="hm-start">' +
+      '<button class="hm-big" id="hmNewPlay"><b>Nueva jugada</b>' +
+      '<span>Elegí la situación y dibujá el movimiento, frame por frame</span></button>' +
+      '<button class="hm-big alt" id="hmNewSetup"><b>Nueva situación</b>' +
+      '<span>Cancha vacía para armar un set up desde cero y guardarlo</span></button>' +
+      '</div>' +
 
-      '<div class="ac-card">' +
+      '<div class="hm-cols">' +
+
+      '<div class="hm-card">' +
+      '<h2>Mis jugadas</h2>' + listaJugadas() +
+      '<h2>Mis set ups</h2>' + listaSetups() +
+      '<p class="hm-note">Por ahora se guardan en este navegador. La sincronización con el club es ' +
+      'el próximo paso.</p>' +
+      '</div>' +
+
+      (sinCuenta ? '' :
+      '<div class="hm-card">' +
+      '<h2>Mi club</h2>' +
       '<h3>Equipos</h3>' +
-      '<ul class="ac-list">' +
+      '<ul class="hm-list">' +
       (estado.teams.length ? estado.teams.map((t) =>
-        '<li><button class="ac-team' + (eq && t.id === eq.id ? ' on' : '') + '" data-club-team="' + t.id + '">' +
-        esc(t.name) + '</button></li>').join('') : '<li class="ac-empty">Todavía no hay equipos</li>') +
+        '<li class="hm-team-row">' +
+        '<button class="hm-item' + (eq && t.id === eq.id ? ' on' : '') + '" data-club-team="' + t.id + '">' + esc(t.name) + '</button>' +
+        '<button class="hm-x" data-del-team="' + t.id + '" title="Sacar este equipo">✕</button>' +
+        '</li>').join('') : '<li class="hm-empty">Todavía no hay equipos</li>') +
       '</ul>' +
-      '<div id="acNewTeam" class="ac-inline">' +
-      '<input type="text" id="acTeamNew" placeholder="M19, Femenino…" required>' +
-      '<button class="btn sm" id="acAddTeam">Agregar</button>' +
+      '<div id="hmNewTeam" class="hm-inline">' +
+      '<input type="text" id="hmTeamNew" placeholder="M19, Femenino…">' +
+      '<button class="btn sm" id="hmAddTeam">Agregar</button>' +
       '</div>' +
-      '</div>' +
-
-      '<div class="ac-card">' +
       '<h3>Cuerpo técnico</h3>' +
-      '<ul class="ac-list">' +
-      estado.members.map((m) => '<li class="ac-member"><span class="ac-name">' + esc(m.name) +
-        (m.me ? '<span class="ac-tag">vos</span>' : '') +
-        (m.role === 'owner' ? '<span class="ac-tag">dueño</span>' : '') +
+      '<ul class="hm-list">' +
+      estado.members.map((m) => '<li class="hm-member"><span>' + esc(m.name) +
+        (m.me ? '<span class="hm-tag">vos</span>' : '') +
+        (m.role === 'owner' ? '<span class="hm-tag">dueño</span>' : '') +
         '</span><small>' + esc(m.email) + '</small></li>').join('') +
       '</ul>' +
       '<h3>Invitar</h3>' +
-      '<p class="ac-code" id="acCodeBox" title="Click para copiarlo">' + esc(estado.club.join_code) + '</p>' +
-      '<p class="ac-note">Pasales este código: entran con su mail y quedan en el club.</p>' +
-      '</div>' +
+      '<p class="hm-code" id="hmCodeBox" title="Click para copiarlo">' + esc(estado.club.join_code) + '</p>' +
+      '<p class="hm-note">Con ese código entran al club desde su mail.</p>' +
+      '</div>') +
 
-      '</div>' +
-      '<div class="ac-foot">' +
-      (estado.clubs.length > 1 ? '<select id="acClubSel">' + estado.clubs.map((c) =>
-        '<option value="' + c.id + '"' + (c.id === estado.club.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select>' : '') +
-      '<span class="grow"></span>' +
-      '<button class="btn" id="acOut">Salir de la cuenta</button>' +
       '</div>';
   }
 
   function pintar() {
-    const cuerpo = root.querySelector('.ac-body');
-    cuerpo.innerHTML = estado.user ? (estado.club ? vistaClub() : vistaSinClub())
-      : (pendiente ? vistaPendiente() : vistaEntrar());
+    const cuerpo = root.querySelector('.hm-body');
+    if (cargando) cuerpo.innerHTML = vistaCargando();
+    else if (estado.user) cuerpo.innerHTML = estado.club ? vistaInicio() : vistaSinClub();
+    else if (pendiente) cuerpo.innerHTML = vistaPendiente();
+    else if (localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaInicio();
+    else cuerpo.innerHTML = vistaEntrar();
     enganchar();
   }
 
-  function error(msg) {
-    const p = document.createElement('p');
-    p.className = 'ac-note ac-warn';
-    p.textContent = msg;
-    const cuerpo = root.querySelector('.ac-body');
-    const previo = cuerpo.querySelector('.ac-error');
+  function aviso(msg) {
+    const cuerpo = root.querySelector('.hm-body');
+    const previo = cuerpo.querySelector('.hm-error');
     if (previo) previo.remove();
-    p.classList.add('ac-error');
+    const p = document.createElement('p');
+    p.className = 'hm-warn hm-error';
+    p.textContent = msg;
     cuerpo.appendChild(p);
   }
 
   async function correr(fn) {
     try { await fn(); await refrescar(); pintar(); }
-    catch (e) { error(e && e.message ? e.message : 'No se pudo completar'); }
+    catch (e) { aviso(e && e.message ? e.message : 'No se pudo completar'); }
   }
+
+  /* ------------------------------------------------------------ acciones ---- */
 
   function enganchar() {
     const q = (sel) => root.querySelector(sel);
 
-    /* botón + Enter en los campos del bloque: el visor corre la página en un
-       iframe sandbox donde el envío de formularios está bloqueado */
+    /* botón + Enter dentro del bloque */
     function accion(bloque, boton, fn) {
       const caja = q(bloque), btn = q(boton);
       if (!caja || !btn) return;
@@ -3945,43 +4057,60 @@ RG.account = (function () {
       }));
     }
 
-    accion('#acForm', '#acGo', () => correr(async () => {
-      const r = await C.signIn(q('#acEmail').value, q('#acName').value);
+    accion('#hmForm', '#hmGo', () => correr(async () => {
+      const r = await C.signIn(q('#hmEmail').value, q('#hmName').value);
       pendiente = r && r.pending ? r.email : null;
     }));
 
-    const volver = q('#acBack');
+    const saltar = q('#hmSkip');
+    if (saltar) saltar.addEventListener('click', () => {
+      localStorage.setItem(SIN_CUENTA, '1');
+      pintar();
+    });
+
+    const login = q('#hmLogin');
+    if (login) login.addEventListener('click', () => {
+      localStorage.removeItem(SIN_CUENTA);
+      pendiente = null;
+      pintar();
+    });
+
+    const volver = q('#hmBack');
     if (volver) volver.addEventListener('click', () => { pendiente = null; pintar(); });
 
-    accion('#acNewClub', '#acCreate', () => correr(async () => {
-      const club = await C.createClub(q('#acClubName').value, q('#acTeamName').value);
+    accion('#hmNewClub', '#hmCreate', () => correr(async () => {
+      const club = await C.createClub(q('#hmClubName').value, q('#hmTeamName').value);
       localStorage.setItem('rugbyboard.club', club.id);
     }));
 
-    accion('#acJoin', '#acJoinGo', () => correr(async () => {
-      const club = await C.joinClub(q('#acCode').value);
+    accion('#hmJoin', '#hmJoinGo', () => correr(async () => {
+      const club = await C.joinClub(q('#hmCode').value);
       localStorage.setItem('rugbyboard.club', club.id);
     }));
 
-    accion('#acNewTeam', '#acAddTeam', () => correr(() => C.createTeam(estado.club.id, q('#acTeamNew').value)));
+    accion('#hmNewTeam', '#hmAddTeam', () => correr(() => C.createTeam(estado.club.id, q('#hmTeamNew').value)));
 
     root.querySelectorAll('[data-club-team]').forEach((b) => b.addEventListener('click', () => {
       localStorage.setItem('rugbyboard.team', b.dataset.clubTeam);
       pintar();
-      actualizarBoton();
     }));
 
-    const sel = q('#acClubSel');
-    if (sel) sel.addEventListener('change', () => {
-      localStorage.setItem('rugbyboard.club', sel.value);
+    root.querySelectorAll('[data-del-team]').forEach((b) => b.addEventListener('click', async () => {
+      const t = estado.teams.find((x) => x.id === b.dataset.delTeam);
+      if (!t) return;
+      if (!(await RG.ui.askConfirm('¿Sacar el equipo "' + t.name + '" del club?', 'Sacar'))) return;
+      correr(() => C.deleteTeam(estado.club.id, t.id));
+    }));
+
+    const salir = q('#hmOut');
+    if (salir) salir.addEventListener('click', () => correr(async () => {
+      pendiente = null;
+      await C.signOut();
+      localStorage.removeItem('rugbyboard.club');
       localStorage.removeItem('rugbyboard.team');
-      correr(async () => {});
-    });
+    }));
 
-    const salir = q('#acOut');
-    if (salir) salir.addEventListener('click', () => correr(async () => { pendiente = null; await C.signOut(); }));
-
-    const codigo = q('#acCodeBox');
+    const codigo = q('#hmCodeBox');
     if (codigo) codigo.addEventListener('click', () => {
       try {
         navigator.clipboard.writeText(estado.club.join_code);
@@ -3989,71 +4118,60 @@ RG.account = (function () {
         setTimeout(() => codigo.classList.remove('copiado'), 1200);
       } catch (e) { /* sin portapapeles */ }
     });
+
+    /* arrancar a trabajar */
+    const nuevaJugada = q('#hmNewPlay');
+    if (nuevaJugada) nuevaJugada.addEventListener('click', () => abrirPizarra('jugada'));
+    const nuevoSetup = q('#hmNewSetup');
+    if (nuevoSetup) nuevoSetup.addEventListener('click', () => abrirPizarra('setup'));
+
+    root.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => {
+      abrirPizarra('abrir-jugada', b.dataset.play);
+    }));
+    root.querySelectorAll('[data-setup]').forEach((b) => b.addEventListener('click', () => {
+      abrirPizarra('abrir-setup', b.dataset.setup);
+    }));
   }
 
-  /* ------------------------------------------------------------ abrir ---- */
+  /* --------------------------------------------------------- navegación ---- */
 
-  async function abrir() {
-    if (root) return;
-    root = document.createElement('div');
-    root.className = 'modal-back ac-back';
-    root.innerHTML = '<div class="modal ac-modal"><button class="ac-close" title="Cerrar">✕</button>' +
-      '<div class="ac-body"><p class="ac-lead">Cargando…</p></div></div>';
-    document.body.appendChild(root);
-
-    cerrar = () => {
-      document.removeEventListener('keydown', onKey, true);
-      root.remove();
-      root = null;
-      actualizarBoton();
-    };
-    function onKey(ev) {
-      if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); cerrar(); }
-    }
-    document.addEventListener('keydown', onKey, true);
-    root.querySelector('.ac-close').addEventListener('click', cerrar);
-    root.addEventListener('mousedown', (ev) => { if (ev.target === root) cerrar(); });
-
-    await refrescar();
+  function mostrar() {
+    root.hidden = false;
+    document.getElementById('app').hidden = true;
     pintar();
   }
 
-  function actualizarBoton() {
-    const btn = document.getElementById('btnAccount');
-    if (!btn) return;
-    const eq = equipoActual();
-    if (estado.user && estado.club) {
-      btn.textContent = estado.club.name + (eq ? ' · ' + eq.name : '');
-      btn.classList.add('on');
-    } else if (estado.user) {
-      btn.textContent = estado.user.name;
-      btn.classList.add('on');
-    } else {
-      btn.textContent = 'Entrar';
-      btn.classList.remove('on');
-    }
+  function abrirPizarra(modo, id) {
+    root.hidden = true;
+    document.getElementById('app').hidden = false;
+    app.onEntrar(modo, id);
   }
 
-  async function init() {
-    const btn = document.getElementById('btnAccount');
-    if (btn) btn.addEventListener('click', abrir);
+  async function init(_app) {
+    app = _app;
+    root = document.getElementById('home');
 
-    /* Si la app ya estaba abierta, volver del link del mail sólo cambia el # de
-       la dirección y el navegador no recarga: hay que tomar la sesión igual. */
+    const volverAlInicio = document.getElementById('btnHome');
+    if (volverAlInicio) volverAlInicio.addEventListener('click', async () => {
+      await refrescar();
+      mostrar();
+    });
+
     window.addEventListener('hashchange', async () => {
       if ((location.hash || '').indexOf('access_token=') < 0) return;
       pendiente = null;
+      localStorage.removeItem(SIN_CUENTA);
       await refrescar();
-      actualizarBoton();
-      if (root) pintar();
-      else if (estado.user) abrir();
+      if (!root.hidden) pintar(); else mostrar();
     });
 
+    mostrar();
     await refrescar();
-    actualizarBoton();
+    cargando = false;
+    pintar();
   }
 
-  return { init, abrir, refrescar, actualizarBoton, get estado() { return estado; } };
+  return { init, mostrar, refrescar, get estado() { return estado; } };
 })();
 
 /* ===== js/app.js ===== */
@@ -4289,9 +4407,35 @@ RG.account = (function () {
     app.draw();
   }
 
+  /* qué hacer cuando se entra a la pizarra desde el inicio */
+  app.onEntrar = function (modo, id) {
+    if (modo === 'setup') {
+      M.state.frames = [M.blankFrame()];
+      M.state.id = G.uid();
+      M.state.name = 'Set up sin nombre';
+      M.applyFormation('empty', 0, true);
+      RG.ui.setTool('add');
+    } else if (modo === 'abrir-jugada') {
+      M.loadPlay(id);
+    } else if (modo === 'abrir-setup') {
+      M.state.frames = [M.blankFrame()];
+      M.state.id = G.uid();
+      M.state.name = M.FORMATIONS[id] ? M.FORMATIONS[id].name : 'Jugada sin nombre';
+      M.applyFormation(id, 0, true);
+    } else {
+      M.newPlay(15, M.state.lastFormation || 'kickoff_for');
+    }
+    app.frameIdx = 0;
+    app.time = 0;
+    app.selection = null;
+    ctx = view.resize();
+    app.setStage(M.state.stage);
+    app.refreshAll();
+  };
+
   M.loadUserFormations();
   RG.ui.init(app);
-  if (RG.account) RG.account.init();
+  if (RG.home) RG.home.init(app);
   RG.input.attach(app);
 
   M.newPlay(15, 'kickoff_for');

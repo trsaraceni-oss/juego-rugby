@@ -1,0 +1,336 @@
+/* home.js - la puerta de entrada: entrar con el mail, gestionar el club y sus
+   equipos, y arrancar a trabajar. La pizarra queda del otro lado, para cuando
+   hay algo que dibujar. */
+window.RG = window.RG || {};
+
+RG.home = (function () {
+  const C = RG.cloud;
+  const M = RG.model;
+  const SIN_CUENTA = 'rugbyboard.sinCuenta';
+
+  let app = null, root = null, pendiente = null, cargando = true;
+  let estado = { user: null, clubs: [], club: null, teams: [], members: [] };
+
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+  /* ------------------------------------------------------------- datos ---- */
+
+  async function refrescar() {
+    estado.user = await C.session();
+    estado.clubs = estado.user ? await C.myClubs() : [];
+    const guardado = localStorage.getItem('rugbyboard.club');
+    estado.club = estado.clubs.find((c) => c.id === guardado) || estado.clubs[0] || null;
+    estado.teams = estado.club ? await C.teams(estado.club.id) : [];
+    estado.members = estado.club ? await C.members(estado.club.id) : [];
+    if (estado.club) localStorage.setItem('rugbyboard.club', estado.club.id);
+  }
+
+  function equipoActual() {
+    const id = localStorage.getItem('rugbyboard.team');
+    return estado.teams.find((t) => t.id === id) || estado.teams[0] || null;
+  }
+
+  /* lo que hay guardado en esta máquina, hasta que la sincronización esté lista */
+  function misJugadas() { return M.listPlays(); }
+
+  function misSetups() {
+    return M.formationList()
+      .filter((f) => M.isUserFormation(f.key) || M.isEditedSetup(f.key))
+      .map((f) => ({ key: f.key, name: f.name, propio: M.isUserFormation(f.key) }));
+  }
+
+  /* ---------------------------------------------------------- pantallas ---- */
+
+  function vistaCargando() {
+    return '<div class="hm-card hm-center"><p class="hm-lead">Cargando…</p></div>';
+  }
+
+  function vistaEntrar() {
+    return '' +
+      '<div class="hm-hero">' +
+      '<h1>Rugby Board</h1>' +
+      '<p class="hm-lead">La pizarra del club: armá los set ups de partido, dibujá las jugadas, ' +
+      'animalas y mandáselas al plantel en video.</p>' +
+      '</div>' +
+      '<div class="hm-card hm-narrow">' +
+      '<h2>Entrá con tu mail</h2>' +
+      '<p class="hm-note">Sin contraseña: te llega un link y entrás. Tus set ups y jugadas quedan ' +
+      'en tu cuenta y los abrís desde cualquier dispositivo.</p>' +
+      '<div id="hmForm" class="hm-form">' +
+      '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email"></label>' +
+      '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+      '<button class="btn primary big" id="hmGo">Entrar</button>' +
+      '</div>' +
+      (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
+      '<p class="hm-alt"><button class="hm-link" id="hmSkip">Entrar sin cuenta y trabajar en esta máquina</button></p>' +
+      '</div>';
+  }
+
+  function vistaPendiente() {
+    return '' +
+      '<div class="hm-card hm-narrow hm-center">' +
+      '<h2>Revisá tu mail</h2>' +
+      '<p class="hm-lead">Te mandamos un link a <b>' + esc(pendiente) + '</b>. Abrilo desde este ' +
+      'mismo dispositivo y volvés a la app con tu cuenta lista.</p>' +
+      '<p class="hm-note">Si no llega en un par de minutos, mirá en spam. El link sirve una sola vez.</p>' +
+      '<button class="btn" id="hmBack">Usar otro mail</button>' +
+      '</div>';
+  }
+
+  function vistaSinClub() {
+    return '' +
+      '<div class="hm-hero"><h1>Hola, ' + esc(estado.user.name) + '</h1>' +
+      '<p class="hm-lead">Falta el club. Creá el tuyo y invitá al resto del cuerpo técnico, o ' +
+      'sumate a uno con el código que te pasen.</p></div>' +
+      '<div class="hm-cols">' +
+      '<div id="hmNewClub" class="hm-card">' +
+      '<h2>Crear un club</h2>' +
+      '<label>Nombre del club<input type="text" id="hmClubName" placeholder="Club Atlético Sur"></label>' +
+      '<label>Primer equipo<input type="text" id="hmTeamName" value="Primera"></label>' +
+      '<button class="btn primary" id="hmCreate">Crear club</button>' +
+      '</div>' +
+      '<div id="hmJoin" class="hm-card">' +
+      '<h2>Sumarme a uno</h2>' +
+      '<label>Código de invitación<input type="text" id="hmCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>' +
+      '<button class="btn" id="hmJoinGo">Sumarme</button>' +
+      '</div>' +
+      '</div>';
+  }
+
+  function listaJugadas() {
+    const js = misJugadas();
+    if (!js.length) return '<p class="hm-empty">Todavía no guardaste jugadas.</p>';
+    return '<ul class="hm-list">' + js.map((j) =>
+      '<li><button class="hm-item" data-play="' + j.id + '">' + esc(j.name) + '</button></li>').join('') + '</ul>';
+  }
+
+  function listaSetups() {
+    const ss = misSetups();
+    if (!ss.length) return '<p class="hm-empty">Todavía no guardaste set ups propios. Los doce de ' +
+      'partido están siempre disponibles en la pizarra.</p>';
+    return '<ul class="hm-list">' + ss.map((s) =>
+      '<li><button class="hm-item" data-setup="' + esc(s.key) + '">' + esc(s.name) +
+      (s.propio ? '' : ' <span class="hm-tag">tu versión</span>') + '</button></li>').join('') + '</ul>';
+  }
+
+  function vistaInicio() {
+    const eq = equipoActual();
+    const sinCuenta = !estado.user;
+    return '' +
+      '<div class="hm-hero hm-row">' +
+      '<div>' +
+      '<h1>' + esc(sinCuenta ? 'Rugby Board' : estado.club.name) + '</h1>' +
+      '<p class="hm-lead">' + (sinCuenta
+        ? 'Estás trabajando sin cuenta: todo se guarda en este navegador.'
+        : esc(estado.user.name) + (estado.club.role === 'owner' ? ' · dueño del club' : ' · entrenador') +
+          (eq ? ' · ' + esc(eq.name) : '')) + '</p>' +
+      '</div>' +
+      '<div class="hm-actions-top">' +
+      (sinCuenta ? '<button class="btn" id="hmLogin">Entrar con mi cuenta</button>'
+        : '<button class="btn" id="hmOut">Salir</button>') +
+      '</div>' +
+      '</div>' +
+
+      '<div class="hm-start">' +
+      '<button class="hm-big" id="hmNewPlay"><b>Nueva jugada</b>' +
+      '<span>Elegí la situación y dibujá el movimiento, frame por frame</span></button>' +
+      '<button class="hm-big alt" id="hmNewSetup"><b>Nueva situación</b>' +
+      '<span>Cancha vacía para armar un set up desde cero y guardarlo</span></button>' +
+      '</div>' +
+
+      '<div class="hm-cols">' +
+
+      '<div class="hm-card">' +
+      '<h2>Mis jugadas</h2>' + listaJugadas() +
+      '<h2>Mis set ups</h2>' + listaSetups() +
+      '<p class="hm-note">Por ahora se guardan en este navegador. La sincronización con el club es ' +
+      'el próximo paso.</p>' +
+      '</div>' +
+
+      (sinCuenta ? '' :
+      '<div class="hm-card">' +
+      '<h2>Mi club</h2>' +
+      '<h3>Equipos</h3>' +
+      '<ul class="hm-list">' +
+      (estado.teams.length ? estado.teams.map((t) =>
+        '<li class="hm-team-row">' +
+        '<button class="hm-item' + (eq && t.id === eq.id ? ' on' : '') + '" data-club-team="' + t.id + '">' + esc(t.name) + '</button>' +
+        '<button class="hm-x" data-del-team="' + t.id + '" title="Sacar este equipo">✕</button>' +
+        '</li>').join('') : '<li class="hm-empty">Todavía no hay equipos</li>') +
+      '</ul>' +
+      '<div id="hmNewTeam" class="hm-inline">' +
+      '<input type="text" id="hmTeamNew" placeholder="M19, Femenino…">' +
+      '<button class="btn sm" id="hmAddTeam">Agregar</button>' +
+      '</div>' +
+      '<h3>Cuerpo técnico</h3>' +
+      '<ul class="hm-list">' +
+      estado.members.map((m) => '<li class="hm-member"><span>' + esc(m.name) +
+        (m.me ? '<span class="hm-tag">vos</span>' : '') +
+        (m.role === 'owner' ? '<span class="hm-tag">dueño</span>' : '') +
+        '</span><small>' + esc(m.email) + '</small></li>').join('') +
+      '</ul>' +
+      '<h3>Invitar</h3>' +
+      '<p class="hm-code" id="hmCodeBox" title="Click para copiarlo">' + esc(estado.club.join_code) + '</p>' +
+      '<p class="hm-note">Con ese código entran al club desde su mail.</p>' +
+      '</div>') +
+
+      '</div>';
+  }
+
+  function pintar() {
+    const cuerpo = root.querySelector('.hm-body');
+    if (cargando) cuerpo.innerHTML = vistaCargando();
+    else if (estado.user) cuerpo.innerHTML = estado.club ? vistaInicio() : vistaSinClub();
+    else if (pendiente) cuerpo.innerHTML = vistaPendiente();
+    else if (localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaInicio();
+    else cuerpo.innerHTML = vistaEntrar();
+    enganchar();
+  }
+
+  function aviso(msg) {
+    const cuerpo = root.querySelector('.hm-body');
+    const previo = cuerpo.querySelector('.hm-error');
+    if (previo) previo.remove();
+    const p = document.createElement('p');
+    p.className = 'hm-warn hm-error';
+    p.textContent = msg;
+    cuerpo.appendChild(p);
+  }
+
+  async function correr(fn) {
+    try { await fn(); await refrescar(); pintar(); }
+    catch (e) { aviso(e && e.message ? e.message : 'No se pudo completar'); }
+  }
+
+  /* ------------------------------------------------------------ acciones ---- */
+
+  function enganchar() {
+    const q = (sel) => root.querySelector(sel);
+
+    /* botón + Enter dentro del bloque */
+    function accion(bloque, boton, fn) {
+      const caja = q(bloque), btn = q(boton);
+      if (!caja || !btn) return;
+      btn.addEventListener('click', fn);
+      caja.querySelectorAll('input').forEach((inp) => inp.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); fn(); }
+      }));
+    }
+
+    accion('#hmForm', '#hmGo', () => correr(async () => {
+      const r = await C.signIn(q('#hmEmail').value, q('#hmName').value);
+      pendiente = r && r.pending ? r.email : null;
+    }));
+
+    const saltar = q('#hmSkip');
+    if (saltar) saltar.addEventListener('click', () => {
+      localStorage.setItem(SIN_CUENTA, '1');
+      pintar();
+    });
+
+    const login = q('#hmLogin');
+    if (login) login.addEventListener('click', () => {
+      localStorage.removeItem(SIN_CUENTA);
+      pendiente = null;
+      pintar();
+    });
+
+    const volver = q('#hmBack');
+    if (volver) volver.addEventListener('click', () => { pendiente = null; pintar(); });
+
+    accion('#hmNewClub', '#hmCreate', () => correr(async () => {
+      const club = await C.createClub(q('#hmClubName').value, q('#hmTeamName').value);
+      localStorage.setItem('rugbyboard.club', club.id);
+    }));
+
+    accion('#hmJoin', '#hmJoinGo', () => correr(async () => {
+      const club = await C.joinClub(q('#hmCode').value);
+      localStorage.setItem('rugbyboard.club', club.id);
+    }));
+
+    accion('#hmNewTeam', '#hmAddTeam', () => correr(() => C.createTeam(estado.club.id, q('#hmTeamNew').value)));
+
+    root.querySelectorAll('[data-club-team]').forEach((b) => b.addEventListener('click', () => {
+      localStorage.setItem('rugbyboard.team', b.dataset.clubTeam);
+      pintar();
+    }));
+
+    root.querySelectorAll('[data-del-team]').forEach((b) => b.addEventListener('click', async () => {
+      const t = estado.teams.find((x) => x.id === b.dataset.delTeam);
+      if (!t) return;
+      if (!(await RG.ui.askConfirm('¿Sacar el equipo "' + t.name + '" del club?', 'Sacar'))) return;
+      correr(() => C.deleteTeam(estado.club.id, t.id));
+    }));
+
+    const salir = q('#hmOut');
+    if (salir) salir.addEventListener('click', () => correr(async () => {
+      pendiente = null;
+      await C.signOut();
+      localStorage.removeItem('rugbyboard.club');
+      localStorage.removeItem('rugbyboard.team');
+    }));
+
+    const codigo = q('#hmCodeBox');
+    if (codigo) codigo.addEventListener('click', () => {
+      try {
+        navigator.clipboard.writeText(estado.club.join_code);
+        codigo.classList.add('copiado');
+        setTimeout(() => codigo.classList.remove('copiado'), 1200);
+      } catch (e) { /* sin portapapeles */ }
+    });
+
+    /* arrancar a trabajar */
+    const nuevaJugada = q('#hmNewPlay');
+    if (nuevaJugada) nuevaJugada.addEventListener('click', () => abrirPizarra('jugada'));
+    const nuevoSetup = q('#hmNewSetup');
+    if (nuevoSetup) nuevoSetup.addEventListener('click', () => abrirPizarra('setup'));
+
+    root.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => {
+      abrirPizarra('abrir-jugada', b.dataset.play);
+    }));
+    root.querySelectorAll('[data-setup]').forEach((b) => b.addEventListener('click', () => {
+      abrirPizarra('abrir-setup', b.dataset.setup);
+    }));
+  }
+
+  /* --------------------------------------------------------- navegación ---- */
+
+  function mostrar() {
+    root.hidden = false;
+    document.getElementById('app').hidden = true;
+    pintar();
+  }
+
+  function abrirPizarra(modo, id) {
+    root.hidden = true;
+    document.getElementById('app').hidden = false;
+    app.onEntrar(modo, id);
+  }
+
+  async function init(_app) {
+    app = _app;
+    root = document.getElementById('home');
+
+    const volverAlInicio = document.getElementById('btnHome');
+    if (volverAlInicio) volverAlInicio.addEventListener('click', async () => {
+      await refrescar();
+      mostrar();
+    });
+
+    window.addEventListener('hashchange', async () => {
+      if ((location.hash || '').indexOf('access_token=') < 0) return;
+      pendiente = null;
+      localStorage.removeItem(SIN_CUENTA);
+      await refrescar();
+      if (!root.hidden) pintar(); else mostrar();
+    });
+
+    mostrar();
+    await refrescar();
+    cargando = false;
+    pintar();
+  }
+
+  return { init, mostrar, refrescar, get estado() { return estado; } };
+})();
