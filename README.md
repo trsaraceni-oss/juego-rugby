@@ -84,6 +84,11 @@ no se puede alejar hasta ver la cancha entera ni salirse del área de trabajo. L
 horizontal), así los saltadores se alinean a lo ancho de la pantalla. Los set ups de line
 lo abren solos. Todo lo demás funciona igual ahí: recorridos, pases, frames y animación.
 
+La pelota en manos se dibuja pegada al borde de la ficha, con un corrimiento en píxeles y no en
+metros de cancha: así queda igual de cerca del jugador en la cancha completa y en el line-out, donde
+las fichas se dibujan más chicas. Durante un pase el corrimiento crece con el avance, de modo que
+sale del centro del que pasa y termina en la mano del que recibe.
+
 En la cancha las fichas van a escala real, porque la distancia entre jugadores es el dato. En el
 escenario de line-out, que trabaja muy ampliado, se dibujan más chicas que el jugador real
 (`markScale` en `js/render.js`) para que se lea la separación entre saltadores en vez de un

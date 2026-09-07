@@ -148,6 +148,13 @@ RG.render = (function () {
   function drawBall(ctx, v, at) {
     const s = v.toScreen(at);
     const rx = G.clamp(0.7 * markScale(v), 6, 22), ry = rx * 0.64;
+    /* en manos: pegada al borde de la ficha, no a una distancia en metros */
+    const held = at && at.held ? (typeof at.held === 'number' ? at.held : 1) : 0;
+    if (held > 0) {
+      const r = playerRadius(v) * held;
+      s.x += r * 0.85;
+      s.y += r * 0.7;
+    }
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(-0.5);

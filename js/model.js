@@ -588,20 +588,17 @@ RG.model = (function () {
 
   /* ---------- pelota ---------- */
 
-  const CARRY_OFFSET = 1.35;
-
-  function carryPos(p, team) {
-    const dir = team === 'a' ? 1 : -1;
-    return { x: p.x + dir * CARRY_OFFSET * 0.55, y: p.y + CARRY_OFFSET };
+  /* La pelota en manos va en la posición del jugador: el corrimiento para que
+     se vea al costado de la ficha lo hace el dibujo, en píxeles, así queda
+     igual de pegada en la cancha completa y en el escenario de line-out. */
+  function carryPos(p) {
+    return { x: p.x, y: p.y, held: true };
   }
 
   function ballStatic(frameIdx) {
     const fr = frame(frameIdx);
-    if (fr.ball.carrier && fr.pos[fr.ball.carrier]) {
-      const pl = player(fr.ball.carrier);
-      return carryPos(fr.pos[fr.ball.carrier], pl ? pl.team : 'a');
-    }
-    return { x: fr.ball.x, y: fr.ball.y };
+    if (fr.ball.carrier && fr.pos[fr.ball.carrier]) return carryPos(fr.pos[fr.ball.carrier]);
+    return { x: fr.ball.x, y: fr.ball.y, held: false };
   }
 
   function setCarrier(frameIdx, playerId) {
@@ -627,25 +624,29 @@ RG.model = (function () {
     const prev = frame(frameIdx - 1), cur = frame(frameIdx);
     const e = G.easeInOut(G.clamp(t, 0, 1));
 
-    if (cur.ballRoute && cur.ballRoute.pts.length > 1) return G.pointOnPath(cur.ballRoute.pts, e);
+    if (cur.ballRoute && cur.ballRoute.pts.length > 1) {
+      const q = G.pointOnPath(cur.ballRoute.pts, e);
+      return { x: q.x, y: q.y, held: false };
+    }
 
+    /* el mismo jugador la lleva todo el tramo: la pelota va con él */
     if (cur.ball.carrier && cur.ball.carrier === prev.ball.carrier) {
-      const pl = player(cur.ball.carrier);
-      return carryPos(playerAt(frameIdx, cur.ball.carrier, t), pl ? pl.team : 'a');
+      return carryPos(playerAt(frameIdx, cur.ball.carrier, t));
     }
 
     const from = prev.ball.carrier
-      ? carryPos(playerAt(frameIdx, prev.ball.carrier, t), (player(prev.ball.carrier) || {}).team || 'a')
+      ? playerAt(frameIdx, prev.ball.carrier, t)
       : { x: prev.ball.x, y: prev.ball.y };
     const to = cur.ball.carrier
-      ? carryPos(playerAt(frameIdx, cur.ball.carrier, t), (player(cur.ball.carrier) || {}).team || 'a')
+      ? playerAt(frameIdx, cur.ball.carrier, t)
       : { x: cur.ball.x, y: cur.ball.y };
 
-    const p = G.lerpPoint(from, to, e);
-    /* pequeno arco para que el pase no sea una recta plana */
+    const q = G.lerpPoint(from, to, e);
+    /* pequeño arco para que el pase no sea una recta plana */
     const d = G.dist(from, to);
     const lift = Math.sin(Math.PI * e) * Math.min(1.6, d * 0.08);
-    return { x: p.x, y: p.y - lift };
+    /* sale del centro del que pasa y termina al costado del que recibe */
+    return { x: q.x, y: q.y - lift, held: cur.ball.carrier ? e : 0 };
   }
 
   function totalDuration() {
