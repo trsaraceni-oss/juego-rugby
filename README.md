@@ -148,7 +148,10 @@ funcione abierta directamente desde el disco, sin servidor.
 ### Sistema de coordenadas
 
 Todo el modelo está en metros: `x` de -10 a 110 a lo largo del campo (0 y 100 son las líneas de
-try, ±10 los in-goals), `y` de 0 a 70 de touch a touch. El equipo propio ataca hacia `x` creciente.
+try, ±10 los in-goals), `y` de 0 a 70 de touch a touch. El equipo propio ataca hacia `x` creciente,
+o sea hacia la derecha de la pantalla: la touch izquierda en el sentido del ataque es la de arriba.
+Por eso el «scrum de izquierda a derecha» se arma pegado al borde superior, con la línea abriendo
+hacia abajo.
 La cámara (`js/field.js`) convierte a píxeles; el modelo nunca conoce la pantalla. El escenario
 de line-out no rota el contexto del canvas: la cámara intercambia los ejes (`view.swap`), así los
 textos siguen derechos y el modelo sigue trabajando en metros de cancha.

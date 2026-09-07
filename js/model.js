@@ -110,7 +110,11 @@ RG.model = (function () {
       }
     },
 
-    /* ---------- scrums ---------- */
+    /* ---------- scrums ----------
+       El nombre dice dónde está el scrum mirando en el sentido del ataque, que es
+       hacia x creciente. La touch izquierda del que ataca es la de arriba (y chico),
+       así que el scrum de izquierda a derecha va pegado al borde superior y la línea
+       abre hacia abajo. */
 
     scrum_left: {
       name: 'Scrum de izquierda a derecha', group: 'Scrums', ballCarrier: 'a9',
