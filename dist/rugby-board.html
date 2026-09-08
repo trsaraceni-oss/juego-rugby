@@ -25,6 +25,9 @@ body{
   overflow:hidden;
 }
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+/* una regla de clase le gana a la del navegador para [hidden]: sin esto, una
+   pantalla escondida sigue tapando a la que está abierta */
+[hidden]{display:none!important}
 
 /* ---------- topbar ---------- */
 .topbar{
@@ -327,10 +330,97 @@ body.presenting .stage{background:#000}
   .squad-row select{max-width:100%;width:100%}
 }
 
+/* ---------- modo ensayo: la cancha en vivo y el teléfono como joystick ---------- */
+.sala{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;background:var(--bg)}
+.sl-top{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto;
+}
+.sl-grow{flex:1}
+.sl-code{font-size:12px;color:var(--muted);white-space:nowrap}
+.sl-code b{
+  font:700 20px/1 ui-monospace,monospace;letter-spacing:4px;color:var(--accent);
+  margin-left:6px;vertical-align:-1px;
+}
+.sl-name{color:var(--text);font-weight:600;font-size:13px}
+.sl-estado{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.sl-estado.ok{color:var(--accent)}
+.sl-estado.mal{color:#ffc9a3}
+.sl-actions{display:flex;gap:6px}
+.sl-body{display:flex;flex:1;min-height:0}
+.sl-stage{position:relative;flex:1;min-width:0;background:#0b0e12}
+#cvSala{display:block;width:100%;height:100%;touch-action:none}
+.sl-side{
+  width:230px;flex:0 0 230px;background:var(--panel);border-left:1px solid var(--line);
+  padding:12px;overflow-y:auto;
+}
+.sl-side h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.sl-note{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.5}
+.sl-note b{color:var(--text);font-family:ui-monospace,monospace;font-size:11.5px}
+.sl-note.sl-mal{color:#ffc9a3}
+.sl-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.sl-list li{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;
+  background:var(--panel-2);border:1px solid var(--line);font-size:13px;color:var(--muted);
+}
+.sl-list li.on{border-color:var(--accent-2);color:var(--text)}
+.sl-list li b{
+  width:24px;height:24px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:var(--panel);font-size:12px;color:var(--text);
+}
+.sl-list li.on b{background:var(--accent-2);color:#04140a}
+.sl-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sl-num{
+  aspect-ratio:1;font:700 17px/1 inherit;cursor:pointer;color:var(--text);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+}
+.sl-num:hover:not(:disabled){border-color:var(--accent-2);color:var(--accent)}
+.sl-num:disabled{opacity:.32;cursor:not-allowed}
+.sl-pad{display:flex;justify-content:center;padding:14px 0 22px;background:var(--panel);border-top:1px solid var(--line)}
+.pad{
+  width:190px;height:190px;border-radius:50%;position:relative;touch-action:none;
+  background:radial-gradient(circle at 50% 50%,#1c222c 0%,#141920 70%);
+  border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
+}
+.pad-knob{
+  width:74px;height:74px;border-radius:50%;background:var(--accent-2);
+  border:2px solid var(--accent);transition:transform .05s linear;
+}
+/* en el teléfono manda la cancha y el joystick: el panel va abajo, chico */
+@media (max-width:760px){
+  .sala .sl-body{flex-direction:column}
+  .sala .sl-stage{flex:1 1 auto;min-height:34vh}
+  .sala .sl-side{width:auto;flex:0 0 auto;border-left:none;border-top:1px solid var(--line);padding:10px 12px}
+  .sala.jugador .sl-name,.sala.jugador .sl-actions{display:none}
+  .sl-nums{grid-template-columns:repeat(5,1fr)}
+  .sl-pad{padding:10px 0 16px}
+  .pad{width:160px;height:160px}
+  .pad-knob{width:64px;height:64px}
+}
+
 </style>
 </head>
 <body>
 <div id="home" class="home" hidden><div class="hm-inner"><div class="hm-body"></div></div></div>
+
+<!-- modo ensayo: la cancha en vivo y los teléfonos como joystick -->
+<div id="sala" class="sala" hidden>
+  <header class="sl-top">
+    <button class="btn" id="slSalir">‹ Salir</button>
+    <div class="sl-code" id="slCodigo"></div>
+    <div class="sl-name" id="slJugada"></div>
+    <span class="sl-grow"></span>
+    <div class="sl-estado" id="slEstado"></div>
+    <div class="sl-actions" id="slAcciones"></div>
+  </header>
+  <div class="sl-body">
+    <div class="sl-stage"><canvas id="cvSala"></canvas></div>
+    <aside class="sl-side" id="slLado"></aside>
+  </div>
+  <div class="sl-pad" id="slPad" hidden>
+    <div class="pad" id="slPadBase"><div class="pad-knob" id="slPadKnob"></div></div>
+  </div>
+</div>
 
 <div id="app">
 
@@ -4398,6 +4488,624 @@ RG.ui = (function () {
   return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: (key) => refreshLists(key), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();
 
+/* ===== js/sala.js ===== */
+/* sala.js - la sala en vivo: el entrenador y los teléfonos hablando por un código.
+
+   Hay dos transportes con la misma interfaz. Con servidor conectado va por el
+   canal en tiempo real de Supabase, que es un WebSocket con el protocolo de
+   Phoenix; se habla a mano, sin librería, igual que el resto de la app. Sin
+   servidor queda el canal del propio navegador, que sólo une pestañas de la
+   misma máquina: sirve para probar, no para el plantel. */
+window.RG = window.RG || {};
+
+RG.sala = (function () {
+  const CFG = () => (window.RG_CONFIG || {});
+  const configurado = () => !!(CFG().supabaseUrl && CFG().supabaseAnonKey);
+
+  const LETRAS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   /* sin O/0 ni I/1 */
+  function nuevoCodigo() {
+    let s = '';
+    for (let i = 0; i < 4; i++) s += LETRAS[Math.floor(Math.random() * LETRAS.length)];
+    return s;
+  }
+
+  const uid = () => Math.random().toString(36).slice(2, 10);
+
+  /* ------------------------------------------------------- por Supabase ---- */
+
+  function porSupabase(codigo, cb) {
+    const base = String(CFG().supabaseUrl || '').replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+    const url = base.replace(/^http/, 'ws') + '/realtime/v1/websocket?apikey=' +
+      encodeURIComponent(CFG().supabaseAnonKey) + '&vsn=1.0.0';
+    const topic = 'realtime:rugby-' + codigo;
+
+    let ws = null, ref = 0, latido = 0, reintento = 0, cerrado = false, listo = false;
+
+    function abrir() {
+      ws = new WebSocket(url);
+
+      ws.onopen = function () {
+        ref = 0;
+        ws.send(JSON.stringify({
+          topic: topic, event: 'phx_join', ref: String(++ref), join_ref: '1',
+          payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' }, private: false } }
+        }));
+        clearInterval(latido);
+        latido = setInterval(function () {
+          if (ws && ws.readyState === 1) {
+            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++ref) }));
+          }
+        }, 25000);
+      };
+
+      ws.onmessage = function (ev) {
+        let m;
+        try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m.event === 'phx_reply' && m.topic === topic) {
+          const ok = m.payload && m.payload.status === 'ok';
+          listo = ok;
+          reintento = 0;
+          cb.onEstado(ok ? 'conectado' : 'rechazado');
+          return;
+        }
+        if (m.event === 'broadcast' && m.payload) cb.onMensaje(m.payload.event, m.payload.payload || {});
+        if (m.event === 'phx_error') cb.onEstado('rechazado');
+      };
+
+      ws.onclose = function () {
+        clearInterval(latido);
+        listo = false;
+        if (cerrado) return;
+        cb.onEstado('reconectando');
+        /* la señal del teléfono se corta a cada rato: se vuelve a entrar sola */
+        reintento = Math.min(reintento + 1, 6);
+        setTimeout(abrir, 400 * reintento);
+      };
+
+      ws.onerror = function () { /* onclose se encarga */ };
+    }
+
+    abrir();
+
+    return {
+      tipo: 'supabase',
+      enVivo: true,
+      enviar: function (evento, datos) {
+        if (!ws || ws.readyState !== 1 || !listo) return false;
+        ws.send(JSON.stringify({
+          topic: topic, event: 'broadcast', ref: String(++ref),
+          payload: { type: 'broadcast', event: evento, payload: datos || {} }
+        }));
+        return true;
+      },
+      salir: function () {
+        cerrado = true;
+        clearInterval(latido);
+        try { if (ws) ws.close(); } catch (e) { /* ya estaba cerrado */ }
+      }
+    };
+  }
+
+  /* --------------------------------------------------- por el navegador ---- */
+
+  /* Une pestañas del mismo navegador. No sirve para teléfonos, pero deja probar
+     la sala completa sin servidor. */
+  function porNavegador(codigo, cb) {
+    if (typeof BroadcastChannel === 'undefined') {
+      setTimeout(function () { cb.onEstado('sin-transporte'); }, 0);
+      return { tipo: 'ninguno', enVivo: false, enviar: function () { return false; }, salir: function () {} };
+    }
+    const bc = new BroadcastChannel('rugby-sala-' + codigo);
+    bc.onmessage = function (ev) {
+      const m = ev.data || {};
+      cb.onMensaje(m.evento, m.datos || {});
+    };
+    setTimeout(function () { cb.onEstado('conectado'); }, 0);
+    return {
+      tipo: 'navegador',
+      enVivo: false,
+      enviar: function (evento, datos) { bc.postMessage({ evento: evento, datos: datos || {} }); return true; },
+      salir: function () { try { bc.close(); } catch (e) { /* ya cerrado */ } }
+    };
+  }
+
+  /* ------------------------------------------------------------ público ---- */
+
+  let actual = null;
+
+  function entrar(codigo, cb) {
+    salir();
+    const manejo = { onMensaje: cb.onMensaje || function () {}, onEstado: cb.onEstado || function () {} };
+    actual = configurado() ? porSupabase(codigo, manejo) : porNavegador(codigo, manejo);
+    actual.codigo = codigo;
+    return actual;
+  }
+
+  function salir() {
+    if (actual) { actual.salir(); actual = null; }
+  }
+
+  function enviar(evento, datos) { return actual ? actual.enviar(evento, datos) : false; }
+  function tipo() { return actual ? actual.tipo : null; }
+  function enVivo() { return !!(actual && actual.enVivo); }
+
+  return { entrar, salir, enviar, tipo, enVivo, nuevoCodigo, uid, configurado };
+})();
+
+/* ===== js/ensayo.js ===== */
+/* ensayo.js - el modo ensayo: la cancha en vivo en la pantalla grande y los
+   teléfonos del plantel como joystick.
+
+   El entrenador abre una jugada, se arma una sala con un código de cuatro
+   caracteres y cada jugador entra con ese código y toma su número. La pantalla
+   del entrenador es la que manda: integra el movimiento de todos y reparte el
+   estado; los teléfonos sólo mandan hacia dónde empujan. Así, si se pierde un
+   mensaje, nadie queda con una cancha distinta. */
+window.RG = window.RG || {};
+
+RG.ensayo = (function () {
+  const M = RG.model;
+  const G = RG.geom;
+  const S = RG.sala;
+
+  const VEL = 7.2;          /* metros por segundo a fondo */
+  const ESTADO_MS = 120;    /* cada cuánto el entrenador reparte posiciones */
+  const MOV_MS = 120;       /* cada cuánto el teléfono manda su empuje */
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+  let raiz = null, canvas = null, ctx = null, view = null, raf = 0, ultimo = 0;
+  let volver = null;        /* a dónde se vuelve al salir */
+
+  const sala = {
+    rol: null,              /* 'coach' o 'jugador' */
+    codigo: null,
+    yo: null,               /* id de este dispositivo */
+    nombre: '',
+    fase: 'espera',         /* espera | corriendo */
+    pos: {},                /* id de jugador -> {x, y} */
+    vec: {},                /* id de jugador -> {x, y} empuje actual */
+    tomados: {},            /* id de jugador -> id de dispositivo */
+    conocidos: {},          /* id de dispositivo -> nombre */
+    mio: null,              /* id del jugador que maneja este teléfono */
+    conexion: 'conectando'
+  };
+
+  /* ------------------------------------------------------------ dibujo ---- */
+
+  function propios() { return M.state.players.filter((p) => p.team === 'a'); }
+
+  function escena() {
+    const k = M.frameCount() > 1 ? 1 : 0;
+    const pos = {};
+    for (const p of M.state.players) pos[p.id] = sala.pos[p.id] || M.pos(0, p.id);
+    const carrier = M.frame(0).ball.carrier;
+    const b = carrier && pos[carrier] ? { x: pos[carrier].x, y: pos[carrier].y, held: 1 } : M.ballStatic(0);
+    return {
+      k: k, t: 1, pos: pos, ball: b, playing: false,
+      options: { onion: false, routes: true, labels: false, grid: false, numbers: true },
+      selection: null, hover: null, draft: null
+    };
+  }
+
+  /* En el teléfono la cancha entera queda diminuta: la cámara acompaña a la
+     ficha propia, con un tirón suave para que no vibre. */
+  const camara = { x: 50, y: 35, listo: false };
+  const VISTA_TEL = { ancho: 46, alto: 30 };
+
+  function seguir() {
+    const p = sala.pos[sala.mio];
+    if (!p) return;
+    if (!camara.listo) { camara.x = p.x; camara.y = p.y; camara.listo = true; }
+    camara.x += (p.x - camara.x) * 0.18;
+    camara.y += (p.y - camara.y) * 0.18;
+    const a = VISTA_TEL.ancho / 2, b = VISTA_TEL.alto / 2;
+    view.fit({ x0: camara.x - a, y0: camara.y - b, x1: camara.x + a, y1: camara.y + b });
+  }
+
+  function dibujar() {
+    if (!ctx) return;
+    const enTelefono = sala.rol === 'jugador' && sala.mio && sala.pos[sala.mio];
+    if (enTelefono && M.state.stage !== 'lineout') seguir();
+    RG.render.draw(ctx, view, escena());
+    if (enTelefono) marcarPropio();
+  }
+
+  /* un aro alrededor de la ficha propia: en el teléfono hay que encontrarse rápido */
+  function marcarPropio() {
+    const s = view.toScreen(sala.pos[sala.mio]);
+    const r = RG.render.playerRadius(view) + 7;
+    ctx.save();
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* En el ensayo se corre para cualquier lado, así que se ve la cancha entera y
+     no el recuadro de la jugada: si no, el que se va del encuadre desaparece. */
+  function encuadrar() {
+    ctx = view.resize();
+    const lineout = M.state.stage === 'lineout';
+    view.swap = lineout;
+    view.setBounds(lineout ? RG.field.VIEWS.lineout : null);
+    view.fit(lineout ? RG.field.VIEWS.lineout : RG.field.VIEWS.full);
+    dibujar();
+  }
+
+  /* ------------------------------------------------------------- bucle ---- */
+
+  function bucle(ts) {
+    raf = requestAnimationFrame(bucle);
+    const dt = Math.min(0.05, (ts - ultimo) / 1000 || 0);
+    ultimo = ts;
+
+    if (sala.rol === 'coach' && sala.fase === 'corriendo') {
+      for (const id of Object.keys(sala.vec)) {
+        const v = sala.vec[id], p = sala.pos[id];
+        if (!p || !v || (!v.x && !v.y)) continue;
+        /* el teléfono se quedó sin señal o se apagó: la ficha frena sola */
+        if (ts - (v.t || 0) > 1200) { v.x = 0; v.y = 0; continue; }
+        p.x = G.clamp(p.x + v.x * VEL * dt, -12, 112);
+        p.y = G.clamp(p.y + v.y * VEL * dt, -2, 72);
+      }
+      repartir(ts);
+    }
+    dibujar();
+  }
+
+  function arrancarBucle() {
+    cancelAnimationFrame(raf);
+    ultimo = performance.now();
+    raf = requestAnimationFrame(bucle);
+  }
+
+  /* ---------------------------------------------------------- mensajes ---- */
+
+  let ultimoEstado = 0;
+
+  function repartir(ts) {
+    if (ts - ultimoEstado < ESTADO_MS) return;
+    ultimoEstado = ts;
+    const p = {};
+    for (const id of Object.keys(sala.pos)) {
+      p[id] = [Math.round(sala.pos[id].x * 10) / 10, Math.round(sala.pos[id].y * 10) / 10];
+    }
+    S.enviar('estado', { f: sala.fase, p: p, t: sala.tomados });
+  }
+
+  function recibir(evento, datos) {
+    if (sala.rol === 'coach') return recibirCoach(evento, datos);
+    return recibirJugador(evento, datos);
+  }
+
+  function recibirCoach(evento, d) {
+    if (evento === 'hola') {
+      sala.conocidos[d.de] = d.nombre || 'Jugador';
+      /* la jugada entera va una sola vez, al entrar: después son sólo posiciones */
+      S.enviar('jugada', { para: d.de, data: M.serialize(), tomados: sala.tomados, fase: sala.fase });
+      lado();
+      return;
+    }
+    if (evento === 'tomar') {
+      const p = d.jugador ? propios().find((x) => x.id === d.jugador) : null;
+      if (d.jugador && !p) return;
+      if (p && sala.tomados[p.id] && sala.tomados[p.id] !== d.de) return;   /* ya lo tiene otro */
+      /* suelta el que tenía: sin esto quedaría manejando dos fichas */
+      for (const id of Object.keys(sala.tomados)) {
+        if (sala.tomados[id] === d.de) { delete sala.tomados[id]; delete sala.vec[id]; }
+      }
+      if (p) sala.tomados[p.id] = d.de;
+      sala.conocidos[d.de] = d.nombre || sala.conocidos[d.de] || 'Jugador';
+      S.enviar('estado', { f: sala.fase, p: {}, t: sala.tomados });
+      lado();
+      return;
+    }
+    if (evento === 'mov') {
+      const id = Object.keys(sala.tomados).find((k) => sala.tomados[k] === d.de);
+      if (id) sala.vec[id] = { x: G.clamp(d.x || 0, -1, 1), y: G.clamp(d.y || 0, -1, 1), t: performance.now() };
+      return;
+    }
+    if (evento === 'chau') {
+      for (const id of Object.keys(sala.tomados)) {
+        if (sala.tomados[id] === d.de) { delete sala.tomados[id]; delete sala.vec[id]; }
+      }
+      delete sala.conocidos[d.de];
+      lado();
+    }
+  }
+
+  function recibirJugador(evento, d) {
+    if (evento === 'jugada') {
+      if (d.para && d.para !== sala.yo) return;
+      try { M.load(d.data); } catch (e) { return; }
+      clearInterval(sala.saludo);
+      sala.tieneJugada = true;
+      sala.pos = {};
+      for (const p of M.state.players) { const q = M.pos(0, p.id); sala.pos[p.id] = { x: q.x, y: q.y }; }
+      sala.tomados = d.tomados || {};
+      sala.fase = d.fase || 'espera';
+      encuadrar();
+      lado();
+      return;
+    }
+    if (evento === 'estado') {
+      sala.fase = d.f || 'espera';
+      sala.tomados = d.t || sala.tomados;
+      for (const id of Object.keys(d.p || {})) {
+        const q = d.p[id];
+        sala.pos[id] = { x: q[0], y: q[1] };
+      }
+      /* sólo se suelta si el número quedó en manos de otro: mientras el
+         entrenador no confirme, el pedido sigue en pie */
+      if (sala.mio && sala.tomados[sala.mio] && sala.tomados[sala.mio] !== sala.yo) {
+        sala.mio = null;
+        camara.listo = false;
+        encuadrar();
+      }
+      lado();
+      return;
+    }
+    if (evento === 'fin') salirSala();
+  }
+
+  /* ------------------------------------------------------- panel lateral ---- */
+
+  function direccion() {
+    const u = location.origin + location.pathname;
+    return u.replace(/^https?:\/\//, '').replace(/index\.html$/, '').replace(/\/$/, '');
+  }
+
+  function lado() {
+    const caja = $('slLado');
+    if (!caja) return;
+
+    if (sala.rol === 'coach') {
+      const libres = propios().filter((p) => !sala.tomados[p.id]).length;
+      caja.innerHTML =
+        '<h3>En la cancha</h3>' +
+        '<p class="sl-note">Entran desde el teléfono a <b>' + esc(direccion()) + '</b>, tocan ' +
+        '«Entrar a una sala», ponen el código y eligen su número. Faltan ' + libres + ' de ' +
+        propios().length + '.</p>' +
+        (S.enVivo() ? '' : '<p class="sl-note sl-mal">Sin servidor conectado: la sala sólo une ' +
+          'pestañas de esta misma máquina.</p>') +
+        '<ul class="sl-list">' + propios().map((p) => {
+          const quien = sala.tomados[p.id];
+          return '<li class="' + (quien ? 'on' : '') + '"><b>' + p.num + '</b>' +
+            '<span>' + esc(quien ? (sala.conocidos[quien] || 'Jugador') : 'libre') + '</span></li>';
+        }).join('') + '</ul>';
+      return;
+    }
+
+    /* Hasta que no llega la jugada del entrenador no hay números que mostrar: los
+       de esta máquina son de otra jugada y no querría decir nada elegirlos. */
+    if (!sala.tieneJugada) {
+      caja.innerHTML = '<h3>Esperando al entrenador</h3>' +
+        '<p class="sl-note">' + (sala.conexion === 'conectado'
+          ? 'La sala <b>' + esc(sala.codigo) + '</b> todavía no está abierta, o el código no es ese. ' +
+            'En cuanto el entrenador abra, aparecen los números.'
+          : 'Conectando con la sala…') + '</p>' +
+        '<button class="btn" id="slOtroCodigo">Probar otro código</button>';
+      const otro = $('slOtroCodigo');
+      if (otro) otro.addEventListener('click', salirSala);
+      $('slPad').hidden = true;
+      return;
+    }
+
+    /* teléfono: mientras no tenga número, la grilla para elegirlo */
+    if (!sala.mio) {
+      caja.innerHTML = '<h3>Elegí tu número</h3>' +
+        '<div class="sl-nums">' + propios().map((p) => {
+          const tomado = sala.tomados[p.id] && sala.tomados[p.id] !== sala.yo;
+          return '<button class="sl-num" data-num="' + p.id + '"' + (tomado ? ' disabled' : '') + '>' +
+            p.num + '</button>';
+        }).join('') + '</div>';
+      caja.querySelectorAll('[data-num]').forEach((b) => b.addEventListener('click', () => {
+        sala.mio = b.dataset.num;
+        S.enviar('tomar', { de: sala.yo, jugador: sala.mio, nombre: sala.nombre });
+        lado();
+      }));
+      $('slPad').hidden = true;
+      return;
+    }
+
+    const p = M.player(sala.mio);
+    caja.innerHTML = '<h3>Sos el ' + (p ? p.num : '?') + '</h3>' +
+      '<p class="sl-note">' + (sala.fase === 'corriendo'
+        ? 'Movete con el círculo de abajo.'
+        : 'Esperá que el entrenador arranque.') + '</p>' +
+      '<button class="btn" id="slSoltar">Cambiar de número</button>';
+    const soltar = $('slSoltar');
+    if (soltar) soltar.addEventListener('click', () => {
+      S.enviar('tomar', { de: sala.yo, jugador: null, nombre: sala.nombre });
+      sala.mio = null;
+      camara.listo = false;
+      encuadrar();
+      lado();
+    });
+    $('slPad').hidden = false;
+  }
+
+  function acciones() {
+    const caja = $('slAcciones');
+    if (!caja) return;
+    if (sala.rol !== 'coach') { caja.innerHTML = ''; return; }
+    caja.innerHTML =
+      '<button class="btn" id="slInicio">Posición inicial</button>' +
+      '<button class="btn primary" id="slCorrer">' + (sala.fase === 'corriendo' ? 'Parar' : 'Arrancar') + '</button>';
+    $('slInicio').addEventListener('click', posicionInicial);
+    $('slCorrer').addEventListener('click', () => {
+      sala.fase = sala.fase === 'corriendo' ? 'espera' : 'corriendo';
+      if (sala.fase === 'espera') sala.vec = {};
+      S.enviar('estado', { f: sala.fase, p: {}, t: sala.tomados });
+      acciones();
+    });
+  }
+
+  function posicionInicial() {
+    for (const p of M.state.players) {
+      const q = M.pos(0, p.id);
+      sala.pos[p.id] = { x: q.x, y: q.y };
+    }
+    sala.vec = {};
+    ultimoEstado = 0;
+    S.enviar('estado', { f: sala.fase, p: mapaPos(), t: sala.tomados });
+    dibujar();
+  }
+
+  function mapaPos() {
+    const p = {};
+    for (const id of Object.keys(sala.pos)) p[id] = [sala.pos[id].x, sala.pos[id].y];
+    return p;
+  }
+
+  function estadoConexion(e) {
+    const antes = sala.conexion;
+    sala.conexion = e;
+    if (sala.rol === 'jugador' && !sala.tieneJugada && antes !== e) setTimeout(lado, 0);
+    const caja = $('slEstado');
+    if (!caja) return;
+    const texto = {
+      conectando: 'conectando…', conectado: S.enVivo() ? 'en vivo' : 'sólo en este navegador',
+      reconectando: 'reconectando…', rechazado: 'el servidor rechazó la sala',
+      'sin-transporte': 'este navegador no puede abrir salas'
+    };
+    caja.textContent = texto[e] || e;
+    caja.className = 'sl-estado' + (e === 'conectado' ? ' ok' : e === 'conectando' || e === 'reconectando' ? '' : ' mal');
+  }
+
+  /* --------------------------------------------------------- el joystick ---- */
+
+  /* El dedo se queda quieto en el borde y el jugador sigue corriendo: por eso el
+     empuje se manda a ritmo fijo mientras el dedo está apoyado, no cuando se
+     mueve. De paso, si se pierde un mensaje el siguiente lo corrige. */
+  function armarPad() {
+    const base = $('slPadBase'), knob = $('slPadKnob');
+    let activo = null, centro = null, reloj = 0;
+    const v = { x: 0, y: 0 };
+
+    function mandar() {
+      S.enviar('mov', { de: sala.yo, x: Math.round(v.x * 100) / 100, y: Math.round(v.y * 100) / 100 });
+    }
+
+    function apuntar(x, y) {
+      const r = base.getBoundingClientRect();
+      const rad = r.width / 2;
+      let dx = (x - centro.x) / rad, dy = (y - centro.y) / rad;
+      const largo = Math.hypot(dx, dy);
+      if (largo > 1) { dx /= largo; dy /= largo; }
+      v.x = dx; v.y = dy;
+      knob.style.transform = 'translate(' + (dx * rad * 0.62) + 'px,' + (dy * rad * 0.62) + 'px)';
+    }
+
+    function soltar() {
+      activo = null;
+      clearInterval(reloj);
+      reloj = 0;
+      v.x = 0; v.y = 0;
+      knob.style.transform = 'translate(0,0)';
+      mandar();
+    }
+
+    base.addEventListener('pointerdown', (e) => {
+      const r = base.getBoundingClientRect();
+      centro = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      activo = e.pointerId;
+      base.setPointerCapture(e.pointerId);
+      apuntar(e.clientX, e.clientY);
+      mandar();
+      clearInterval(reloj);
+      reloj = setInterval(mandar, MOV_MS);
+    });
+    base.addEventListener('pointermove', (e) => { if (activo === e.pointerId) apuntar(e.clientX, e.clientY); });
+    base.addEventListener('pointerup', (e) => { if (activo === e.pointerId) soltar(); });
+    base.addEventListener('pointercancel', () => { if (activo !== null) soltar(); });
+  }
+
+  /* ------------------------------------------------------------- abrir ---- */
+
+  function preparar(rol, codigo) {
+    raiz = $('sala');
+    canvas = $('cvSala');
+    if (!view) { view = RG.field.createView(canvas); armarPad(); }
+    sala.rol = rol;
+    sala.codigo = codigo;
+    sala.yo = S.uid();
+    sala.tomados = {};
+    sala.conocidos = {};
+    sala.vec = {};
+    sala.mio = null;
+    sala.fase = 'espera';
+    sala.tieneJugada = rol === 'coach';
+    raiz.hidden = false;
+    raiz.classList.toggle('jugador', rol === 'jugador');
+    $('home').hidden = true;
+    $('app').hidden = true;
+    $('slCodigo').innerHTML = 'Código <b>' + esc(codigo) + '</b>';
+    $('slJugada').textContent = rol === 'coach' ? M.state.name : '';
+    $('slPad').hidden = rol !== 'jugador';
+    estadoConexion('conectando');
+    acciones();
+    lado();
+    S.entrar(codigo, { onMensaje: recibir, onEstado: estadoConexion });
+  }
+
+  /* el entrenador: abre la jugada elegida y arma la sala */
+  function abrirCoach(playId) {
+    if (playId) M.loadPlay(playId);
+    const codigo = S.nuevoCodigo();
+    preparar('coach', codigo);
+    posicionInicial();
+    encuadrar();
+    arrancarBucle();
+    window.addEventListener('resize', encuadrar);
+  }
+
+  /* el jugador: entra con el código y espera la jugada */
+  function abrirJugador(codigo, nombre) {
+    preparar('jugador', String(codigo || '').trim().toUpperCase());
+    sala.nombre = nombre || 'Jugador';
+    encuadrar();
+    arrancarBucle();
+    window.addEventListener('resize', encuadrar);
+    /* El saludo se repite hasta que llega la jugada: si el entrenador todavía no
+       abrió la sala, o se perdió el mensaje, el teléfono insiste solo. */
+    sala.saludo = setInterval(() => {
+      if (sala.conexion === 'conectado') S.enviar('hola', { de: sala.yo, nombre: sala.nombre });
+    }, 1500);
+    setTimeout(() => { if (sala.conexion === 'conectado') S.enviar('hola', { de: sala.yo, nombre: sala.nombre }); }, 250);
+  }
+
+  function salirSala() {
+    cancelAnimationFrame(raf);
+    clearInterval(sala.saludo);
+    window.removeEventListener('resize', encuadrar);
+    if (sala.rol === 'coach') S.enviar('fin', {});
+    else S.enviar('chau', { de: sala.yo });
+    S.salir();
+    if (raiz) raiz.hidden = true;
+    if (volver) volver();
+  }
+
+  function init(alSalir) {
+    volver = alSalir;
+    const btn = $('slSalir');
+    if (btn) btn.addEventListener('click', salirSala);
+  }
+
+  /* asomarse al estado de la sala: lo usan las pruebas y sirve para depurar */
+  function estado() {
+    return { rol: sala.rol, codigo: sala.codigo, fase: sala.fase, mio: sala.mio,
+             tomados: sala.tomados, pos: sala.pos, vec: sala.vec, conexion: sala.conexion };
+  }
+
+  return { init, abrirCoach, abrirJugador, salir: salirSala, estado };
+})();
+
 /* ===== js/sync.js ===== */
 /* sync.js - el puente entre lo que hay en esta máquina y la cuenta.
 
@@ -4615,6 +5323,26 @@ RG.home = (function () {
       '</div>' +
       (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
       '<p class="hm-alt"><button class="hm-link" id="hmSkip">Entrar sin cuenta y trabajar en esta máquina</button></p>' +
+      '<p class="hm-alt"><button class="hm-link" id="hmJugador">Soy jugador: entrar a una sala con el código</button></p>' +
+      '</div>';
+  }
+
+  function vistaJugador() {
+    return '' +
+      '<div class="hm-hero"><h1>Entrar a la sala</h1>' +
+      '<p class="hm-lead">Pedile el código al entrenador: son cuatro caracteres que están en la ' +
+      'pantalla grande. No hace falta cuenta.</p></div>' +
+      '<div class="hm-card hm-narrow">' +
+      '<div id="hmSalaForm" class="hm-form">' +
+      '<label>Código de la sala<input type="text" id="hmSalaCodigo" placeholder="AB3K" maxlength="6" ' +
+      'autocapitalize="characters" autocomplete="off"></label>' +
+      '<label>Tu nombre<input type="text" id="hmSalaNombre" placeholder="Cómo te ven en el equipo"></label>' +
+      '<button class="btn primary big" id="hmSalaGo">Entrar</button>' +
+      '</div>' +
+      (RG.sala && RG.sala.configurado() ? ''
+        : '<p class="hm-warn">Sin servidor conectado la sala sólo une pestañas de esta misma ' +
+          'máquina: sirve para probarla, no para el plantel.</p>') +
+      '<p class="hm-alt"><button class="hm-link" id="hmSalaVolver">Volver</button></p>' +
       '</div>';
   }
 
@@ -4661,7 +5389,8 @@ RG.home = (function () {
       '<select id="hmPlaySel">' + js.map((j) =>
         '<option value="' + esc(j.id) + '">' + esc(j.name) +
         (ETIQUETA[j.origen] ? ' · ' + ETIQUETA[j.origen] : '') + '</option>').join('') +
-      '</select><button class="btn" id="hmPlayGo">Abrir</button></div>';
+      '</select><button class="btn" id="hmPlayGo">Abrir</button>' +
+      '<button class="btn" id="hmPlayEnsayo" title="Abrir la sala en vivo con esta jugada">Ensayar</button></div>';
   }
 
   /* Acá van todos: las situaciones de partido que trae la app y las versiones
@@ -4707,7 +5436,10 @@ RG.home = (function () {
       '<span>Elegí la situación y dibujá el movimiento, frame por frame</span></button>' +
       '<button class="hm-big alt" id="hmNewSetup"><b>Nueva situación</b>' +
       '<span>Cancha vacía para armar un set up desde cero y guardarlo</span></button>' +
+      '<button class="hm-big alt" id="hmSala"><b>Modo ensayo</b>' +
+      '<span>La cancha en la pantalla grande y el plantel moviendo su ficha desde el teléfono</span></button>' +
       '</div>' +
+      '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button></p>' +
 
       '<div class="hm-cols">' +
 
@@ -4768,9 +5500,12 @@ RG.home = (function () {
     return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
   }
 
+  let modoJugador = false;
+
   function pintar() {
     const cuerpo = root.querySelector('.hm-body');
-    if (cargando) cuerpo.innerHTML = vistaCargando();
+    if (modoJugador) cuerpo.innerHTML = vistaJugador();
+    else if (cargando) cuerpo.innerHTML = vistaCargando();
     else if (estado.user) cuerpo.innerHTML = estado.club ? vistaInicio() : vistaSinClub();
     else if (pendiente) cuerpo.innerHTML = vistaPendiente();
     else if (localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaInicio();
@@ -4895,6 +5630,32 @@ RG.home = (function () {
     }
     abridor('#hmPlaySel', '#hmPlayGo', 'abrir-jugada');
     abridor('#hmSetupSel', '#hmSetupGo', 'abrir-setup');
+
+    /* modo ensayo: la jugada elegida, o el set up si se entra por el botón grande */
+    const ensayoJugada = q('#hmPlayEnsayo');
+    if (ensayoJugada) ensayoJugada.addEventListener('click', () => {
+      const id = q('#hmPlaySel') && q('#hmPlaySel').value;
+      if (id) abrirSala('coach', id);
+    });
+
+    const ensayoSetup = q('#hmSala');
+    if (ensayoSetup) ensayoSetup.addEventListener('click', () => {
+      const key = q('#hmSetupSel') && q('#hmSetupSel').value;
+      abrirSala('setup', key);
+    });
+
+    const comoJugador = q('#hmJugador');
+    if (comoJugador) comoJugador.addEventListener('click', () => { modoJugador = true; pintar(); });
+
+    const volverDeSala = q('#hmSalaVolver');
+    if (volverDeSala) volverDeSala.addEventListener('click', () => { modoJugador = false; pintar(); });
+
+    accion('#hmSalaForm', '#hmSalaGo', () => {
+      const codigo = (q('#hmSalaCodigo').value || '').trim().toUpperCase();
+      if (codigo.length < 3) return aviso('Poné el código que muestra la pantalla del entrenador');
+      root.hidden = true;
+      RG.ensayo.abrirJugador(codigo, (q('#hmSalaNombre').value || '').trim() || 'Jugador');
+    });
   }
 
   /* --------------------------------------------------------- navegación ---- */
@@ -4903,6 +5664,23 @@ RG.home = (function () {
     root.hidden = false;
     document.getElementById('app').hidden = true;
     pintar();
+  }
+
+  /* Arranca la sala en vivo: con una jugada guardada o con una situación suelta. */
+  function abrirSala(desde, id) {
+    if (desde === 'setup') {
+      const key = id && M.FORMATIONS[id] ? id : 'kickoff_for';
+      M.state.frames = [M.blankFrame()];
+      M.state.id = RG.geom.uid();
+      M.state.name = M.FORMATIONS[key].name;
+      M.state.stage = M.FORMATIONS[key].stage || 'field';
+      M.applyFormation(key, 0, true);
+      root.hidden = true;
+      RG.ensayo.abrirCoach(null);
+      return;
+    }
+    root.hidden = true;
+    RG.ensayo.abrirCoach(id);
   }
 
   function abrirPizarra(modo, id) {
@@ -4917,6 +5695,8 @@ RG.home = (function () {
 
     /* cuando termina de subir o bajar, la pantalla se pone al día sola */
     if (RG.sync) RG.sync.onRefresh(() => { if (!root.hidden && !cargando) pintar(); });
+
+    if (RG.ensayo) RG.ensayo.init(() => { modoJugador = false; mostrar(); });
 
     const volverAlInicio = document.getElementById('btnHome');
     if (volverAlInicio) volverAlInicio.addEventListener('click', async () => {

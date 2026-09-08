@@ -79,6 +79,26 @@ RG.home = (function () {
       '</div>' +
       (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
       '<p class="hm-alt"><button class="hm-link" id="hmSkip">Entrar sin cuenta y trabajar en esta máquina</button></p>' +
+      '<p class="hm-alt"><button class="hm-link" id="hmJugador">Soy jugador: entrar a una sala con el código</button></p>' +
+      '</div>';
+  }
+
+  function vistaJugador() {
+    return '' +
+      '<div class="hm-hero"><h1>Entrar a la sala</h1>' +
+      '<p class="hm-lead">Pedile el código al entrenador: son cuatro caracteres que están en la ' +
+      'pantalla grande. No hace falta cuenta.</p></div>' +
+      '<div class="hm-card hm-narrow">' +
+      '<div id="hmSalaForm" class="hm-form">' +
+      '<label>Código de la sala<input type="text" id="hmSalaCodigo" placeholder="AB3K" maxlength="6" ' +
+      'autocapitalize="characters" autocomplete="off"></label>' +
+      '<label>Tu nombre<input type="text" id="hmSalaNombre" placeholder="Cómo te ven en el equipo"></label>' +
+      '<button class="btn primary big" id="hmSalaGo">Entrar</button>' +
+      '</div>' +
+      (RG.sala && RG.sala.configurado() ? ''
+        : '<p class="hm-warn">Sin servidor conectado la sala sólo une pestañas de esta misma ' +
+          'máquina: sirve para probarla, no para el plantel.</p>') +
+      '<p class="hm-alt"><button class="hm-link" id="hmSalaVolver">Volver</button></p>' +
       '</div>';
   }
 
@@ -125,7 +145,8 @@ RG.home = (function () {
       '<select id="hmPlaySel">' + js.map((j) =>
         '<option value="' + esc(j.id) + '">' + esc(j.name) +
         (ETIQUETA[j.origen] ? ' · ' + ETIQUETA[j.origen] : '') + '</option>').join('') +
-      '</select><button class="btn" id="hmPlayGo">Abrir</button></div>';
+      '</select><button class="btn" id="hmPlayGo">Abrir</button>' +
+      '<button class="btn" id="hmPlayEnsayo" title="Abrir la sala en vivo con esta jugada">Ensayar</button></div>';
   }
 
   /* Acá van todos: las situaciones de partido que trae la app y las versiones
@@ -171,7 +192,10 @@ RG.home = (function () {
       '<span>Elegí la situación y dibujá el movimiento, frame por frame</span></button>' +
       '<button class="hm-big alt" id="hmNewSetup"><b>Nueva situación</b>' +
       '<span>Cancha vacía para armar un set up desde cero y guardarlo</span></button>' +
+      '<button class="hm-big alt" id="hmSala"><b>Modo ensayo</b>' +
+      '<span>La cancha en la pantalla grande y el plantel moviendo su ficha desde el teléfono</span></button>' +
       '</div>' +
+      '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button></p>' +
 
       '<div class="hm-cols">' +
 
@@ -232,9 +256,12 @@ RG.home = (function () {
     return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
   }
 
+  let modoJugador = false;
+
   function pintar() {
     const cuerpo = root.querySelector('.hm-body');
-    if (cargando) cuerpo.innerHTML = vistaCargando();
+    if (modoJugador) cuerpo.innerHTML = vistaJugador();
+    else if (cargando) cuerpo.innerHTML = vistaCargando();
     else if (estado.user) cuerpo.innerHTML = estado.club ? vistaInicio() : vistaSinClub();
     else if (pendiente) cuerpo.innerHTML = vistaPendiente();
     else if (localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaInicio();
@@ -359,6 +386,32 @@ RG.home = (function () {
     }
     abridor('#hmPlaySel', '#hmPlayGo', 'abrir-jugada');
     abridor('#hmSetupSel', '#hmSetupGo', 'abrir-setup');
+
+    /* modo ensayo: la jugada elegida, o el set up si se entra por el botón grande */
+    const ensayoJugada = q('#hmPlayEnsayo');
+    if (ensayoJugada) ensayoJugada.addEventListener('click', () => {
+      const id = q('#hmPlaySel') && q('#hmPlaySel').value;
+      if (id) abrirSala('coach', id);
+    });
+
+    const ensayoSetup = q('#hmSala');
+    if (ensayoSetup) ensayoSetup.addEventListener('click', () => {
+      const key = q('#hmSetupSel') && q('#hmSetupSel').value;
+      abrirSala('setup', key);
+    });
+
+    const comoJugador = q('#hmJugador');
+    if (comoJugador) comoJugador.addEventListener('click', () => { modoJugador = true; pintar(); });
+
+    const volverDeSala = q('#hmSalaVolver');
+    if (volverDeSala) volverDeSala.addEventListener('click', () => { modoJugador = false; pintar(); });
+
+    accion('#hmSalaForm', '#hmSalaGo', () => {
+      const codigo = (q('#hmSalaCodigo').value || '').trim().toUpperCase();
+      if (codigo.length < 3) return aviso('Poné el código que muestra la pantalla del entrenador');
+      root.hidden = true;
+      RG.ensayo.abrirJugador(codigo, (q('#hmSalaNombre').value || '').trim() || 'Jugador');
+    });
   }
 
   /* --------------------------------------------------------- navegación ---- */
@@ -367,6 +420,23 @@ RG.home = (function () {
     root.hidden = false;
     document.getElementById('app').hidden = true;
     pintar();
+  }
+
+  /* Arranca la sala en vivo: con una jugada guardada o con una situación suelta. */
+  function abrirSala(desde, id) {
+    if (desde === 'setup') {
+      const key = id && M.FORMATIONS[id] ? id : 'kickoff_for';
+      M.state.frames = [M.blankFrame()];
+      M.state.id = RG.geom.uid();
+      M.state.name = M.FORMATIONS[key].name;
+      M.state.stage = M.FORMATIONS[key].stage || 'field';
+      M.applyFormation(key, 0, true);
+      root.hidden = true;
+      RG.ensayo.abrirCoach(null);
+      return;
+    }
+    root.hidden = true;
+    RG.ensayo.abrirCoach(id);
   }
 
   function abrirPizarra(modo, id) {
@@ -381,6 +451,8 @@ RG.home = (function () {
 
     /* cuando termina de subir o bajar, la pantalla se pone al día sola */
     if (RG.sync) RG.sync.onRefresh(() => { if (!root.hidden && !cargando) pintar(); });
+
+    if (RG.ensayo) RG.ensayo.init(() => { modoJugador = false; mostrar(); });
 
     const volverAlInicio = document.getElementById('btnHome');
     if (volverAlInicio) volverAlInicio.addEventListener('click', async () => {

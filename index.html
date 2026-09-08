@@ -4,10 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rugby Board</title>
-<link rel="stylesheet" href="css/app.css?v=202609072048">
+<link rel="stylesheet" href="css/app.css?v=202609081659">
 </head>
 <body>
 <div id="home" class="home" hidden><div class="hm-inner"><div class="hm-body"></div></div></div>
+
+<!-- modo ensayo: la cancha en vivo y los teléfonos como joystick -->
+<div id="sala" class="sala" hidden>
+  <header class="sl-top">
+    <button class="btn" id="slSalir">‹ Salir</button>
+    <div class="sl-code" id="slCodigo"></div>
+    <div class="sl-name" id="slJugada"></div>
+    <span class="sl-grow"></span>
+    <div class="sl-estado" id="slEstado"></div>
+    <div class="sl-actions" id="slAcciones"></div>
+  </header>
+  <div class="sl-body">
+    <div class="sl-stage"><canvas id="cvSala"></canvas></div>
+    <aside class="sl-side" id="slLado"></aside>
+  </div>
+  <div class="sl-pad" id="slPad" hidden>
+    <div class="pad" id="slPadBase"><div class="pad-knob" id="slPadKnob"></div></div>
+  </div>
+</div>
 
 <div id="app">
 
@@ -180,18 +199,20 @@
   </footer>
 </div>
 
-<script src="js/config.js?v=202609072048"></script>
-<script src="js/cloud.js?v=202609072048"></script>
-<script src="js/geom.js?v=202609072048"></script>
-<script src="js/model.js?v=202609072048"></script>
-<script src="js/field.js?v=202609072048"></script>
-<script src="js/render.js?v=202609072048"></script>
-<script src="js/mp4.js?v=202609072048"></script>
-<script src="js/video.js?v=202609072048"></script>
-<script src="js/input.js?v=202609072048"></script>
-<script src="js/ui.js?v=202609072048"></script>
-<script src="js/sync.js?v=202609072048"></script>
-<script src="js/home.js?v=202609072048"></script>
-<script src="js/app.js?v=202609072048"></script>
+<script src="js/config.js?v=202609081659"></script>
+<script src="js/cloud.js?v=202609081659"></script>
+<script src="js/geom.js?v=202609081659"></script>
+<script src="js/model.js?v=202609081659"></script>
+<script src="js/field.js?v=202609081659"></script>
+<script src="js/render.js?v=202609081659"></script>
+<script src="js/mp4.js?v=202609081659"></script>
+<script src="js/video.js?v=202609081659"></script>
+<script src="js/input.js?v=202609081659"></script>
+<script src="js/ui.js?v=202609081659"></script>
+<script src="js/sala.js?v=202609081659"></script>
+<script src="js/ensayo.js?v=202609081659"></script>
+<script src="js/sync.js?v=202609081659"></script>
+<script src="js/home.js?v=202609081659"></script>
+<script src="js/app.js?v=202609081659"></script>
 </body>
 </html>

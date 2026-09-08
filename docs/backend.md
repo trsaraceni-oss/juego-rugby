@@ -107,6 +107,17 @@ Esas dos van en el código de la app, a la vista de cualquiera, y está bien: so
 diseño. Lo que protege los datos son las reglas del paso 2, que se aplican en el servidor. La clave
 que **no** hay que compartir nunca es la `service_role`, que saltea todas las reglas.
 
+## 5b. El modo ensayo
+
+La sala en vivo usa el canal de tiempo real de Supabase, que viene activado por defecto: no hay
+nada que correr ni configurar. Si al abrir una sala la pantalla dice *el servidor rechazó la sala*,
+mirá en **Settings** → **Realtime** que esté habilitado en el proyecto.
+
+Los mensajes son ligeros (posiciones redondeadas) pero constantes: con quince jugadores moviéndose,
+una sesión de veinte minutos gasta alrededor de cien mil mensajes, y el plan gratis trae dos
+millones por mes. Alcanza para unas veinte sesiones mensuales; si se queda corto, el plan pago
+sube el tope.
+
 ## 6. Dónde va a vivir la app
 
 Supabase guarda los datos, pero la app en sí necesita una dirección web. Dos opciones, las dos

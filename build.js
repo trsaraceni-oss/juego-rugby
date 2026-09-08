@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const SCRIPTS = ['js/config.js', 'js/cloud.js', 'js/geom.js', 'js/model.js', 'js/field.js', 'js/render.js', 'js/mp4.js', 'js/video.js', 'js/input.js', 'js/ui.js', 'js/sync.js', 'js/home.js', 'js/app.js'];
+const SCRIPTS = ['js/config.js', 'js/cloud.js', 'js/geom.js', 'js/model.js', 'js/field.js', 'js/render.js', 'js/mp4.js', 'js/video.js', 'js/input.js', 'js/ui.js', 'js/sala.js', 'js/ensayo.js', 'js/sync.js', 'js/home.js', 'js/app.js'];
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 const args = process.argv.slice(2);

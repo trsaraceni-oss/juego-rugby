@@ -135,6 +135,8 @@ js/mp4.js           muxer de MP4 progresivo
 js/video.js         codificación de la animación a video
 js/input.js         mouse y touch sobre el canvas
 js/ui.js            paneles, timeline e inspector
+js/sala.js          la sala en vivo: WebSocket del canal de Supabase, sin librería
+js/ensayo.js        modo ensayo: la cancha en la pantalla grande y el teléfono como joystick
 js/sync.js          puente entre lo guardado en la máquina y la cuenta
 js/home.js          pantalla de inicio: cuenta, club, equipos y arranque
 js/cloud.js         cuentas y club contra Supabase, con un modo simulado
@@ -218,10 +220,35 @@ Las reglas de acceso están probadas contra Postgres y el armado de capas contra
 entrenador ve lo global, la base de su club y lo suyo; no puede publicar donde no le corresponde;
 y su versión no toca la del club.
 
+## Modo ensayo
+
+El entrenador abre una jugada desde la pantalla de inicio, la app arma una sala con un código de
+cuatro caracteres y el plantel entra desde el teléfono a la misma dirección: «Entrar a una sala»,
+el código, y cada uno elige su número. La pantalla grande muestra la cancha entera; el teléfono
+sigue a la ficha propia de cerca y trae un joystick abajo.
+
+La pantalla del entrenador es la que manda: recibe el empuje de cada teléfono, integra las
+posiciones y reparte el estado ocho veces por segundo. Los teléfonos no calculan nada, así que si
+se pierde un mensaje nadie queda con una cancha distinta. El empuje se manda a ritmo fijo mientras
+el dedo está apoyado, no cuando se mueve: el dedo se queda quieto en el borde y el jugador sigue
+corriendo. Si un teléfono deja de mandar por más de un segundo, su ficha frena sola.
+
+Con servidor conectado va por el canal en tiempo real de Supabase, que es un WebSocket con el
+protocolo de Phoenix, hablado a mano igual que el resto de la app. Sin servidor queda el canal del
+propio navegador, que sólo une pestañas de la misma máquina: sirve para probarlo, no para el
+plantel.
+
+Probado con dos teléfonos y un entrenador en el mismo navegador: entrar antes de que la sala
+exista y que el saludo insista solo, tomar número, que el segundo no pueda tomar el mismo, correr
+con el joystick y que la posición sea la misma en las tres pantallas.
+
+Falta la parte de comparar: grabar el recorrido de cada uno durante el ensayo y medirlo contra la
+ruta de la jugada.
+
 ## Para seguir
 
-Lo próximo es el modo joystick: los jugadores entrando desde el teléfono con un código de sala para
-mover su ficha y comparar el recorrido que hicieron contra el de la jugada.
+Lo próximo es cerrar el modo ensayo: grabar lo que hizo cada jugador y compararlo con la ruta de la
+jugada, con un número por jugador y el dibujo de los dos recorridos encima.
 
 Otras ideas anotadas: medir distancias y tiempos sobre la cancha, vista vertical, y jugadores con
 velocidad propia para simular llegadas en vez de interpolar por tiempo fijo.

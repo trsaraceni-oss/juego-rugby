@@ -18,6 +18,9 @@ body{
   overflow:hidden;
 }
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+/* una regla de clase le gana a la del navegador para [hidden]: sin esto, una
+   pantalla escondida sigue tapando a la que está abierta */
+[hidden]{display:none!important}
 
 /* ---------- topbar ---------- */
 .topbar{
@@ -318,4 +321,72 @@ body.presenting .stage{background:#000}
   .hint{display:none}
   .squad-row{flex-direction:column;align-items:flex-start;gap:3px}
   .squad-row select{max-width:100%;width:100%}
+}
+
+/* ---------- modo ensayo: la cancha en vivo y el teléfono como joystick ---------- */
+.sala{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;background:var(--bg)}
+.sl-top{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto;
+}
+.sl-grow{flex:1}
+.sl-code{font-size:12px;color:var(--muted);white-space:nowrap}
+.sl-code b{
+  font:700 20px/1 ui-monospace,monospace;letter-spacing:4px;color:var(--accent);
+  margin-left:6px;vertical-align:-1px;
+}
+.sl-name{color:var(--text);font-weight:600;font-size:13px}
+.sl-estado{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.sl-estado.ok{color:var(--accent)}
+.sl-estado.mal{color:#ffc9a3}
+.sl-actions{display:flex;gap:6px}
+.sl-body{display:flex;flex:1;min-height:0}
+.sl-stage{position:relative;flex:1;min-width:0;background:#0b0e12}
+#cvSala{display:block;width:100%;height:100%;touch-action:none}
+.sl-side{
+  width:230px;flex:0 0 230px;background:var(--panel);border-left:1px solid var(--line);
+  padding:12px;overflow-y:auto;
+}
+.sl-side h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.sl-note{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.5}
+.sl-note b{color:var(--text);font-family:ui-monospace,monospace;font-size:11.5px}
+.sl-note.sl-mal{color:#ffc9a3}
+.sl-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.sl-list li{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;
+  background:var(--panel-2);border:1px solid var(--line);font-size:13px;color:var(--muted);
+}
+.sl-list li.on{border-color:var(--accent-2);color:var(--text)}
+.sl-list li b{
+  width:24px;height:24px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:var(--panel);font-size:12px;color:var(--text);
+}
+.sl-list li.on b{background:var(--accent-2);color:#04140a}
+.sl-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sl-num{
+  aspect-ratio:1;font:700 17px/1 inherit;cursor:pointer;color:var(--text);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+}
+.sl-num:hover:not(:disabled){border-color:var(--accent-2);color:var(--accent)}
+.sl-num:disabled{opacity:.32;cursor:not-allowed}
+.sl-pad{display:flex;justify-content:center;padding:14px 0 22px;background:var(--panel);border-top:1px solid var(--line)}
+.pad{
+  width:190px;height:190px;border-radius:50%;position:relative;touch-action:none;
+  background:radial-gradient(circle at 50% 50%,#1c222c 0%,#141920 70%);
+  border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
+}
+.pad-knob{
+  width:74px;height:74px;border-radius:50%;background:var(--accent-2);
+  border:2px solid var(--accent);transition:transform .05s linear;
+}
+/* en el teléfono manda la cancha y el joystick: el panel va abajo, chico */
+@media (max-width:760px){
+  .sala .sl-body{flex-direction:column}
+  .sala .sl-stage{flex:1 1 auto;min-height:34vh}
+  .sala .sl-side{width:auto;flex:0 0 auto;border-left:none;border-top:1px solid var(--line);padding:10px 12px}
+  .sala.jugador .sl-name,.sala.jugador .sl-actions{display:none}
+  .sl-nums{grid-template-columns:repeat(5,1fr)}
+  .sl-pad{padding:10px 0 16px}
+  .pad{width:160px;height:160px}
+  .pad-knob{width:64px;height:64px}
 }
