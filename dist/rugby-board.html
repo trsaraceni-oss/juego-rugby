@@ -5011,7 +5011,12 @@ RG.ensayo = (function () {
       let dx = (x - centro.x) / rad, dy = (y - centro.y) / rad;
       const largo = Math.hypot(dx, dy);
       if (largo > 1) { dx /= largo; dy /= largo; }
-      v.x = dx; v.y = dy;
+      /* El empuje se manda en metros de cancha, pero el dedo empuja en la
+         pantalla: el escenario de line-out intercambia los ejes para mostrar la
+         touch a la izquierda, así que ahí también hay que intercambiarlos. */
+      const girado = !!(view && view.swap);
+      v.x = girado ? dy : dx;
+      v.y = girado ? dx : dy;
       knob.style.transform = 'translate(' + (dx * rad * 0.62) + 'px,' + (dy * rad * 0.62) + 'px)';
     }
 
