@@ -336,6 +336,11 @@ body.presenting .stage{background:#000}
   margin-left:6px;vertical-align:-1px;
 }
 .sl-name{color:var(--text);font-weight:600;font-size:13px}
+.sl-ver{margin-left:8px;font:10px ui-monospace,monospace;color:var(--muted);opacity:.55}
+#slElegir{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  padding:6px 8px;border-radius:var(--radius);cursor:pointer;max-width:230px;font:inherit;
+}
 .sl-estado{font-size:11.5px;color:var(--muted);white-space:nowrap}
 .sl-estado.ok{color:var(--accent)}
 .sl-estado.mal{color:#ffc9a3}

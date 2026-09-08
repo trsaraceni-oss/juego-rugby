@@ -197,8 +197,11 @@ RG.ensayo = (function () {
       for (const p of M.state.players) { const q = M.pos(0, p.id); sala.pos[p.id] = { x: q.x, y: q.y }; }
       sala.tomados = d.tomados || {};
       sala.fase = d.fase || 'espera';
+      /* el entrenador cambió de jugada: si el número sigue existiendo se conserva */
+      if (sala.mio && !M.player(sala.mio)) sala.mio = null;
+      camara.listo = false;
       encuadrar();
-      lado();
+      lado(true);
       return;
     }
     if (evento === 'estado') {
@@ -222,6 +225,14 @@ RG.ensayo = (function () {
   }
 
   /* ------------------------------------------------------- panel lateral ---- */
+
+  /* La versión que está corriendo, para poder mirar en el teléfono si quedó
+     cacheada una vieja: los teléfonos no tienen Ctrl+F5. */
+  function version() {
+    const sc = document.querySelector('script[src*="ensayo.js"]');
+    const m = sc && /[?&]v=([0-9]+)/.exec(sc.getAttribute('src') || '');
+    return m ? m[1] : 'única';
+  }
 
   function direccion() {
     const u = location.origin + location.pathname;
@@ -304,13 +315,68 @@ RG.ensayo = (function () {
     });
   }
 
+  /* El desplegable de la sala: se cambia de situación o de jugada sin salir, y
+     los teléfonos se enteran solos. */
+  const ORDEN_SETUPS = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras'];
+  const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
+
+  function opcionesDeEnsayo() {
+    const jugadas = M.listPlays();
+    let html = '';
+    if (jugadas.length) {
+      html += '<optgroup label="Jugadas guardadas">' + jugadas.map((j) =>
+        '<option value="j:' + esc(j.id) + '">' + esc(j.name) + '</option>').join('') + '</optgroup>';
+    }
+    const setups = M.formationList().filter((f) => f.group !== 'Crear set up');
+    for (const g of ORDEN_SETUPS) {
+      const items = setups.filter((f) => f.group === g)
+        .map((f) => '<option value="f:' + esc(f.key) + '">' + esc(f.name) + (MARCA[f.origen] || '') + '</option>')
+        .join('');
+      if (items) html += '<optgroup label="' + g + '">' + items + '</optgroup>';
+    }
+    return html;
+  }
+
+  /* Carga otra jugada o situación y se la manda a todos los teléfonos. */
+  function cambiarA(valor) {
+    const clase = valor.slice(0, 2), id = valor.slice(2);
+    if (clase === 'j:') {
+      if (!M.loadPlay(id)) return;
+    } else {
+      if (!M.FORMATIONS[id]) return;
+      M.state.frames = [M.blankFrame()];
+      M.state.id = G.uid();
+      M.state.name = M.FORMATIONS[id].name;
+      M.state.stage = M.FORMATIONS[id].stage || 'field';
+      M.applyFormation(id, 0, true);
+    }
+    /* los números que no existen en la jugada nueva quedan libres */
+    const hay = {};
+    for (const p of propios()) hay[p.id] = true;
+    for (const k of Object.keys(sala.tomados)) if (!hay[k]) { delete sala.tomados[k]; delete sala.vec[k]; }
+    sala.fase = 'espera';
+    sala.vec = {};
+    $('slJugada').textContent = M.state.name;
+    posicionInicial();
+    encuadrar();
+    S.enviar('jugada', { data: M.serialize(), tomados: sala.tomados, fase: sala.fase });
+    acciones();
+    lado(true);
+  }
+
   function acciones() {
     const caja = $('slAcciones');
     if (!caja) return;
     if (sala.rol !== 'coach') { caja.innerHTML = ''; return; }
     caja.innerHTML =
+      '<select id="slElegir" title="Qué se ensaya">' + opcionesDeEnsayo() + '</select>' +
       '<button class="btn" id="slInicio">Posición inicial</button>' +
       '<button class="btn primary" id="slCorrer">' + (sala.fase === 'corriendo' ? 'Parar' : 'Arrancar') + '</button>';
+    const elegir = $('slElegir');
+    /* deja marcado lo que se está ensayando */
+    const abierto = M.playRow() ? 'j:' + M.playRow() : 'f:' + M.state.setupKey;
+    if (elegir.querySelector('[value="' + abierto.replace(/"/g, '') + '"]')) elegir.value = abierto;
+    elegir.addEventListener('change', () => cambiarA(elegir.value));
     $('slInicio').addEventListener('click', posicionInicial);
     $('slCorrer').addEventListener('click', () => {
       sala.fase = sala.fase === 'corriendo' ? 'espera' : 'corriendo';
@@ -431,7 +497,8 @@ RG.ensayo = (function () {
     raiz.classList.toggle('jugador', rol === 'jugador');
     $('home').hidden = true;
     $('app').hidden = true;
-    $('slCodigo').innerHTML = 'Código <b>' + esc(codigo) + '</b>';
+    $('slCodigo').innerHTML = 'Código <b>' + esc(codigo) + '</b>' +
+      '<span class="sl-ver" title="Versión de la app en este dispositivo">' + esc(version()) + '</span>';
     $('slJugada').textContent = rol === 'coach' ? M.state.name : '';
     $('slPad').hidden = rol !== 'jugador';
     estadoConexion('conectando');
