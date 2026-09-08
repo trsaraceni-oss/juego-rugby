@@ -370,6 +370,10 @@ body.presenting .stage{background:#000}
 .sl-num:hover:not(:disabled){border-color:var(--accent-2);color:var(--accent)}
 .sl-num:disabled{opacity:.32;cursor:not-allowed}
 .sl-pad{display:flex;justify-content:center;padding:14px 0 22px;background:var(--panel);border-top:1px solid var(--line)}
+.sala{overscroll-behavior:none}
+.sl-pad,.pad,.pad-knob{
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
 .pad{
   width:190px;height:190px;border-radius:50%;position:relative;touch-action:none;
   background:radial-gradient(circle at 50% 50%,#1c222c 0%,#141920 70%);

@@ -72,6 +72,9 @@ RG.ensayo = (function () {
 
   function dibujar() {
     if (!ctx) return;
+    const pad = $('slPad');
+    const conPad = sala.rol === 'jugador' && !!sala.mio;
+    if (pad && pad.hidden === conPad) pad.hidden = !conPad;
     const enTelefono = sala.rol === 'jugador' && sala.mio && sala.pos[sala.mio];
     if (enTelefono && M.state.stage !== 'lineout') seguir();
     RG.render.draw(ctx, view, escena());
@@ -225,9 +228,18 @@ RG.ensayo = (function () {
     return u.replace(/^https?:\/\//, '').replace(/index\.html$/, '').replace(/\/$/, '');
   }
 
-  function lado() {
+  /* El estado llega ocho veces por segundo. Rearmar el panel en cada uno hacía
+     que en el teléfono parpadeara y que un toque cayera sobre un botón que se
+     estaba reemplazando: se rearma sólo cuando cambió algo que se ve. */
+  let firmaPanel = '';
+
+  function lado(forzar) {
     const caja = $('slLado');
     if (!caja) return;
+    const firma = [sala.rol, sala.fase, sala.mio, sala.tieneJugada, sala.conexion,
+      Object.keys(sala.tomados).sort().map((k) => k + ':' + sala.tomados[k]).join(',')].join('|');
+    if (!forzar && firma === firmaPanel) return;
+    firmaPanel = firma;
 
     if (sala.rol === 'coach') {
       const libres = propios().filter((p) => !sala.tomados[p.id]).length;
@@ -257,7 +269,6 @@ RG.ensayo = (function () {
         '<button class="btn" id="slOtroCodigo">Probar otro código</button>';
       const otro = $('slOtroCodigo');
       if (otro) otro.addEventListener('click', salirSala);
-      $('slPad').hidden = true;
       return;
     }
 
@@ -274,7 +285,6 @@ RG.ensayo = (function () {
         S.enviar('tomar', { de: sala.yo, jugador: sala.mio, nombre: sala.nombre });
         lado();
       }));
-      $('slPad').hidden = true;
       return;
     }
 
@@ -292,7 +302,6 @@ RG.ensayo = (function () {
       encuadrar();
       lado();
     });
-    $('slPad').hidden = false;
   }
 
   function acciones() {
@@ -377,18 +386,25 @@ RG.ensayo = (function () {
     }
 
     base.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
       const r = base.getBoundingClientRect();
       centro = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       activo = e.pointerId;
-      base.setPointerCapture(e.pointerId);
+      try { base.setPointerCapture(e.pointerId); } catch (err) { /* el documento alcanza */ }
       apuntar(e.clientX, e.clientY);
       mandar();
       clearInterval(reloj);
       reloj = setInterval(mandar, MOV_MS);
     });
-    base.addEventListener('pointermove', (e) => { if (activo === e.pointerId) apuntar(e.clientX, e.clientY); });
-    base.addEventListener('pointerup', (e) => { if (activo === e.pointerId) soltar(); });
-    base.addEventListener('pointercancel', () => { if (activo !== null) soltar(); });
+
+    /* El dedo se va del círculo y el navegador puede quitarle la captura: se
+       escucha en el documento para no quedarse con el joystick trabado. */
+    document.addEventListener('pointermove', (e) => {
+      if (activo === e.pointerId) { e.preventDefault(); apuntar(e.clientX, e.clientY); }
+    }, { passive: false });
+    document.addEventListener('pointerup', (e) => { if (activo === e.pointerId) soltar(); });
+    document.addEventListener('pointercancel', (e) => { if (activo === e.pointerId) soltar(); });
+    window.addEventListener('blur', () => { if (activo !== null) soltar(); });
   }
 
   /* ------------------------------------------------------------- abrir ---- */
@@ -415,7 +431,8 @@ RG.ensayo = (function () {
     $('slPad').hidden = rol !== 'jugador';
     estadoConexion('conectando');
     acciones();
-    lado();
+    firmaPanel = '';
+    lado(true);
     S.entrar(codigo, { onMensaje: recibir, onEstado: estadoConexion });
   }
 
@@ -424,6 +441,7 @@ RG.ensayo = (function () {
     if (playId) M.loadPlay(playId);
     const codigo = S.nuevoCodigo();
     preparar('coach', codigo);
+    noDormirse();   /* la pantalla grande tampoco se tiene que apagar */
     posicionInicial();
     encuadrar();
     arrancarBucle();
@@ -431,9 +449,26 @@ RG.ensayo = (function () {
   }
 
   /* el jugador: entra con el código y espera la jugada */
+  /* La pantalla del teléfono se apaga sola a los treinta segundos y ahí se pierde
+     todo: mientras dura el ensayo se pide mantenerla despierta. */
+  let despierta = null;
+  async function noDormirse() {
+    try {
+      if (navigator.wakeLock && !despierta) despierta = await navigator.wakeLock.request('screen');
+    } catch (e) { /* el navegador no lo permite: se vive con eso */ }
+  }
+  function soltarPantalla() {
+    try { if (despierta) despierta.release(); } catch (e) { /* ya se soltó */ }
+    despierta = null;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sala.rol) noDormirse();
+  });
+
   function abrirJugador(codigo, nombre) {
     preparar('jugador', String(codigo || '').trim().toUpperCase());
     sala.nombre = nombre || 'Jugador';
+    noDormirse();
     encuadrar();
     arrancarBucle();
     window.addEventListener('resize', encuadrar);
@@ -448,6 +483,7 @@ RG.ensayo = (function () {
   function salirSala() {
     cancelAnimationFrame(raf);
     clearInterval(sala.saludo);
+    soltarPantalla();
     window.removeEventListener('resize', encuadrar);
     if (sala.rol === 'coach') S.enviar('fin', {});
     else S.enviar('chau', { de: sala.yo });
