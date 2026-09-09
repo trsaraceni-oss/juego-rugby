@@ -894,10 +894,48 @@ RG.model = (function () {
 
   /* ---------- muestreo para la animacion ---------- */
 
+  /* ---------- cómo avanza cada uno dentro de su tramo ----------
+
+     Antes cada tramo arrancaba y terminaba parado, así que el que corría tres
+     frames seguidos frenaba dos veces por el camino. Ahora la velocidad se
+     empalma: si el jugador sigue moviéndose en el tramo siguiente, cruza el
+     frame sin frenar, y sólo arranca y para de verdad cuando de verdad arranca
+     y para. */
+
+  /* cuántos metros por segundo hace el jugador en un tramo */
+  function ritmo(frameIdx, playerId) {
+    if (frameIdx <= 0 || frameIdx >= state.frames.length) return 0;
+    const fr = state.frames[frameIdx];
+    const r = fr.routes[playerId];
+    const d = r && r.pts && r.pts.length > 1
+      ? G.pathLength(r.pts)
+      : G.dist(pos(frameIdx - 1, playerId), pos(frameIdx, playerId));
+    return d / (fr.dur || 1);
+  }
+
+  /* Hermite: llega al final con las velocidades de entrada y salida pedidas.
+     Con las dos en cero es la curva suave de siempre; con las dos en uno, una
+     recta a velocidad constante. */
+  function curva(t, v0, v1) {
+    const t2 = t * t, t3 = t2 * t;
+    return v0 * (t3 - 2 * t2 + t) + (3 * t2 - 2 * t3) + v1 * (t3 - t2);
+  }
+
+  /* La velocidad en el borde entre dos tramos es la menor de las dos: así los
+     dos lados coinciden y no hay ni tirón ni frenada. */
+  function avance(frameIdx, playerId, t) {
+    const s = ritmo(frameIdx, playerId);
+    const x = G.clamp(t, 0, 1);
+    if (s <= 1e-6) return G.easeInOut(x);
+    const v0 = Math.min(ritmo(frameIdx - 1, playerId), s) / s;
+    const v1 = Math.min(ritmo(frameIdx + 1, playerId), s) / s;
+    return G.clamp(curva(x, v0, v1), 0, 1);
+  }
+
   function playerAt(frameIdx, playerId, t) {
     if (frameIdx <= 0) return pos(0, playerId);
     const fr = frame(frameIdx);
-    const e = G.easeInOut(G.clamp(t, 0, 1));
+    const e = avance(frameIdx, playerId, t);
     const route = fr.routes[playerId];
     if (route && route.pts.length > 1) return G.pointOnPath(route.pts, e);
     return G.lerpPoint(pos(frameIdx - 1, playerId), pos(frameIdx, playerId), e);

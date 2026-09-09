@@ -31,6 +31,7 @@ RG.ensayo = (function () {
     nombre: '',
     fase: 'espera',         /* espera | corriendo */
     pos: {},                /* id de jugador -> {x, y} */
+    destino: {},            /* a dónde va cada uno, según el último estado */
     vec: {},                /* id de jugador -> {x, y} empuje actual */
     tomados: {},            /* id de jugador -> id de dispositivo */
     conocidos: {},          /* id de dispositivo -> nombre */
@@ -111,6 +112,17 @@ RG.ensayo = (function () {
     raf = requestAnimationFrame(bucle);
     const dt = Math.min(0.05, (ts - ultimo) / 1000 || 0);
     ultimo = ts;
+
+    if (sala.rol === 'jugador') {
+      /* alcanza el destino en unos 80 ms: se ve fluido y no queda arrastrado */
+      const k = Math.min(1, dt * 12);
+      for (const id of Object.keys(sala.destino)) {
+        const p = sala.pos[id], q = sala.destino[id];
+        if (!p) { sala.pos[id] = { x: q.x, y: q.y }; continue; }
+        p.x += (q.x - p.x) * k;
+        p.y += (q.y - p.y) * k;
+      }
+    }
 
     if (sala.rol === 'coach' && sala.fase === 'corriendo') {
       for (const id of Object.keys(sala.vec)) {
@@ -194,6 +206,7 @@ RG.ensayo = (function () {
       clearInterval(sala.saludo);
       sala.tieneJugada = true;
       sala.pos = {};
+      sala.destino = {};
       for (const p of M.state.players) { const q = M.pos(0, p.id); sala.pos[p.id] = { x: q.x, y: q.y }; }
       sala.tomados = d.tomados || {};
       sala.fase = d.fase || 'espera';
@@ -207,9 +220,12 @@ RG.ensayo = (function () {
     if (evento === 'estado') {
       sala.fase = d.f || 'espera';
       sala.tomados = d.t || sala.tomados;
+      /* el estado llega ocho veces por segundo: se guarda a dónde va cada uno y
+         el dibujo lo acompaña, para que en el teléfono no se vea a los saltos */
       for (const id of Object.keys(d.p || {})) {
         const q = d.p[id];
-        sala.pos[id] = { x: q[0], y: q[1] };
+        sala.destino[id] = { x: q[0], y: q[1] };
+        if (!sala.pos[id]) sala.pos[id] = { x: q[0], y: q[1] };
       }
       /* sólo se suelta si el número quedó en manos de otro: mientras el
          entrenador no confirme, el pedido sigue en pie */
@@ -490,6 +506,7 @@ RG.ensayo = (function () {
     sala.tomados = {};
     sala.conocidos = {};
     sala.vec = {};
+    sala.destino = {};
     sala.mio = null;
     sala.fase = 'espera';
     sala.tieneJugada = rol === 'coach';

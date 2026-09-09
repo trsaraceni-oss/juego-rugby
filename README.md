@@ -158,6 +158,18 @@ La cámara (`js/field.js`) convierte a píxeles; el modelo nunca conoce la panta
 de line-out no rota el contexto del canvas: la cámara intercambia los ejes (`view.swap`), así los
 textos siguen derechos y el modelo sigue trabajando en metros de cancha.
 
+### Cómo se mueve la animación
+
+Cada tramo de la jugada se recorre con una curva de Hermite a la que se le pide la velocidad de
+entrada y la de salida. En el borde entre dos tramos se usa la menor de las dos velocidades medias,
+así los dos lados coinciden: el que sigue corriendo cruza el frame sin frenar, y el que arranca o
+para lo hace de verdad. Antes cada tramo empezaba y terminaba parado, y una carrera de tres frames
+frenaba dos veces por el camino.
+
+Medido muestreando la jugada a 60 por segundo: en una corrida de dos tramos seguidos la velocidad
+en el borde se mantiene alrededor de 13 m/s en lugar de caer a cero, y en el frame en el que el
+jugador se queda quieto sigue dando cero.
+
 ### Formato de la jugada
 
 ```jsonc

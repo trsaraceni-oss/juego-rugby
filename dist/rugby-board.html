@@ -2129,10 +2129,48 @@ RG.model = (function () {
 
   /* ---------- muestreo para la animacion ---------- */
 
+  /* ---------- cómo avanza cada uno dentro de su tramo ----------
+
+     Antes cada tramo arrancaba y terminaba parado, así que el que corría tres
+     frames seguidos frenaba dos veces por el camino. Ahora la velocidad se
+     empalma: si el jugador sigue moviéndose en el tramo siguiente, cruza el
+     frame sin frenar, y sólo arranca y para de verdad cuando de verdad arranca
+     y para. */
+
+  /* cuántos metros por segundo hace el jugador en un tramo */
+  function ritmo(frameIdx, playerId) {
+    if (frameIdx <= 0 || frameIdx >= state.frames.length) return 0;
+    const fr = state.frames[frameIdx];
+    const r = fr.routes[playerId];
+    const d = r && r.pts && r.pts.length > 1
+      ? G.pathLength(r.pts)
+      : G.dist(pos(frameIdx - 1, playerId), pos(frameIdx, playerId));
+    return d / (fr.dur || 1);
+  }
+
+  /* Hermite: llega al final con las velocidades de entrada y salida pedidas.
+     Con las dos en cero es la curva suave de siempre; con las dos en uno, una
+     recta a velocidad constante. */
+  function curva(t, v0, v1) {
+    const t2 = t * t, t3 = t2 * t;
+    return v0 * (t3 - 2 * t2 + t) + (3 * t2 - 2 * t3) + v1 * (t3 - t2);
+  }
+
+  /* La velocidad en el borde entre dos tramos es la menor de las dos: así los
+     dos lados coinciden y no hay ni tirón ni frenada. */
+  function avance(frameIdx, playerId, t) {
+    const s = ritmo(frameIdx, playerId);
+    const x = G.clamp(t, 0, 1);
+    if (s <= 1e-6) return G.easeInOut(x);
+    const v0 = Math.min(ritmo(frameIdx - 1, playerId), s) / s;
+    const v1 = Math.min(ritmo(frameIdx + 1, playerId), s) / s;
+    return G.clamp(curva(x, v0, v1), 0, 1);
+  }
+
   function playerAt(frameIdx, playerId, t) {
     if (frameIdx <= 0) return pos(0, playerId);
     const fr = frame(frameIdx);
-    const e = G.easeInOut(G.clamp(t, 0, 1));
+    const e = avance(frameIdx, playerId, t);
     const route = fr.routes[playerId];
     if (route && route.pts.length > 1) return G.pointOnPath(route.pts, e);
     return G.lerpPoint(pos(frameIdx - 1, playerId), pos(frameIdx, playerId), e);
@@ -4675,6 +4713,7 @@ RG.ensayo = (function () {
     nombre: '',
     fase: 'espera',         /* espera | corriendo */
     pos: {},                /* id de jugador -> {x, y} */
+    destino: {},            /* a dónde va cada uno, según el último estado */
     vec: {},                /* id de jugador -> {x, y} empuje actual */
     tomados: {},            /* id de jugador -> id de dispositivo */
     conocidos: {},          /* id de dispositivo -> nombre */
@@ -4755,6 +4794,17 @@ RG.ensayo = (function () {
     raf = requestAnimationFrame(bucle);
     const dt = Math.min(0.05, (ts - ultimo) / 1000 || 0);
     ultimo = ts;
+
+    if (sala.rol === 'jugador') {
+      /* alcanza el destino en unos 80 ms: se ve fluido y no queda arrastrado */
+      const k = Math.min(1, dt * 12);
+      for (const id of Object.keys(sala.destino)) {
+        const p = sala.pos[id], q = sala.destino[id];
+        if (!p) { sala.pos[id] = { x: q.x, y: q.y }; continue; }
+        p.x += (q.x - p.x) * k;
+        p.y += (q.y - p.y) * k;
+      }
+    }
 
     if (sala.rol === 'coach' && sala.fase === 'corriendo') {
       for (const id of Object.keys(sala.vec)) {
@@ -4838,6 +4888,7 @@ RG.ensayo = (function () {
       clearInterval(sala.saludo);
       sala.tieneJugada = true;
       sala.pos = {};
+      sala.destino = {};
       for (const p of M.state.players) { const q = M.pos(0, p.id); sala.pos[p.id] = { x: q.x, y: q.y }; }
       sala.tomados = d.tomados || {};
       sala.fase = d.fase || 'espera';
@@ -4851,9 +4902,12 @@ RG.ensayo = (function () {
     if (evento === 'estado') {
       sala.fase = d.f || 'espera';
       sala.tomados = d.t || sala.tomados;
+      /* el estado llega ocho veces por segundo: se guarda a dónde va cada uno y
+         el dibujo lo acompaña, para que en el teléfono no se vea a los saltos */
       for (const id of Object.keys(d.p || {})) {
         const q = d.p[id];
-        sala.pos[id] = { x: q[0], y: q[1] };
+        sala.destino[id] = { x: q[0], y: q[1] };
+        if (!sala.pos[id]) sala.pos[id] = { x: q[0], y: q[1] };
       }
       /* sólo se suelta si el número quedó en manos de otro: mientras el
          entrenador no confirme, el pedido sigue en pie */
@@ -5134,6 +5188,7 @@ RG.ensayo = (function () {
     sala.tomados = {};
     sala.conocidos = {};
     sala.vec = {};
+    sala.destino = {};
     sala.mio = null;
     sala.fase = 'espera';
     sala.tieneJugada = rol === 'coach';
