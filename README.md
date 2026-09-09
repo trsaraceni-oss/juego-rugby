@@ -240,6 +240,14 @@ Las reglas de acceso están probadas contra Postgres y el armado de capas contra
 entrenador ve lo global, la base de su club y lo suyo; no puede publicar donde no le corresponde;
 y su versión no toca la del club.
 
+### Que no se quede una versión vieja
+
+Los archivos se sirven con la versión pegada en la dirección, y `version.json` dice cuál es la
+última. Al abrir, la app compara la suya con esa y, si quedó atrás, se recarga una sola vez
+pidiéndola con la versión nueva en la dirección. Hace falta porque el servidor cachea y en el
+teléfono no hay Ctrl+F5. La versión está a la vista arriba a la izquierda en la pizarra, y al lado
+del código en la sala.
+
 ## Modo ensayo
 
 El entrenador abre una jugada desde la pantalla de inicio, la app arma una sala con un código de

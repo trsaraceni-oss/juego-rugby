@@ -47,6 +47,12 @@ const doc = fragment
     '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
     head + '\n</head>\n<body>\n' + body + '\n' + tail + '\n</body>\n</html>\n';
 
+/* la versión, en un archivo suelto: la app se fija sola si el navegador se
+   quedó con una copia vieja */
+if (!fragment) {
+  fs.writeFileSync(path.resolve(ROOT, 'version.json'), JSON.stringify({ v: version }) + '\n');
+}
+
 const dest = path.resolve(ROOT, out);
 fs.mkdirSync(path.dirname(dest), { recursive: true });
 fs.writeFileSync(dest, doc);

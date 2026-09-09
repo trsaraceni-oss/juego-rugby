@@ -259,6 +259,36 @@
     app.refreshAll();
   };
 
+  /* ---------- versión ----------
+
+     La dirección donde vive la app la sirve un servidor que cachea, y en el
+     teléfono no hay Ctrl+F5: la app mira si hay una versión más nueva y se
+     recarga sola, una sola vez, pidiéndola con la versión en la dirección. */
+
+  function version() {
+    const sc = document.querySelector('script[src*="app.js"]');
+    const m = sc && /[?&]v=([0-9]+)/.exec(sc.getAttribute('src') || '');
+    return m ? m[1] : 'única';
+  }
+  RG.version = version;
+
+  async function mirarSiHayNueva() {
+    const mia = version();
+    if (mia === 'única') return;            /* archivo único: no hay nada que mirar */
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      const d = await r.json();
+      if (!d || !d.v || d.v === mia) return;
+      if (sessionStorage.getItem('rugbyboard.recarga') === d.v) return;   /* ya se intentó */
+      sessionStorage.setItem('rugbyboard.recarga', d.v);
+      location.replace(location.pathname + '?v=' + d.v + location.hash);
+    } catch (e) { /* sin red, o abierta desde el disco: se sigue con lo que hay */ }
+  }
+
+  const verEl = document.getElementById('appVer');
+  if (verEl) verEl.textContent = version();
+  mirarSiHayNueva();
+
   M.loadUserFormations();
   RG.ui.init(app);
   if (RG.home) RG.home.init(app);

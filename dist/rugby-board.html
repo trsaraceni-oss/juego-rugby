@@ -37,6 +37,7 @@ body{
 .brand{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .brand .ball{font-size:15px}
 .spacer{flex:1}
+.ver{margin-left:7px;font:10px ui-monospace,monospace;color:var(--muted);opacity:.5;font-weight:400}
 .name-input{
   background:var(--panel-2);border:1px solid var(--line);color:var(--text);
   border-radius:var(--radius);padding:6px 10px;min-width:200px;font:inherit;
@@ -434,7 +435,7 @@ body.presenting .stage{background:#000}
 <div id="app">
 
   <header class="topbar">
-    <div class="brand"><span class="ball">🏉</span> Rugby Board</div>
+    <div class="brand"><span class="ball">🏉</span> Rugby Board<span id="appVer" class="ver" title="Versión de la app en este dispositivo"></span></div>
     <input id="playName" class="name-input" type="text" value="Jugada sin nombre" spellcheck="false">
     <button id="btnHome" class="btn account" title="Volver al inicio">‹ Inicio</button>
     <div class="spacer"></div>
@@ -4996,11 +4997,7 @@ RG.ensayo = (function () {
 
   /* La versión que está corriendo, para poder mirar en el teléfono si quedó
      cacheada una vieja: los teléfonos no tienen Ctrl+F5. */
-  function version() {
-    const sc = document.querySelector('script[src*="ensayo.js"]');
-    const m = sc && /[?&]v=([0-9]+)/.exec(sc.getAttribute('src') || '');
-    return m ? m[1] : 'única';
-  }
+  const version = () => (RG.version ? RG.version() : 'única');
 
   function direccion() {
     const u = location.origin + location.pathname;
@@ -6224,6 +6221,36 @@ RG.home = (function () {
     RG.ui.refreshLists(modo === 'abrir-setup' ? id : M.state.setupKey);
     app.refreshAll();
   };
+
+  /* ---------- versión ----------
+
+     La dirección donde vive la app la sirve un servidor que cachea, y en el
+     teléfono no hay Ctrl+F5: la app mira si hay una versión más nueva y se
+     recarga sola, una sola vez, pidiéndola con la versión en la dirección. */
+
+  function version() {
+    const sc = document.querySelector('script[src*="app.js"]');
+    const m = sc && /[?&]v=([0-9]+)/.exec(sc.getAttribute('src') || '');
+    return m ? m[1] : 'única';
+  }
+  RG.version = version;
+
+  async function mirarSiHayNueva() {
+    const mia = version();
+    if (mia === 'única') return;            /* archivo único: no hay nada que mirar */
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      const d = await r.json();
+      if (!d || !d.v || d.v === mia) return;
+      if (sessionStorage.getItem('rugbyboard.recarga') === d.v) return;   /* ya se intentó */
+      sessionStorage.setItem('rugbyboard.recarga', d.v);
+      location.replace(location.pathname + '?v=' + d.v + location.hash);
+    } catch (e) { /* sin red, o abierta desde el disco: se sigue con lo que hay */ }
+  }
+
+  const verEl = document.getElementById('appVer');
+  if (verEl) verEl.textContent = version();
+  mirarSiHayNueva();
 
   M.loadUserFormations();
   RG.ui.init(app);

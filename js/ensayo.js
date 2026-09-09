@@ -244,11 +244,7 @@ RG.ensayo = (function () {
 
   /* La versión que está corriendo, para poder mirar en el teléfono si quedó
      cacheada una vieja: los teléfonos no tienen Ctrl+F5. */
-  function version() {
-    const sc = document.querySelector('script[src*="ensayo.js"]');
-    const m = sc && /[?&]v=([0-9]+)/.exec(sc.getAttribute('src') || '');
-    return m ? m[1] : 'única';
-  }
+  const version = () => (RG.version ? RG.version() : 'única');
 
   function direccion() {
     const u = location.origin + location.pathname;
