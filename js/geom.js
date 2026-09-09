@@ -101,6 +101,19 @@ RG.geom = (function () {
     return out;
   }
 
+  /* Curva entre dos puntos a la que se le dicen las direcciones de salida y de
+     llegada: pasa por los dos y empalma con lo que viene antes y después, así el
+     recorrido no tiene quiebres. */
+  function hermite(p1, p2, m1, m2, t) {
+    const t2 = t * t, t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
+    return {
+      x: h00 * p1.x + h10 * m1.x + h01 * p2.x + h11 * m2.x,
+      y: h00 * p1.y + h10 * m1.y + h01 * p2.y + h11 * m2.y
+    };
+  }
+
   /* arco lateral para pases y patadas: curva la recta a-b hacia un costado */
   function arcPath(a, b, bulge, samples) {
     const n = samples || 16;
@@ -122,6 +135,6 @@ RG.geom = (function () {
   return {
     clamp, lerp, dist, easeInOut, uid, lerpPoint,
     pathLength, pointOnPath, endAngle,
-    distToSegment, distToPath, simplify, smooth, arcPath
+    distToSegment, distToPath, simplify, smooth, arcPath, hermite
   };
 })();

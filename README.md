@@ -160,15 +160,23 @@ textos siguen derechos y el modelo sigue trabajando en metros de cancha.
 
 ### Cómo se mueve la animación
 
-Cada tramo de la jugada se recorre con una curva de Hermite a la que se le pide la velocidad de
-entrada y la de salida. En el borde entre dos tramos se usa la menor de las dos velocidades medias,
-así los dos lados coinciden: el que sigue corriendo cruza el frame sin frenar, y el que arranca o
-para lo hace de verdad. Antes cada tramo empezaba y terminaba parado, y una carrera de tres frames
-frenaba dos veces por el camino.
+Los frames son posiciones, pero la jugada tiene que verse de una. Dos cosas la hacen continua:
 
-Medido muestreando la jugada a 60 por segundo: en una corrida de dos tramos seguidos la velocidad
-en el borde se mantiene alrededor de 13 m/s en lugar de caer a cero, y en el frame en el que el
-jugador se queda quieto sigue dando cero.
+**El tiempo.** Cada tramo se recorre con una curva a la que se le pide la velocidad de entrada y la
+de salida. En el borde entre dos tramos se usa la menor de las dos velocidades medias, así los dos
+lados coinciden: el que sigue corriendo cruza el frame sin frenar, y el que arranca o para lo hace
+de verdad.
+
+**El recorrido.** El tramo sin trazo dibujado no es una recta entre dos puntos sino una curva que
+entra y sale en la dirección de sus vecinos: si el frame de al lado tiene un trazo a mano, se toma
+la punta del trazo; si no, la posición del frame de más allá; y en las puntas de la jugada, el
+reflejo del propio tramo, para que no se deforme al arrancar ni al terminar. El que se queda quieto
+se queda quieto: sin esa excepción la curva, tirada por los vecinos, lo hacía salir y volver.
+
+Medido muestreando a 60 por segundo: en una corrida de tres tramos la velocidad no cae a cero en
+los bordes y el giro entre cuadros es de 0°; en un quiebre de 90 grados el giro máximo es de 4,6°
+por cuadro en lugar de los 90 de golpe; el primero y el último frame quedan exactos donde el
+entrenador los dejó. Muestrear la jugada entera con treinta jugadores cuesta 0,08 ms por cuadro.
 
 ### Formato de la jugada
 

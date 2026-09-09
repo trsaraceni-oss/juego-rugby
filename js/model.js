@@ -847,10 +847,13 @@ RG.model = (function () {
     fr.pos[playerId] = next;
     /* la ruta que llega a este frame termina donde esta el jugador */
     const rin = fr.routes[playerId];
-    if (rin && rin.pts.length) rin.pts[rin.pts.length - 1] = { x: next.x, y: next.y };
+    if (rin && rin.pts.length) { rin.pts[rin.pts.length - 1] = { x: next.x, y: next.y }; largos.delete(rin); }
     /* la ruta que sale de este frame arranca donde esta el jugador */
     const nf = state.frames[frameIdx + 1];
-    if (nf && nf.routes[playerId] && nf.routes[playerId].pts.length) nf.routes[playerId].pts[0] = { x: next.x, y: next.y };
+    if (nf && nf.routes[playerId] && nf.routes[playerId].pts.length) {
+      nf.routes[playerId].pts[0] = { x: next.x, y: next.y };
+      largos.delete(nf.routes[playerId]);
+    }
   }
 
   function setRoute(frameIdx, playerId, pts, kind) {
@@ -902,13 +905,21 @@ RG.model = (function () {
      frame sin frenar, y sólo arranca y para de verdad cuando de verdad arranca
      y para. */
 
+  /* el largo de una ruta se pide muchas veces por cuadro: se recuerda */
+  const largos = new WeakMap();
+  function largoRuta(r) {
+    let d = largos.get(r);
+    if (d == null) { d = G.pathLength(r.pts); largos.set(r, d); }
+    return d;
+  }
+
   /* cuántos metros por segundo hace el jugador en un tramo */
   function ritmo(frameIdx, playerId) {
     if (frameIdx <= 0 || frameIdx >= state.frames.length) return 0;
     const fr = state.frames[frameIdx];
     const r = fr.routes[playerId];
     const d = r && r.pts && r.pts.length > 1
-      ? G.pathLength(r.pts)
+      ? largoRuta(r)
       : G.dist(pos(frameIdx - 1, playerId), pos(frameIdx, playerId));
     return d / (fr.dur || 1);
   }
@@ -932,13 +943,59 @@ RG.model = (function () {
     return G.clamp(curva(x, v0, v1), 0, 1);
   }
 
+  /* Con qué dirección entra y sale el tramo. Si el frame vecino tiene una ruta
+     dibujada se toma la punta del trazo, para que la curva empalme con lo que el
+     entrenador dibujó; si no, la posición del frame de más allá. En las puntas de
+     la jugada no hay vecino: se usa el reflejo del propio tramo, así no se
+     deforma justo al arrancar o al terminar. */
+
+  const resta = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+  const mitad = (v) => ({ x: v.x / 2, y: v.y / 2 });
+  const reflejo = (a, b) => ({ x: 2 * a.x - b.x, y: 2 * a.y - b.y });
+
+  function conLargo(v, largo) {
+    const l = Math.hypot(v.x, v.y);
+    return l < 1e-6 ? { x: 0, y: 0 } : { x: v.x / l * largo, y: v.y / l * largo };
+  }
+
+  function tangentes(frameIdx, playerId, desde, hasta) {
+    const cuerda = G.dist(desde, hasta);
+    const prev = state.frames[frameIdx - 1];
+    const rPrev = prev && prev.routes[playerId];
+    const sig = state.frames[frameIdx + 1];
+    const rSig = sig && sig.routes[playerId];
+
+    let m1;
+    if (rPrev && rPrev.pts.length > 1) {
+      const n = rPrev.pts.length;
+      m1 = conLargo(resta(rPrev.pts[n - 1], rPrev.pts[n - 2]), cuerda);
+    } else {
+      const p0 = frameIdx - 2 >= 0 ? pos(frameIdx - 2, playerId) : reflejo(desde, hasta);
+      m1 = mitad(resta(hasta, p0));
+    }
+
+    let m2;
+    if (rSig && rSig.pts.length > 1) {
+      m2 = conLargo(resta(rSig.pts[1], rSig.pts[0]), cuerda);
+    } else {
+      const p3 = frameIdx + 1 <= state.frames.length - 1 ? pos(frameIdx + 1, playerId) : reflejo(hasta, desde);
+      m2 = mitad(resta(p3, desde));
+    }
+    return { m1: m1, m2: m2 };
+  }
+
   function playerAt(frameIdx, playerId, t) {
     if (frameIdx <= 0) return pos(0, playerId);
     const fr = frame(frameIdx);
     const e = avance(frameIdx, playerId, t);
     const route = fr.routes[playerId];
     if (route && route.pts.length > 1) return G.pointOnPath(route.pts, e);
-    return G.lerpPoint(pos(frameIdx - 1, playerId), pos(frameIdx, playerId), e);
+    const desde = pos(frameIdx - 1, playerId), hasta = pos(frameIdx, playerId);
+    /* el que se queda quieto se queda quieto: la curva, tirada por los vecinos,
+       lo hacía salir y volver */
+    if (G.dist(desde, hasta) < 0.05) return { x: hasta.x, y: hasta.y };
+    const m = tangentes(frameIdx, playerId, desde, hasta);
+    return G.hermite(desde, hasta, m.m1, m.m2, e);
   }
 
   function ballAt(frameIdx, t) {
