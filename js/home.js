@@ -195,7 +195,10 @@ RG.home = (function () {
       '<button class="hm-big alt" id="hmSala"><b>Modo ensayo</b>' +
       '<span>La cancha en la pantalla grande y el plantel moviendo su ficha desde el teléfono</span></button>' +
       '</div>' +
-      '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button></p>' +
+      '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button>' +
+      (M.whoAmI && M.whoAmI().admin
+        ? ' · <button class="hm-link" id="hmAdmin">Administrar clubes y equipos</button>' : '') +
+      '</p>' +
 
       '<div class="hm-cols">' +
 
@@ -256,11 +259,109 @@ RG.home = (function () {
     return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
   }
 
+  /* ------------------------------------------------------ administración ----
+
+     Sólo la ve el administrador del producto. Del otro lado, las reglas de
+     acceso de la base son las que de verdad dejan o no dejan (db/migration-4):
+     esconder el botón no alcanzaría. */
+
+  const admin = { abierto: false, clubes: [], elegido: null, teams: [], members: [], cargando: false };
+
+  async function cargarAdmin(clubId) {
+    admin.cargando = true;
+    admin.clubes = await C.allClubs();
+    if (clubId) admin.elegido = clubId;
+    if (!admin.clubes.some((c) => c.id === admin.elegido)) {
+      admin.elegido = admin.clubes.length ? admin.clubes[0].id : null;
+    }
+    admin.teams = admin.elegido ? await C.teams(admin.elegido) : [];
+    admin.members = admin.elegido ? await C.members(admin.elegido) : [];
+    admin.cargando = false;
+  }
+
+  const ROLES = { owner: 'dueño', admin: 'admin del club', coach: 'entrenador' };
+  const plural = (n, uno, muchos) => n + ' ' + (n === 1 ? uno : (muchos || uno + 's'));
+
+  function vistaAdmin() {
+    const club = admin.clubes.find((c) => c.id === admin.elegido) || null;
+    return '' +
+      '<div class="hm-hero hm-row">' +
+      '<div><h1>Administración</h1>' +
+      '<p class="hm-lead">Todos los clubes de la app: sus equipos, su cuerpo técnico y quién manda ' +
+      'en cada uno. Sos administrador del producto.</p></div>' +
+      '<div class="hm-actions-top"><button class="btn" id="hmAdminSalir">Volver</button></div>' +
+      '</div>' +
+
+      '<div class="hm-cols">' +
+
+      '<div class="hm-card">' +
+      '<h2>Clubes <span class="hm-tag">' + admin.clubes.length + '</span></h2>' +
+      (admin.clubes.length
+        ? '<ul class="hm-list">' + admin.clubes.map((c) =>
+            '<li><button class="hm-item' + (c.id === admin.elegido ? ' on' : '') + '" data-club="' + esc(c.id) + '">' +
+            esc(c.name) + '<span class="hm-tag">' + plural(c.equipos, 'equipo') + '</span>' +
+            '<span class="hm-tag">' + plural(c.gente, 'entrenador', 'entrenadores') + '</span></button></li>').join('') + '</ul>'
+        : '<p class="hm-empty">Todavía no hay clubes.</p>') +
+      '<h3>Crear uno</h3>' +
+      '<div id="hmAdminNuevo" class="hm-form">' +
+      '<label>Nombre del club<input type="text" id="hmAdminClub" placeholder="Club Atlético Sur"></label>' +
+      '<label>Primer equipo<input type="text" id="hmAdminTeam" value="Primera"></label>' +
+      '<button class="btn" id="hmAdminCrear">Crear club</button>' +
+      '</div>' +
+      '<p class="hm-note">El club queda a tu nombre. Pasale el código al entrenador y, cuando entre, ' +
+      'ponelo de dueño desde la lista de la derecha.</p>' +
+      '</div>' +
+
+      (club ? '<div class="hm-card">' +
+        '<h2>' + esc(club.name) + '</h2>' +
+        '<div id="hmAdminNombre" class="hm-inline">' +
+        '<input type="text" id="hmAdminRename" value="' + esc(club.name) + '">' +
+        '<button class="btn sm" id="hmAdminRenameGo">Renombrar</button>' +
+        '</div>' +
+        '<h3>Código de invitación</h3>' +
+        '<p class="hm-code" id="hmCodeBox">' + esc(club.join_code) + '</p>' +
+
+        '<h3>Equipos</h3>' +
+        '<ul class="hm-list">' +
+        (admin.teams.length ? admin.teams.map((t) =>
+          '<li class="hm-team-row"><span class="hm-item">' + esc(t.name) + '</span>' +
+          '<button class="hm-x" data-del-team="' + esc(t.id) + '" title="Sacar este equipo">✕</button></li>').join('')
+          : '<li class="hm-empty">Sin equipos</li>') +
+        '</ul>' +
+        '<div id="hmAdminNewTeam" class="hm-inline">' +
+        '<input type="text" id="hmAdminTeamNew" placeholder="M19, Femenino…">' +
+        '<button class="btn sm" id="hmAdminAddTeam">Agregar</button>' +
+        '</div>' +
+
+        '<h3>Cuerpo técnico</h3>' +
+        (admin.members.length ? '<ul class="hm-list">' + admin.members.map((m) =>
+          '<li class="hm-member"><span>' + esc(m.name) + '<span class="hm-tag">' + (ROLES[m.role] || m.role) + '</span>' +
+          (m.me ? '<span class="hm-tag">vos</span>' : '') + '</span>' +
+          '<small>' + esc(m.email) + '</small>' +
+          '<span class="hm-row-btns">' +
+          (m.role !== 'owner' ? '<button class="hm-role" data-rol="' + esc(m.id) + '" data-to="owner">Hacer dueño</button>' : '') +
+          (m.role === 'coach' ? '<button class="hm-role" data-rol="' + esc(m.id) + '" data-to="admin">Hacer admin</button>' : '') +
+          (m.role === 'admin' ? '<button class="hm-role" data-rol="' + esc(m.id) + '" data-to="coach">Sacar admin</button>' : '') +
+          '<button class="hm-role" data-sacar="' + esc(m.id) + '">Sacar del club</button>' +
+          '</span></li>').join('') + '</ul>'
+          : '<p class="hm-empty">Nadie entró todavía. Pasales el código.</p>') +
+
+        '<h3>Zona delicada</h3>' +
+        '<p class="hm-note">Borrar el club se lleva puesto sus equipos, su gente y todo lo que hayan ' +
+        'guardado en él. No hay vuelta atrás.</p>' +
+        '<button class="btn danger" id="hmAdminBorrar">Borrar este club</button>' +
+        '</div>'
+        : '<div class="hm-card hm-center"><p class="hm-empty">Elegí un club de la lista.</p></div>') +
+
+      '</div>';
+  }
+
   let modoJugador = false;
 
   function pintar() {
     const cuerpo = root.querySelector('.hm-body');
-    if (modoJugador) cuerpo.innerHTML = vistaJugador();
+    if (admin.abierto) cuerpo.innerHTML = vistaAdmin();
+    else if (modoJugador) cuerpo.innerHTML = vistaJugador();
     else if (cargando) cuerpo.innerHTML = vistaCargando();
     else if (estado.user) cuerpo.innerHTML = estado.club ? vistaInicio() : vistaSinClub();
     else if (pendiente) cuerpo.innerHTML = vistaPendiente();
@@ -287,18 +388,18 @@ RG.home = (function () {
 
   /* ------------------------------------------------------------ acciones ---- */
 
+  /* botón + Enter dentro del bloque */
+  function accion(bloque, boton, fn) {
+    const caja = root.querySelector(bloque), btn = root.querySelector(boton);
+    if (!caja || !btn) return;
+    btn.addEventListener('click', fn);
+    caja.querySelectorAll('input').forEach((inp) => inp.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); fn(); }
+    }));
+  }
+
   function enganchar() {
     const q = (sel) => root.querySelector(sel);
-
-    /* botón + Enter dentro del bloque */
-    function accion(bloque, boton, fn) {
-      const caja = q(bloque), btn = q(boton);
-      if (!caja || !btn) return;
-      btn.addEventListener('click', fn);
-      caja.querySelectorAll('input').forEach((inp) => inp.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') { ev.preventDefault(); fn(); }
-      }));
-    }
 
     accion('#hmForm', '#hmGo', () => correr(async () => {
       const codigo = (q('#hmJoinCode') ? q('#hmJoinCode').value : '').trim().toUpperCase();
@@ -400,6 +501,14 @@ RG.home = (function () {
       abrirSala('setup', key);
     });
 
+    const entrarAdmin = q('#hmAdmin');
+    if (entrarAdmin) entrarAdmin.addEventListener('click', () => correr(async () => {
+      admin.abierto = true;
+      await cargarAdmin(estado.club ? estado.club.id : null);
+    }));
+
+    if (admin.abierto) engancharAdmin(q);
+
     const comoJugador = q('#hmJugador');
     if (comoJugador) comoJugador.addEventListener('click', () => { modoJugador = true; pintar(); });
 
@@ -411,6 +520,64 @@ RG.home = (function () {
       if (codigo.length < 3) return aviso('Poné el código que muestra la pantalla del entrenador');
       root.hidden = true;
       RG.ensayo.abrirJugador(codigo, (q('#hmSalaNombre').value || '').trim() || 'Jugador');
+    });
+  }
+
+  /* Los botones de la pantalla de administración. Cada acción vuelve a leer la
+     lista, así lo que se ve es lo que quedó en el servidor y no lo que creemos. */
+  function engancharAdmin(q) {
+    const recargar = (clubId) => correr(() => cargarAdmin(clubId));
+
+    const salir = q('#hmAdminSalir');
+    if (salir) salir.addEventListener('click', () => { admin.abierto = false; pintar(); });
+
+    root.querySelectorAll('[data-club]').forEach((b) => b.addEventListener('click', () => recargar(b.dataset.club)));
+
+    accion('#hmAdminNuevo', '#hmAdminCrear', () => correr(async () => {
+      const club = await C.createClub(q('#hmAdminClub').value, q('#hmAdminTeam').value);
+      await cargarAdmin(club.id);
+    }));
+
+    accion('#hmAdminNombre', '#hmAdminRenameGo', () => correr(async () => {
+      await C.renameClub(admin.elegido, q('#hmAdminRename').value);
+      await cargarAdmin(admin.elegido);
+    }));
+
+    accion('#hmAdminNewTeam', '#hmAdminAddTeam', () => correr(async () => {
+      await C.createTeam(admin.elegido, q('#hmAdminTeamNew').value);
+      await cargarAdmin(admin.elegido);
+    }));
+
+    root.querySelectorAll('[data-del-team]').forEach((b) => b.addEventListener('click', async () => {
+      const t = admin.teams.find((x) => x.id === b.dataset.delTeam);
+      if (!t) return;
+      if (!(await RG.ui.askConfirm('¿Sacar el equipo "' + t.name + '"?', 'Sacar'))) return;
+      correr(async () => { await C.deleteTeam(admin.elegido, t.id); await cargarAdmin(admin.elegido); });
+    }));
+
+    root.querySelectorAll('[data-rol]').forEach((b) => b.addEventListener('click', () => correr(async () => {
+      await C.setClubRole(admin.elegido, b.dataset.rol, b.dataset.to);
+      await cargarAdmin(admin.elegido);
+    })));
+
+    root.querySelectorAll('[data-sacar]').forEach((b) => b.addEventListener('click', async () => {
+      const m = admin.members.find((x) => x.id === b.dataset.sacar);
+      if (!m) return;
+      if (!(await RG.ui.askConfirm('¿Sacar a ' + m.name + ' del club? Lo suyo no se borra, deja de ver lo del club.', 'Sacar'))) return;
+      correr(async () => { await C.removeMember(admin.elegido, m.id); await cargarAdmin(admin.elegido); });
+    }));
+
+    const borrar = q('#hmAdminBorrar');
+    if (borrar) borrar.addEventListener('click', async () => {
+      const club = admin.clubes.find((c) => c.id === admin.elegido);
+      if (!club) return;
+      /* escribir el nombre: borrar un club no puede ser un click de más */
+      const dicho = await RG.ui.askText('Para borrar «' + club.name + '» y todo lo suyo, escribí el nombre del club:', '');
+      if (!dicho || dicho.trim() !== club.name) {
+        if (dicho !== null) aviso('El nombre no coincide: no se borró nada');
+        return;
+      }
+      correr(async () => { await C.deleteClub(club.id); await cargarAdmin(null); });
     });
   }
 

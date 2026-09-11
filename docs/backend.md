@@ -74,6 +74,20 @@ cuando el nivel está fuera del alcance de quien guarda.
 
 Pegá y corré [`db/migration-3.sql`](../db/migration-3.sql).
 
+## 2e. Correr la cuarta corrección: la pantalla de administración
+
+Para poder administrar todos los clubes desde la app hace falta que las reglas de acceso dejen
+pasar al administrador del producto: sin esto, ni siquiera puede listarlos, porque cada uno ve sólo
+el club del que es parte. Pegá y corré [`db/migration-4.sql`](../db/migration-4.sql).
+
+Después de eso, entrando con tu cuenta aparece **Administrar clubes y equipos** en la pantalla de
+inicio: crear clubes, renombrarlos, sumar y sacar equipos, ver el cuerpo técnico de cada uno,
+ascender a un entrenador a dueño o a admin del club, sacar gente, y borrar un club entero.
+
+Probado contra Postgres con cuatro cuentas: un entrenador sigue viendo un solo club y no puede
+tocar el ajeno, el administrador ve los dos, los renombra, les agrega equipos, pasa el club a otro
+dueño y lo borra con todo lo suyo.
+
 ## 3. Configurar la entrada por link de mail
 
 **Authentication** → **Providers** → **Email**. Dejá *Enable Email provider* activado y

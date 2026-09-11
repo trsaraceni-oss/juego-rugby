@@ -206,6 +206,40 @@ RG.cloud = (function () {
         }));
       },
 
+      /* ---- administración del producto ---- */
+
+      async allClubs() {
+        const db = read();
+        return Object.values(db.clubs).map((c) => Object.assign({}, c, {
+          equipos: (db.teams[c.id] || []).length,
+          gente: (db.members[c.id] || []).length
+        })).sort((a, b) => a.name.localeCompare(b.name));
+      },
+
+      async renameClub(clubId, name) {
+        const db = read();
+        const limpio = String(name || '').trim();
+        if (!limpio) throw new Error('Poné un nombre');
+        if (!db.clubs[clubId]) throw new Error('No existe ese club');
+        db.clubs[clubId].name = limpio;
+        write(db);
+        return db.clubs[clubId];
+      },
+
+      async deleteClub(clubId) {
+        const db = read();
+        delete db.clubs[clubId];
+        delete db.teams[clubId];
+        delete db.members[clubId];
+        write(db);
+      },
+
+      async removeMember(clubId, userId) {
+        const db = read();
+        db.members[clubId] = (db.members[clubId] || []).filter((m) => m.user !== userId);
+        write(db);
+      },
+
       async setClubRole(clubId, userId, role) {
         const db = read();
         const yo = (db.members[clubId] || []).find((m) => m.user === db.session);
@@ -452,6 +486,37 @@ RG.cloud = (function () {
         }));
       },
 
+      /* ---- administración del producto: las reglas de acceso dejan pasar esto
+         sólo si profiles.is_admin está en verdadero (db/migration-4.sql) ---- */
+
+      async allClubs() {
+        const filas = await pedir('/rest/v1/clubs?select=id,name,join_code,created_at,teams(count),memberships(count)&order=name');
+        return (filas || []).map((c) => ({
+          id: c.id, name: c.name, join_code: c.join_code, created_at: c.created_at,
+          equipos: (c.teams && c.teams[0] && c.teams[0].count) || 0,
+          gente: (c.memberships && c.memberships[0] && c.memberships[0].count) || 0
+        }));
+      },
+
+      async renameClub(clubId, name) {
+        const limpio = String(name || '').trim();
+        if (!limpio) throw new Error('Poné un nombre');
+        const r = await pedir('/rest/v1/clubs?id=eq.' + encodeURIComponent(clubId), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' }, body: { name: limpio }
+        });
+        if (!r || !r.length) throw new Error('No se pudo renombrar: ¿tenés permiso?');
+        return r[0];
+      },
+
+      async deleteClub(clubId) {
+        await pedir('/rest/v1/clubs?id=eq.' + encodeURIComponent(clubId), { method: 'DELETE' });
+      },
+
+      async removeMember(clubId, userId) {
+        await pedir('/rest/v1/memberships?club_id=eq.' + encodeURIComponent(clubId) +
+          '&user_id=eq.' + encodeURIComponent(userId), { method: 'DELETE' });
+      },
+
       /* el dueño asciende a un entrenador a admin del club, o lo baja */
       async setClubRole(clubId, userId, role) {
         return await pedir('/rest/v1/rpc/set_club_role', {
@@ -483,6 +548,10 @@ RG.cloud = (function () {
     deletePlay: (id) => backend().deletePlay(id),
     amAdmin: () => backend().amAdmin(),
     members: (clubId) => backend().members(clubId),
-    setClubRole: (clubId, userId, role) => backend().setClubRole(clubId, userId, role)
+    setClubRole: (clubId, userId, role) => backend().setClubRole(clubId, userId, role),
+    allClubs: () => backend().allClubs(),
+    renameClub: (clubId, name) => backend().renameClub(clubId, name),
+    deleteClub: (clubId) => backend().deleteClub(clubId),
+    removeMember: (clubId, userId) => backend().removeMember(clubId, userId)
   };
 })();

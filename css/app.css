@@ -262,8 +262,10 @@ kbd{
 .hm-pick select:focus{outline:none;border-color:var(--accent-2)}
 .hm-member{display:flex;flex-direction:column;font-size:13px;padding:3px 0}
 .hm-member small{color:var(--muted);font-size:11px}
+.hm-row-btns{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.hm-item .hm-tag{margin-left:6px}
 .hm-role{
-  align-self:flex-start;margin-top:4px;cursor:pointer;font:inherit;font-size:11px;
+  align-self:flex-start;cursor:pointer;font:inherit;font-size:11px;
   background:none;border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--muted);
 }
 .hm-role:hover{color:var(--text);border-color:var(--accent-2)}

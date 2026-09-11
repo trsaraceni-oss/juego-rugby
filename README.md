@@ -248,6 +248,17 @@ pidiéndola con la versión nueva en la dirección. Hace falta porque el servido
 teléfono no hay Ctrl+F5. La versión está a la vista arriba a la izquierda en la pizarra, y al lado
 del código en la sala.
 
+## Administración
+
+El administrador del producto (`profiles.is_admin`) tiene su pantalla: todos los clubes con sus
+equipos y su cuerpo técnico, crear y renombrar clubes, sumar y sacar equipos, ascender a un
+entrenador a dueño o a admin del club, sacar gente y borrar un club entero. Para borrar hay que
+escribir el nombre del club: se lleva puesto todo lo que haya adentro.
+
+Lo que de verdad deja o no deja son las reglas de acceso de la base
+([`db/migration-4.sql`](db/migration-4.sql)), no que el botón esté escondido: cada permiso nuevo es
+«o es el administrador», y para el entrenador común no cambia nada.
+
 ## Modo ensayo
 
 El entrenador abre una jugada desde la pantalla de inicio, la app arma una sala con un código de
