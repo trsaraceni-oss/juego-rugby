@@ -377,14 +377,28 @@ RG.home = (function () {
     if (errorCodigo) { aviso(errorCodigo); errorCodigo = null; }
   }
 
-  function aviso(msg) {
+  /* El aviso va pegado al bloque donde se estaba trabajando: al final de la
+     pantalla no se ve, y parece que el botón no hizo nada. */
+  function aviso(msg, cerca) {
     const cuerpo = root.querySelector('.hm-body');
     const previo = cuerpo.querySelector('.hm-error');
     if (previo) previo.remove();
     const p = document.createElement('p');
     p.className = 'hm-warn hm-error';
     p.textContent = msg;
-    cuerpo.appendChild(p);
+    const caja = cerca ? root.querySelector(cerca) : null;
+    if (caja && caja.parentNode) caja.parentNode.insertBefore(p, caja.nextSibling);
+    else cuerpo.appendChild(p);
+    p.scrollIntoView({ block: 'nearest' });
+  }
+
+  /* mientras el servidor piensa, el botón lo dice: sin esto parece colgado */
+  async function trabajando(sel, texto, fn) {
+    const btn = root.querySelector(sel);
+    const antes = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = texto; }
+    try { await fn(); }
+    finally { if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = antes; } }
   }
 
   async function correr(fn) {
@@ -407,15 +421,21 @@ RG.home = (function () {
   function enganchar() {
     const q = (sel) => root.querySelector(sel);
 
-    accion('#hmForm', '#hmGo', () => correr(async () => {
+    accion('#hmForm', '#hmGo', () => trabajando('#hmGo', 'Mandando el link…', async () => {
       const codigo = (q('#hmJoinCode') ? q('#hmJoinCode').value : '').trim().toUpperCase();
       if (codigo) localStorage.setItem(CODIGO_PENDIENTE, codigo);
       else localStorage.removeItem(CODIGO_PENDIENTE);
       const mail = q('#hmEmail').value;
-      const r = await C.signIn(mail, q('#hmName').value);
-      /* la próxima vez el mail ya está puesto: es un paso menos */
-      try { localStorage.setItem(ULTIMO_MAIL, String(mail || '').trim().toLowerCase()); } catch (e) { /* sin espacio */ }
-      pendiente = r && r.pending ? r.email : null;
+      try {
+        const r = await C.signIn(mail, q('#hmName').value);
+        /* la próxima vez el mail ya está puesto: es un paso menos */
+        try { localStorage.setItem(ULTIMO_MAIL, String(mail || '').trim().toLowerCase()); } catch (e) { /* sin espacio */ }
+        pendiente = r && r.pending ? r.email : null;
+        await refrescar();
+        pintar();
+      } catch (e) {
+        aviso(e && e.message ? e.message : 'No se pudo entrar', '#hmForm');
+      }
     }));
 
     const saltar = q('#hmSkip');

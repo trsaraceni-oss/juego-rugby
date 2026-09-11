@@ -101,6 +101,21 @@ Con el plan gratis, Supabase manda los mails desde su propio servidor con un lí
 por hora, suficiente para probar. Cuando lo abras al club conviene conectar un servicio de mail
 propio (Resend tiene plan gratis) para que no se demoren.
 
+## 3a. Cuando alguien nuevo no puede entrar
+
+El link del mail lo manda Supabase, y hay tres cosas del panel que lo frenan. La app ahora las
+nombra en pantalla cuando pasan, pero conviene tenerlas de entrada:
+
+- **Altas nuevas bloqueadas.** En **Authentication** → **Sign In / Providers** → **Email** tiene que
+  estar permitido que se registren usuarios nuevos. Si está apagado, los que ya tienen cuenta
+  entran y los nuevos no: es el caso más confuso de los tres.
+- **Límite de mails por hora.** El plan gratis manda unos pocos por hora desde el servidor de
+  Supabase, contando todos los intentos juntos. Si el club entero prueba el mismo día, se corta.
+  Se levanta conectando un servicio de mail propio en **Authentication** → **Emails** → **SMTP**
+  (Resend tiene plan gratis).
+- **Dirección no autorizada.** En **Authentication** → **URL Configuration**, la dirección de la app
+  tiene que estar en *Redirect URLs*.
+
 ## 3b. Que la sesión no se caiga
 
 Con el link del mail se entra una vez y la sesión queda guardada en ese dispositivo: se renueva

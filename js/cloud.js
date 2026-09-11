@@ -379,6 +379,30 @@ RG.cloud = (function () {
       });
     }
 
+    /* Los errores de la entrada por mail vienen en inglés y sin contexto. Estos
+       son los tres que aparecen de verdad, y los tres se arreglan en el panel de
+       Supabase, no en la app: conviene que lo diga la pantalla. */
+    function explicar(e) {
+      const txt = String((e && e.message) || '').toLowerCase();
+      if (e && e.status === 429) {
+        return 'El servidor de mail no acepta más envíos por ahora: en el plan gratis de Supabase ' +
+          'son unos pocos por hora. Esperá un rato y probá de nuevo, o conectá un servicio de mail propio.';
+      }
+      if (txt.indexOf('rate limit') >= 0 || txt.indexOf('too many') >= 0) {
+        return 'Demasiados intentos seguidos. Esperá unos minutos y volvé a probar.';
+      }
+      if (txt.indexOf('signups not allowed') >= 0 || txt.indexOf('signup is disabled') >= 0 ||
+          txt.indexOf('not allowed for this instance') >= 0) {
+        return 'El proyecto tiene bloqueadas las altas nuevas: en Supabase, Authentication → ' +
+          'Sign In / Providers → Email, hay que permitir que se registren usuarios nuevos.';
+      }
+      if (txt.indexOf('redirect') >= 0) {
+        return 'La dirección de la app no está autorizada: en Supabase, Authentication → URL ' +
+          'Configuration, agregala en Redirect URLs.';
+      }
+      return (e && e.message) || 'No se pudo mandar el mail';
+    }
+
     return {
       kind: 'supabase',
 
@@ -426,10 +450,16 @@ RG.cloud = (function () {
         const clean = String(email || '').trim().toLowerCase();
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Ese mail no parece válido');
         const volverA = location.origin + location.pathname;
-        await pedir('/auth/v1/otp?redirect_to=' + encodeURIComponent(volverA), {
-          method: 'POST', auth: false,
-          body: { email: clean, create_user: true, data: name ? { name: String(name).trim() } : {} }
-        });
+        try {
+          await pedir('/auth/v1/otp?redirect_to=' + encodeURIComponent(volverA), {
+            method: 'POST', auth: false,
+            /* should_create_user es el nombre que espera el servidor: con el otro
+               el alta de alguien nuevo quedaba librada al valor por defecto */
+            body: { email: clean, should_create_user: true, data: name ? { name: String(name).trim() } : {} }
+          });
+        } catch (e) {
+          throw new Error(explicar(e));
+        }
         return { pending: true, email: clean };
       },
 
