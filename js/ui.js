@@ -31,7 +31,9 @@ RG.ui = (function () {
     return new Promise((resolve) => {
       const back = document.createElement('div');
       back.className = 'modal-back';
-      const field = opts.kind === 'text'
+      const field = opts.kind === 'pass'
+        ? '<input type="password" id="mdIn" autocomplete="new-password">'
+        : opts.kind === 'text'
         ? '<input type="text" id="mdIn" value="' + escapeAttr(opts.value || '') + '" spellcheck="false">'
         : opts.kind === 'copy'
           ? '<textarea id="mdIn" readonly>' + escapeAttr(opts.value || '') + '</textarea>'
@@ -49,7 +51,7 @@ RG.ui = (function () {
       document.body.appendChild(back);
       const input = back.querySelector('#mdIn');
       const close = (val) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(val); };
-      const conTexto = opts.kind === 'text' || opts.kind === 'paste';
+      const conTexto = opts.kind === 'text' || opts.kind === 'paste' || opts.kind === 'pass';
       const accept = () => close(conTexto ? (input.value || null) : true);
       function onKey(ev) {
         ev.stopPropagation();
@@ -71,6 +73,7 @@ RG.ui = (function () {
   const askConfirm = (message, ok) => dialog({ message, ok: ok || 'Sí, seguir' });
   const askChoice = (message, ok, alt) => dialog({ message, ok, alt });
   const askText = (message, value) => dialog({ kind: 'text', message, value, ok: 'Agregar' });
+  const askPass = (message) => dialog({ kind: 'pass', message, ok: 'Guardar' });
   const showCopy = (message, value) => dialog({ kind: 'copy', message, value, ok: 'Listo' });
   const askPaste = (message) => dialog({ kind: 'paste', message, ok: 'Cargar' });
 
@@ -676,5 +679,5 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: (key) => refreshLists(key), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askChoice, askText, askPass, showCopy, refreshLists: (key) => refreshLists(key), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();

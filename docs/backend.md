@@ -101,6 +101,25 @@ Con el plan gratis, Supabase manda los mails desde su propio servidor con un lí
 por hora, suficiente para probar. Cuando lo abras al club conviene conectar un servicio de mail
 propio (Resend tiene plan gratis) para que no se demoren.
 
+## 3bis. Entrar con contraseña
+
+La app tiene dos caminos a la misma cuenta: **mail y contraseña**, que es el de todos los días, y
+el **link por mail**, que queda para la primera vez, para el que no recuerda la clave y para el que
+abrió la cuenta así. La contraseña no depende del correo, y el correo es lo que falla: cupo de
+envíos del plan gratis, spam, y links que se abren en el navegador de la app de mail y dejan la
+sesión ahí.
+
+Para que el alta con contraseña entre derecho, en **Authentication** → **Sign In / Providers** →
+**Email**: dejá prendido el proveedor y **apagá *Confirm email***. Si queda prendido, el que se
+registra tiene que confirmar por correo y volvemos al mismo problema.
+
+Qué significa apagarlo: cualquiera puede registrarse con un mail sin demostrar que es suyo. Para
+esta app alcanza, porque lo que da acceso a lo del club es el código de invitación, no el mail. Si
+en algún momento eso no alcanza, se prende la confirmación y se conecta un servidor de mail propio.
+
+El que ya tenía cuenta del link no tiene contraseña: entra con el link una vez más y desde la
+pantalla de inicio, botón **Contraseña**, deja una puesta.
+
 ## 3a. Cuando alguien nuevo no puede entrar
 
 El link del mail lo manda Supabase, y hay tres cosas del panel que lo frenan. La app ahora las

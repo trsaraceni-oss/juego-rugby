@@ -171,12 +171,12 @@ kbd{
   box-shadow:0 18px 50px rgba(0,0,0,.6);
 }
 .modal p{margin:0 0 12px;line-height:1.5}
-.modal input[type=text],.modal textarea{
+.modal input[type=text],.modal input[type=password],.modal textarea{
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
   border-radius:7px;padding:8px 10px;font:inherit;margin-bottom:12px;
 }
 .modal textarea{height:150px;resize:vertical;font:12px ui-monospace,monospace}
-.modal input[type=text]:focus,.modal textarea:focus{outline:none;border-color:var(--accent-2)}
+.modal input[type=text]:focus,.modal input[type=password]:focus,.modal textarea:focus{outline:none;border-color:var(--accent-2)}
 .modal-actions{display:flex;justify-content:flex-end;gap:7px}
 
 /* elegir en qué capa se guarda: propia, del club o de la app */
@@ -682,6 +682,43 @@ RG.cloud = (function () {
         return { user: user };
       },
 
+      /* con contraseña: el demo hace de espejo del servidor, sin guardar nada serio */
+      async signInPassword(email, password) {
+        await wait(180);
+        const db = read();
+        const clean = String(email || '').trim().toLowerCase();
+        const user = Object.values(db.users).find((u) => u.email === clean);
+        if (!user) throw new Error('No hay ninguna cuenta con ese mail');
+        if (user.pass && user.pass !== password) throw new Error('Mail o contraseña incorrectos');
+        db.session = user.id;
+        write(db);
+        return user;
+      },
+
+      async signUpPassword(email, password, name) {
+        await wait(180);
+        const db = read();
+        const clean = String(email || '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Ese mail no parece válido');
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        if (Object.values(db.users).some((u) => u.email === clean)) throw new Error('Ya hay una cuenta con ese mail');
+        const user = { id: uid(), email: clean, name: (name || clean.split('@')[0]), pass: password };
+        db.users[user.id] = user;
+        db.session = user.id;
+        write(db);
+        return { user: user, listo: true };
+      },
+
+      async setPassword(password) {
+        const db = read();
+        if (!db.session) throw new Error('Entrá primero');
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        db.users[db.session].pass = password;
+        write(db);
+      },
+
+      async recoverPassword() { await wait(120); return { pending: true }; },
+
       async signOut() {
         const db = read();
         db.session = null;
@@ -1001,6 +1038,22 @@ RG.cloud = (function () {
     /* Los errores de la entrada por mail vienen en inglés y sin contexto. Estos
        son los tres que aparecen de verdad, y los tres se arreglan en el panel de
        Supabase, no en la app: conviene que lo diga la pantalla. */
+    /* lo que devuelve el servidor al entrar, guardado como sesión */
+    function guardarSesion(data) {
+      const u = data.user || {};
+      const user = {
+        id: u.id, email: u.email,
+        name: (u.user_metadata && u.user_metadata.name) || String(u.email || '').split('@')[0]
+      };
+      guardar({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + (data.expires_in || 3600) * 1000,
+        user: user
+      });
+      return user;
+    }
+
     function explicar(e) {
       const txt = String((e && e.message) || '').toLowerCase();
       if (e && e.status === 429) {
@@ -1014,6 +1067,20 @@ RG.cloud = (function () {
           txt.indexOf('not allowed for this instance') >= 0) {
         return 'El proyecto tiene bloqueadas las altas nuevas: en Supabase, Authentication → ' +
           'Sign In / Providers → Email, hay que permitir que se registren usuarios nuevos.';
+      }
+      if (txt.indexOf('invalid login credentials') >= 0 || txt.indexOf('invalid_grant') >= 0) {
+        return 'Mail o contraseña incorrectos. Si abriste la cuenta con el link del mail, entrá con ' +
+          'el link y después ponete una contraseña desde la pantalla de inicio.';
+      }
+      if (txt.indexOf('user already registered') >= 0 || txt.indexOf('already been registered') >= 0) {
+        return 'Ya hay una cuenta con ese mail: entrá con tu contraseña, o pedí una nueva si no la tenés.';
+      }
+      if (txt.indexOf('email not confirmed') >= 0) {
+        return 'La cuenta está sin confirmar: buscá el mail de confirmación, o pedile al administrador ' +
+          'que apague la confirmación por mail en Supabase.';
+      }
+      if (txt.indexOf('password') >= 0 && txt.indexOf('least') >= 0) {
+        return 'La contraseña es muy corta: poné al menos 6 caracteres.';
       }
       if (txt.indexOf('redirect') >= 0) {
         return 'La dirección de la app no está autorizada: en Supabase, Authentication → URL ' +
@@ -1079,6 +1146,59 @@ RG.cloud = (function () {
         } catch (e) {
           throw new Error(explicar(e));
         }
+        return { pending: true, email: clean };
+      },
+
+      /* ---- entrada con contraseña ----
+
+         El link por mail sigue estando, pero depende del correo: del cupo de
+         envíos del plan gratis, de que no caiga en spam y de que se abra en el
+         mismo navegador. Con contraseña se entra sin ese ida y vuelta. */
+
+      async signInPassword(email, password) {
+        const clean = String(email || '').trim().toLowerCase();
+        if (!clean || !password) throw new Error('Poné el mail y la contraseña');
+        let data;
+        try {
+          data = await pedir('/auth/v1/token?grant_type=password', {
+            method: 'POST', auth: false, body: { email: clean, password: password }
+          });
+        } catch (e) { throw new Error(explicar(e)); }
+        return guardarSesion(data);
+      },
+
+      async signUpPassword(email, password, name) {
+        const clean = String(email || '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Ese mail no parece válido');
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        let data;
+        try {
+          data = await pedir('/auth/v1/signup', {
+            method: 'POST', auth: false,
+            body: { email: clean, password: password, data: name ? { name: String(name).trim() } : {} }
+          });
+        } catch (e) { throw new Error(explicar(e)); }
+        /* si el proyecto pide confirmar el mail no viene sesión: hay que ir al mail */
+        if (!data || !data.access_token) return { user: null, confirmar: true, email: clean };
+        return { user: guardarSesion(data), listo: true };
+      },
+
+      /* para el que entró con el link y quiere dejar una contraseña puesta */
+      async setPassword(password) {
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        try {
+          await pedir('/auth/v1/user', { method: 'PUT', body: { password: password } });
+        } catch (e) { throw new Error(explicar(e)); }
+      },
+
+      async recoverPassword(email) {
+        const clean = String(email || '').trim().toLowerCase();
+        const volverA = location.origin + location.pathname;
+        try {
+          await pedir('/auth/v1/recover?redirect_to=' + encodeURIComponent(volverA), {
+            method: 'POST', auth: false, body: { email: clean }
+          });
+        } catch (e) { throw new Error(explicar(e)); }
         return { pending: true, email: clean };
       },
 
@@ -1240,6 +1360,10 @@ RG.cloud = (function () {
     configured: configured,
     session: () => backend().session(),
     signIn: (email, name) => backend().signIn(email, name),
+    signInPassword: (email, password) => backend().signInPassword(email, password),
+    signUpPassword: (email, password, name) => backend().signUpPassword(email, password, name),
+    setPassword: (password) => backend().setPassword(password),
+    recoverPassword: (email) => backend().recoverPassword(email),
     signOut: () => backend().signOut(),
     myClubs: () => backend().myClubs(),
     createClub: (name, team) => backend().createClub(name, team),
@@ -4117,7 +4241,9 @@ RG.ui = (function () {
     return new Promise((resolve) => {
       const back = document.createElement('div');
       back.className = 'modal-back';
-      const field = opts.kind === 'text'
+      const field = opts.kind === 'pass'
+        ? '<input type="password" id="mdIn" autocomplete="new-password">'
+        : opts.kind === 'text'
         ? '<input type="text" id="mdIn" value="' + escapeAttr(opts.value || '') + '" spellcheck="false">'
         : opts.kind === 'copy'
           ? '<textarea id="mdIn" readonly>' + escapeAttr(opts.value || '') + '</textarea>'
@@ -4135,7 +4261,7 @@ RG.ui = (function () {
       document.body.appendChild(back);
       const input = back.querySelector('#mdIn');
       const close = (val) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(val); };
-      const conTexto = opts.kind === 'text' || opts.kind === 'paste';
+      const conTexto = opts.kind === 'text' || opts.kind === 'paste' || opts.kind === 'pass';
       const accept = () => close(conTexto ? (input.value || null) : true);
       function onKey(ev) {
         ev.stopPropagation();
@@ -4157,6 +4283,7 @@ RG.ui = (function () {
   const askConfirm = (message, ok) => dialog({ message, ok: ok || 'Sí, seguir' });
   const askChoice = (message, ok, alt) => dialog({ message, ok, alt });
   const askText = (message, value) => dialog({ kind: 'text', message, value, ok: 'Agregar' });
+  const askPass = (message) => dialog({ kind: 'pass', message, ok: 'Guardar' });
   const showCopy = (message, value) => dialog({ kind: 'copy', message, value, ok: 'Listo' });
   const askPaste = (message) => dialog({ kind: 'paste', message, ok: 'Cargar' });
 
@@ -4762,7 +4889,7 @@ RG.ui = (function () {
     $('btnRedo').disabled = !M.history.redo.length;
   }
 
-  return { init, toast, askConfirm, askChoice, askText, showCopy, refreshLists: (key) => refreshLists(key), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
+  return { init, toast, askConfirm, askChoice, askText, askPass, showCopy, refreshLists: (key) => refreshLists(key), refreshFrames, refreshInspector, refreshSaved, refreshHeader, refreshScrub, setTool };
 })();
 
 /* ===== js/sala.js ===== */
@@ -5702,25 +5829,67 @@ RG.home = (function () {
     return '<div class="hm-card hm-center"><p class="hm-lead">Cargando…</p></div>';
   }
 
+  /* ------------------------------------------------------------- entrar ----
+
+     Dos caminos a la misma cuenta. La contraseña es el de todos los días: entra
+     sin depender del correo, que en el plan gratis tiene cupo de envíos y además
+     se abre en el navegador que quiere. El link por mail queda para la primera
+     vez, para el que no la recuerda, y para el que abrió la cuenta así. */
+
+  let modoEntrar = 'clave';   /* clave | alta | link */
+
   function vistaEntrar() {
+    const mail = esc(localStorage.getItem(ULTIMO_MAIL) || '');
+    const campoMail = '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" ' +
+      'autocomplete="email" value="' + mail + '"></label>';
+    const campoCodigo = '<label>Código del club <span class="hm-opt">(si te invitaron)</span>' +
+      '<input type="text" id="hmJoinCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>';
+
+    let caja;
+    if (modoEntrar === 'link') {
+      caja =
+        '<h2>Entrar con un link</h2>' +
+        '<p class="hm-note">Te llega un mail con un link y entrás sin contraseña. Sirve la primera ' +
+        'vez y cuando no te acordás la clave. Abrilo en <b>este mismo navegador</b>.</p>' +
+        '<div id="hmForm" class="hm-form">' + campoMail +
+        '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+        campoCodigo +
+        '<button class="btn primary big" id="hmGo">Mandame el link</button>' +
+        '</div>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoClave">Tengo contraseña: entrar con ella</button></p>';
+    } else if (modoEntrar === 'alta') {
+      caja =
+        '<h2>Crear tu cuenta</h2>' +
+        '<p class="hm-note">Con mail y contraseña entrás directo, sin esperar ningún correo.</p>' +
+        '<div id="hmForm" class="hm-form">' + campoMail +
+        '<label>Nombre<input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+        '<label>Contraseña <span class="hm-opt">(6 o más)</span>' +
+        '<input type="password" id="hmPass" autocomplete="new-password"></label>' +
+        campoCodigo +
+        '<button class="btn primary big" id="hmGo">Crear mi cuenta</button>' +
+        '</div>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoClave">Ya tengo cuenta</button></p>';
+    } else {
+      caja =
+        '<h2>Entrá con tu mail</h2>' +
+        '<p class="hm-note">Una vez que entrás, la sesión queda guardada en este dispositivo y se ' +
+        'renueva sola: no hay que volver a entrar en cada visita.</p>' +
+        '<div id="hmForm" class="hm-form">' + campoMail +
+        '<label>Contraseña<input type="password" id="hmPass" autocomplete="current-password"></label>' +
+        campoCodigo +
+        '<button class="btn primary big" id="hmGo">Entrar</button>' +
+        '</div>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoAlta">Es mi primera vez: crear cuenta</button></p>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoLink">No tengo contraseña o no me la acuerdo: mandame un link</button></p>';
+    }
+
     return '' +
       '<div class="hm-hero">' +
       '<h1>Rugby Board</h1>' +
       '<p class="hm-lead">La pizarra del club: armá los set ups de partido, dibujá las jugadas, ' +
       'animalas y mandáselas al plantel en video.</p>' +
       '</div>' +
-      '<div class="hm-card hm-narrow">' +
-      '<h2>Entrá con tu mail</h2>' +
-      '<p class="hm-note">Sin contraseña: te llega un link y entrás. Tus set ups y jugadas quedan ' +
-      'en tu cuenta y los abrís desde cualquier dispositivo.</p>' +
-      '<div id="hmForm" class="hm-form">' +
-      '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email" ' +
-      'value="' + esc(localStorage.getItem(ULTIMO_MAIL) || '') + '"></label>' +
-      '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
-      '<label>Código del club <span class="hm-opt">(si te invitaron)</span>' +
-      '<input type="text" id="hmJoinCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>' +
-      '<button class="btn primary big" id="hmGo">Entrar</button>' +
-      '</div>' +
+      '<div class="hm-card hm-narrow">' + caja +
       (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
       '<p class="hm-alt"><button class="hm-link" id="hmSkip">Entrar sin cuenta y trabajar en esta máquina</button></p>' +
       '<p class="hm-alt"><button class="hm-link" id="hmJugador">Soy jugador: entrar a una sala con el código</button></p>' +
@@ -5831,7 +6000,8 @@ RG.home = (function () {
       '</div>' +
       '<div class="hm-actions-top">' +
       (sinCuenta ? '<button class="btn" id="hmLogin">Entrar con mi cuenta</button>'
-        : '<button class="btn" id="hmOut">Salir</button>') +
+        : '<button class="btn" id="hmClave" title="Para entrar sin esperar el mail">Contraseña</button>' +
+          '<button class="btn" id="hmOut">Salir</button>') +
       '</div>' +
       '</div>' +
 
@@ -6063,16 +6233,37 @@ RG.home = (function () {
   function enganchar() {
     const q = (sel) => root.querySelector(sel);
 
-    accion('#hmForm', '#hmGo', () => trabajando('#hmGo', 'Mandando el link…', async () => {
+    const cambiarModo = (m) => { modoEntrar = m; pintar(); };
+    ['#hmModoClave:clave', '#hmModoAlta:alta', '#hmModoLink:link'].forEach((par) => {
+      const [sel, modo] = par.split(':');
+      const b = q(sel);
+      if (b) b.addEventListener('click', () => cambiarModo(modo));
+    });
+
+    const trabaja = { clave: 'Entrando…', alta: 'Creando la cuenta…', link: 'Mandando el link…' };
+
+    accion('#hmForm', '#hmGo', () => trabajando('#hmGo', trabaja[modoEntrar], async () => {
       const codigo = (q('#hmJoinCode') ? q('#hmJoinCode').value : '').trim().toUpperCase();
       if (codigo) localStorage.setItem(CODIGO_PENDIENTE, codigo);
       else localStorage.removeItem(CODIGO_PENDIENTE);
       const mail = q('#hmEmail').value;
+      const clave = q('#hmPass') ? q('#hmPass').value : '';
+      const nombre = q('#hmName') ? q('#hmName').value : '';
       try {
-        const r = await C.signIn(mail, q('#hmName').value);
+        if (modoEntrar === 'clave') {
+          await C.signInPassword(mail, clave);
+          pendiente = null;
+        } else if (modoEntrar === 'alta') {
+          const r = await C.signUpPassword(mail, clave, nombre);
+          /* el proyecto puede pedir confirmar el mail: ahí sí hay que ir al correo */
+          if (r && r.confirmar) { pendiente = r.email; }
+          else pendiente = null;
+        } else {
+          const r = await C.signIn(mail, nombre);
+          pendiente = r && r.pending ? r.email : null;
+        }
         /* la próxima vez el mail ya está puesto: es un paso menos */
         try { localStorage.setItem(ULTIMO_MAIL, String(mail || '').trim().toLowerCase()); } catch (e) { /* sin espacio */ }
-        pendiente = r && r.pending ? r.email : null;
         await refrescar();
         pintar();
       } catch (e) {
@@ -6123,6 +6314,18 @@ RG.home = (function () {
     root.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => {
       correr(() => C.setClubRole(estado.club.id, b.dataset.role, b.dataset.to));
     }));
+
+    /* dejar una contraseña puesta: el que entró con el link no tiene ninguna, y
+       sin contraseña cada dispositivo nuevo depende de que llegue un mail */
+    const clave = q('#hmClave');
+    if (clave) clave.addEventListener('click', async () => {
+      const nueva = await RG.ui.askPass('Elegí una contraseña para entrar sin esperar el mail (6 o más):');
+      if (!nueva) return;
+      try {
+        await C.setPassword(nueva);
+        RG.ui.toast('Contraseña guardada: ya podés entrar con el mail y esta clave');
+      } catch (e) { aviso(e && e.message ? e.message : 'No se pudo guardar la contraseña'); }
+    });
 
     const salir = q('#hmOut');
     if (salir) salir.addEventListener('click', () => correr(async () => {

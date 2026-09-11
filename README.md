@@ -240,6 +240,13 @@ Las reglas de acceso están probadas contra Postgres y el armado de capas contra
 entrenador ve lo global, la base de su club y lo suyo; no puede publicar donde no le corresponde;
 y su versión no toca la del club.
 
+### Entrar
+
+Dos caminos a la misma cuenta: mail y contraseña, y link por mail. La contraseña es el de todos los
+días porque no depende del correo; el link queda para la primera vez, para el que no la recuerda y
+para el que abrió la cuenta así. El que entró con el link puede dejar una contraseña puesta desde
+la pantalla de inicio.
+
 ### La sesión
 
 Se entra una vez con el link del mail y la sesión queda guardada en el dispositivo. Se renueva sola

@@ -60,25 +60,67 @@ RG.home = (function () {
     return '<div class="hm-card hm-center"><p class="hm-lead">Cargando…</p></div>';
   }
 
+  /* ------------------------------------------------------------- entrar ----
+
+     Dos caminos a la misma cuenta. La contraseña es el de todos los días: entra
+     sin depender del correo, que en el plan gratis tiene cupo de envíos y además
+     se abre en el navegador que quiere. El link por mail queda para la primera
+     vez, para el que no la recuerda, y para el que abrió la cuenta así. */
+
+  let modoEntrar = 'clave';   /* clave | alta | link */
+
   function vistaEntrar() {
+    const mail = esc(localStorage.getItem(ULTIMO_MAIL) || '');
+    const campoMail = '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" ' +
+      'autocomplete="email" value="' + mail + '"></label>';
+    const campoCodigo = '<label>Código del club <span class="hm-opt">(si te invitaron)</span>' +
+      '<input type="text" id="hmJoinCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>';
+
+    let caja;
+    if (modoEntrar === 'link') {
+      caja =
+        '<h2>Entrar con un link</h2>' +
+        '<p class="hm-note">Te llega un mail con un link y entrás sin contraseña. Sirve la primera ' +
+        'vez y cuando no te acordás la clave. Abrilo en <b>este mismo navegador</b>.</p>' +
+        '<div id="hmForm" class="hm-form">' + campoMail +
+        '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+        campoCodigo +
+        '<button class="btn primary big" id="hmGo">Mandame el link</button>' +
+        '</div>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoClave">Tengo contraseña: entrar con ella</button></p>';
+    } else if (modoEntrar === 'alta') {
+      caja =
+        '<h2>Crear tu cuenta</h2>' +
+        '<p class="hm-note">Con mail y contraseña entrás directo, sin esperar ningún correo.</p>' +
+        '<div id="hmForm" class="hm-form">' + campoMail +
+        '<label>Nombre<input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
+        '<label>Contraseña <span class="hm-opt">(6 o más)</span>' +
+        '<input type="password" id="hmPass" autocomplete="new-password"></label>' +
+        campoCodigo +
+        '<button class="btn primary big" id="hmGo">Crear mi cuenta</button>' +
+        '</div>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoClave">Ya tengo cuenta</button></p>';
+    } else {
+      caja =
+        '<h2>Entrá con tu mail</h2>' +
+        '<p class="hm-note">Una vez que entrás, la sesión queda guardada en este dispositivo y se ' +
+        'renueva sola: no hay que volver a entrar en cada visita.</p>' +
+        '<div id="hmForm" class="hm-form">' + campoMail +
+        '<label>Contraseña<input type="password" id="hmPass" autocomplete="current-password"></label>' +
+        campoCodigo +
+        '<button class="btn primary big" id="hmGo">Entrar</button>' +
+        '</div>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoAlta">Es mi primera vez: crear cuenta</button></p>' +
+        '<p class="hm-alt"><button class="hm-link" id="hmModoLink">No tengo contraseña o no me la acuerdo: mandame un link</button></p>';
+    }
+
     return '' +
       '<div class="hm-hero">' +
       '<h1>Rugby Board</h1>' +
       '<p class="hm-lead">La pizarra del club: armá los set ups de partido, dibujá las jugadas, ' +
       'animalas y mandáselas al plantel en video.</p>' +
       '</div>' +
-      '<div class="hm-card hm-narrow">' +
-      '<h2>Entrá con tu mail</h2>' +
-      '<p class="hm-note">Sin contraseña: te llega un link y entrás. Tus set ups y jugadas quedan ' +
-      'en tu cuenta y los abrís desde cualquier dispositivo.</p>' +
-      '<div id="hmForm" class="hm-form">' +
-      '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email" ' +
-      'value="' + esc(localStorage.getItem(ULTIMO_MAIL) || '') + '"></label>' +
-      '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
-      '<label>Código del club <span class="hm-opt">(si te invitaron)</span>' +
-      '<input type="text" id="hmJoinCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>' +
-      '<button class="btn primary big" id="hmGo">Entrar</button>' +
-      '</div>' +
+      '<div class="hm-card hm-narrow">' + caja +
       (C.configured() ? '' : '<p class="hm-warn">Sin servidor conectado: la cuenta se simula en este navegador.</p>') +
       '<p class="hm-alt"><button class="hm-link" id="hmSkip">Entrar sin cuenta y trabajar en esta máquina</button></p>' +
       '<p class="hm-alt"><button class="hm-link" id="hmJugador">Soy jugador: entrar a una sala con el código</button></p>' +
@@ -189,7 +231,8 @@ RG.home = (function () {
       '</div>' +
       '<div class="hm-actions-top">' +
       (sinCuenta ? '<button class="btn" id="hmLogin">Entrar con mi cuenta</button>'
-        : '<button class="btn" id="hmOut">Salir</button>') +
+        : '<button class="btn" id="hmClave" title="Para entrar sin esperar el mail">Contraseña</button>' +
+          '<button class="btn" id="hmOut">Salir</button>') +
       '</div>' +
       '</div>' +
 
@@ -421,16 +464,37 @@ RG.home = (function () {
   function enganchar() {
     const q = (sel) => root.querySelector(sel);
 
-    accion('#hmForm', '#hmGo', () => trabajando('#hmGo', 'Mandando el link…', async () => {
+    const cambiarModo = (m) => { modoEntrar = m; pintar(); };
+    ['#hmModoClave:clave', '#hmModoAlta:alta', '#hmModoLink:link'].forEach((par) => {
+      const [sel, modo] = par.split(':');
+      const b = q(sel);
+      if (b) b.addEventListener('click', () => cambiarModo(modo));
+    });
+
+    const trabaja = { clave: 'Entrando…', alta: 'Creando la cuenta…', link: 'Mandando el link…' };
+
+    accion('#hmForm', '#hmGo', () => trabajando('#hmGo', trabaja[modoEntrar], async () => {
       const codigo = (q('#hmJoinCode') ? q('#hmJoinCode').value : '').trim().toUpperCase();
       if (codigo) localStorage.setItem(CODIGO_PENDIENTE, codigo);
       else localStorage.removeItem(CODIGO_PENDIENTE);
       const mail = q('#hmEmail').value;
+      const clave = q('#hmPass') ? q('#hmPass').value : '';
+      const nombre = q('#hmName') ? q('#hmName').value : '';
       try {
-        const r = await C.signIn(mail, q('#hmName').value);
+        if (modoEntrar === 'clave') {
+          await C.signInPassword(mail, clave);
+          pendiente = null;
+        } else if (modoEntrar === 'alta') {
+          const r = await C.signUpPassword(mail, clave, nombre);
+          /* el proyecto puede pedir confirmar el mail: ahí sí hay que ir al correo */
+          if (r && r.confirmar) { pendiente = r.email; }
+          else pendiente = null;
+        } else {
+          const r = await C.signIn(mail, nombre);
+          pendiente = r && r.pending ? r.email : null;
+        }
         /* la próxima vez el mail ya está puesto: es un paso menos */
         try { localStorage.setItem(ULTIMO_MAIL, String(mail || '').trim().toLowerCase()); } catch (e) { /* sin espacio */ }
-        pendiente = r && r.pending ? r.email : null;
         await refrescar();
         pintar();
       } catch (e) {
@@ -481,6 +545,18 @@ RG.home = (function () {
     root.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => {
       correr(() => C.setClubRole(estado.club.id, b.dataset.role, b.dataset.to));
     }));
+
+    /* dejar una contraseña puesta: el que entró con el link no tiene ninguna, y
+       sin contraseña cada dispositivo nuevo depende de que llegue un mail */
+    const clave = q('#hmClave');
+    if (clave) clave.addEventListener('click', async () => {
+      const nueva = await RG.ui.askPass('Elegí una contraseña para entrar sin esperar el mail (6 o más):');
+      if (!nueva) return;
+      try {
+        await C.setPassword(nueva);
+        RG.ui.toast('Contraseña guardada: ya podés entrar con el mail y esta clave');
+      } catch (e) { aviso(e && e.message ? e.message : 'No se pudo guardar la contraseña'); }
+    });
 
     const salir = q('#hmOut');
     if (salir) salir.addEventListener('click', () => correr(async () => {

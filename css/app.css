@@ -164,12 +164,12 @@ kbd{
   box-shadow:0 18px 50px rgba(0,0,0,.6);
 }
 .modal p{margin:0 0 12px;line-height:1.5}
-.modal input[type=text],.modal textarea{
+.modal input[type=text],.modal input[type=password],.modal textarea{
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
   border-radius:7px;padding:8px 10px;font:inherit;margin-bottom:12px;
 }
 .modal textarea{height:150px;resize:vertical;font:12px ui-monospace,monospace}
-.modal input[type=text]:focus,.modal textarea:focus{outline:none;border-color:var(--accent-2)}
+.modal input[type=text]:focus,.modal input[type=password]:focus,.modal textarea:focus{outline:none;border-color:var(--accent-2)}
 .modal-actions{display:flex;justify-content:flex-end;gap:7px}
 
 /* elegir en qué capa se guarda: propia, del club o de la app */

@@ -63,6 +63,43 @@ RG.cloud = (function () {
         return { user: user };
       },
 
+      /* con contraseña: el demo hace de espejo del servidor, sin guardar nada serio */
+      async signInPassword(email, password) {
+        await wait(180);
+        const db = read();
+        const clean = String(email || '').trim().toLowerCase();
+        const user = Object.values(db.users).find((u) => u.email === clean);
+        if (!user) throw new Error('No hay ninguna cuenta con ese mail');
+        if (user.pass && user.pass !== password) throw new Error('Mail o contraseña incorrectos');
+        db.session = user.id;
+        write(db);
+        return user;
+      },
+
+      async signUpPassword(email, password, name) {
+        await wait(180);
+        const db = read();
+        const clean = String(email || '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Ese mail no parece válido');
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        if (Object.values(db.users).some((u) => u.email === clean)) throw new Error('Ya hay una cuenta con ese mail');
+        const user = { id: uid(), email: clean, name: (name || clean.split('@')[0]), pass: password };
+        db.users[user.id] = user;
+        db.session = user.id;
+        write(db);
+        return { user: user, listo: true };
+      },
+
+      async setPassword(password) {
+        const db = read();
+        if (!db.session) throw new Error('Entrá primero');
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        db.users[db.session].pass = password;
+        write(db);
+      },
+
+      async recoverPassword() { await wait(120); return { pending: true }; },
+
       async signOut() {
         const db = read();
         db.session = null;
@@ -382,6 +419,22 @@ RG.cloud = (function () {
     /* Los errores de la entrada por mail vienen en inglés y sin contexto. Estos
        son los tres que aparecen de verdad, y los tres se arreglan en el panel de
        Supabase, no en la app: conviene que lo diga la pantalla. */
+    /* lo que devuelve el servidor al entrar, guardado como sesión */
+    function guardarSesion(data) {
+      const u = data.user || {};
+      const user = {
+        id: u.id, email: u.email,
+        name: (u.user_metadata && u.user_metadata.name) || String(u.email || '').split('@')[0]
+      };
+      guardar({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + (data.expires_in || 3600) * 1000,
+        user: user
+      });
+      return user;
+    }
+
     function explicar(e) {
       const txt = String((e && e.message) || '').toLowerCase();
       if (e && e.status === 429) {
@@ -395,6 +448,20 @@ RG.cloud = (function () {
           txt.indexOf('not allowed for this instance') >= 0) {
         return 'El proyecto tiene bloqueadas las altas nuevas: en Supabase, Authentication → ' +
           'Sign In / Providers → Email, hay que permitir que se registren usuarios nuevos.';
+      }
+      if (txt.indexOf('invalid login credentials') >= 0 || txt.indexOf('invalid_grant') >= 0) {
+        return 'Mail o contraseña incorrectos. Si abriste la cuenta con el link del mail, entrá con ' +
+          'el link y después ponete una contraseña desde la pantalla de inicio.';
+      }
+      if (txt.indexOf('user already registered') >= 0 || txt.indexOf('already been registered') >= 0) {
+        return 'Ya hay una cuenta con ese mail: entrá con tu contraseña, o pedí una nueva si no la tenés.';
+      }
+      if (txt.indexOf('email not confirmed') >= 0) {
+        return 'La cuenta está sin confirmar: buscá el mail de confirmación, o pedile al administrador ' +
+          'que apague la confirmación por mail en Supabase.';
+      }
+      if (txt.indexOf('password') >= 0 && txt.indexOf('least') >= 0) {
+        return 'La contraseña es muy corta: poné al menos 6 caracteres.';
       }
       if (txt.indexOf('redirect') >= 0) {
         return 'La dirección de la app no está autorizada: en Supabase, Authentication → URL ' +
@@ -460,6 +527,59 @@ RG.cloud = (function () {
         } catch (e) {
           throw new Error(explicar(e));
         }
+        return { pending: true, email: clean };
+      },
+
+      /* ---- entrada con contraseña ----
+
+         El link por mail sigue estando, pero depende del correo: del cupo de
+         envíos del plan gratis, de que no caiga en spam y de que se abra en el
+         mismo navegador. Con contraseña se entra sin ese ida y vuelta. */
+
+      async signInPassword(email, password) {
+        const clean = String(email || '').trim().toLowerCase();
+        if (!clean || !password) throw new Error('Poné el mail y la contraseña');
+        let data;
+        try {
+          data = await pedir('/auth/v1/token?grant_type=password', {
+            method: 'POST', auth: false, body: { email: clean, password: password }
+          });
+        } catch (e) { throw new Error(explicar(e)); }
+        return guardarSesion(data);
+      },
+
+      async signUpPassword(email, password, name) {
+        const clean = String(email || '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Ese mail no parece válido');
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        let data;
+        try {
+          data = await pedir('/auth/v1/signup', {
+            method: 'POST', auth: false,
+            body: { email: clean, password: password, data: name ? { name: String(name).trim() } : {} }
+          });
+        } catch (e) { throw new Error(explicar(e)); }
+        /* si el proyecto pide confirmar el mail no viene sesión: hay que ir al mail */
+        if (!data || !data.access_token) return { user: null, confirmar: true, email: clean };
+        return { user: guardarSesion(data), listo: true };
+      },
+
+      /* para el que entró con el link y quiere dejar una contraseña puesta */
+      async setPassword(password) {
+        if (String(password || '').length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres');
+        try {
+          await pedir('/auth/v1/user', { method: 'PUT', body: { password: password } });
+        } catch (e) { throw new Error(explicar(e)); }
+      },
+
+      async recoverPassword(email) {
+        const clean = String(email || '').trim().toLowerCase();
+        const volverA = location.origin + location.pathname;
+        try {
+          await pedir('/auth/v1/recover?redirect_to=' + encodeURIComponent(volverA), {
+            method: 'POST', auth: false, body: { email: clean }
+          });
+        } catch (e) { throw new Error(explicar(e)); }
         return { pending: true, email: clean };
       },
 
@@ -621,6 +741,10 @@ RG.cloud = (function () {
     configured: configured,
     session: () => backend().session(),
     signIn: (email, name) => backend().signIn(email, name),
+    signInPassword: (email, password) => backend().signInPassword(email, password),
+    signUpPassword: (email, password, name) => backend().signUpPassword(email, password, name),
+    setPassword: (password) => backend().setPassword(password),
+    recoverPassword: (email) => backend().recoverPassword(email),
     signOut: () => backend().signOut(),
     myClubs: () => backend().myClubs(),
     createClub: (name, team) => backend().createClub(name, team),
