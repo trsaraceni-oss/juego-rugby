@@ -308,6 +308,12 @@ RG.cloud = (function () {
       let data = null;
       try { data = texto ? JSON.parse(texto) : null; } catch (e) { data = texto; }
       if (!res.ok) {
+        /* la entrada venció en el medio de un pedido: se renueva y se repite,
+           una sola vez, para que no salte la pantalla de entrar */
+        if (res.status === 401 && o.auth !== false && !o.reintento && leer()) {
+          const nueva = await refrescarToken();
+          if (nueva) return pedir(url, Object.assign({}, o, { reintento: true }));
+        }
         const msg = (data && (data.message || data.error_description || data.msg || data.error || data.hint)) || ('Error ' + res.status);
         const err = new Error(msg);
         err.status = res.status;
@@ -316,24 +322,61 @@ RG.cloud = (function () {
       return data;
     }
 
+    /* Renovar la entrada.
+
+       La sesión se cae sola si se la borra a la primera de cambio: sin señal, en
+       el subte, con el servidor lento. Acá sólo se borra cuando el servidor dice
+       que la llave ya no vale; si el problema es la red, la sesión queda y se
+       reintenta después. Y nunca se renueva dos veces a la vez: el servidor rota
+       la llave y dos pedidos juntos se pisan. */
+
+    let renovando = null;
+
     async function refrescarToken() {
+      if (renovando) return renovando;
       const s = leer();
       if (!s || !s.refresh_token) return null;
-      try {
-        const data = await pedir('/auth/v1/token?grant_type=refresh_token', {
-          method: 'POST', auth: false, body: { refresh_token: s.refresh_token }
-        });
-        guardar({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token || s.refresh_token,
-          expires_at: Date.now() + (data.expires_in || 3600) * 1000,
-          user: data.user || null
-        });
-        return ses;
-      } catch (e) {
-        guardar(null);
-        return null;
-      }
+      renovando = (async () => {
+        try {
+          const data = await pedir('/auth/v1/token?grant_type=refresh_token', {
+            method: 'POST', auth: false, body: { refresh_token: s.refresh_token }
+          });
+          guardar({
+            access_token: data.access_token,
+            refresh_token: data.refresh_token || s.refresh_token,
+            expires_at: Date.now() + (data.expires_in || 3600) * 1000,
+            user: data.user || (s.user || null)
+          });
+          return ses;
+        } catch (e) {
+          /* 400 o 401: la llave no vale más, hay que volver a entrar. Otra cosa
+             (sin red, servidor caído) no es motivo para echar a nadie. */
+          if (e.status === 400 || e.status === 401 || e.status === 403) guardar(null);
+          return null;
+        } finally {
+          renovando = null;
+        }
+      })();
+      return renovando;
+    }
+
+    /* mientras la pestaña está abierta, la entrada se renueva antes de vencer */
+    let reloj = 0;
+    function programarRenovacion() {
+      clearTimeout(reloj);
+      const s = leer();
+      if (!s || !s.expires_at) return;
+      const falta = s.expires_at - Date.now() - 5 * 60 * 1000;
+      reloj = setTimeout(async () => { await refrescarToken(); programarRenovacion(); },
+        Math.max(30000, Math.min(falta, 30 * 60 * 1000)));
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        const s = leer();
+        if (s && s.expires_at && s.expires_at < Date.now() + 60000) refrescarToken();
+      });
     }
 
     return {
@@ -341,12 +384,16 @@ RG.cloud = (function () {
 
       async session() {
         tomarDeLaUrl();
-        let s = leer();
-        if (!s) return null;
+        const guardada = leer();
+        if (!guardada) return null;
+        let s = guardada;
         if (s.expires_at && s.expires_at < Date.now() + 60000) {
           s = await refrescarToken();
-          if (!s) return null;
+          /* no se pudo renovar: si la sesión sigue guardada es que fue un
+             problema de red, y se sigue adentro con lo último que se sabía */
+          if (!s) { const q = leer(); return q && q.user ? q.user : null; }
         }
+        programarRenovacion();
         if (s.user && s.user.name) return s.user;
         try {
           const u = await pedir('/auth/v1/user');
@@ -355,11 +402,22 @@ RG.cloud = (function () {
             email: u.email,
             name: (u.user_metadata && u.user_metadata.name) || String(u.email || '').split('@')[0]
           };
-          guardar(Object.assign({}, s, { user: user }));
+          guardar(Object.assign({}, leer() || s, { user: user }));
           return user;
         } catch (e) {
-          if (e.status === 401 || e.status === 403) guardar(null);
-          return null;
+          if (e.status !== 401 && e.status !== 403) return s.user || null;
+          /* la entrada venció mientras tanto: se renueva y se vuelve a probar */
+          const nueva = await refrescarToken();
+          if (!nueva) { const q = leer(); return q && q.user ? q.user : null; }
+          try {
+            const u = await pedir('/auth/v1/user');
+            const user = {
+              id: u.id, email: u.email,
+              name: (u.user_metadata && u.user_metadata.name) || String(u.email || '').split('@')[0]
+            };
+            guardar(Object.assign({}, leer() || nueva, { user: user }));
+            return user;
+          } catch (e2) { return nueva.user || null; }
         }
       },
 

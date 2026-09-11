@@ -240,6 +240,22 @@ Las reglas de acceso están probadas contra Postgres y el armado de capas contra
 entrenador ve lo global, la base de su club y lo suyo; no puede publicar donde no le corresponde;
 y su versión no toca la del club.
 
+### La sesión
+
+Se entra una vez con el link del mail y la sesión queda guardada en el dispositivo. Se renueva sola
+cinco minutos antes de vencer y también al volver a la pestaña; si un pedido se cruza con el
+vencimiento, se renueva y se repite una sola vez, sin que salte la pantalla de entrar. Dos pedidos
+que necesitan renovar a la vez comparten la misma renovación, porque el servidor rota la llave y si
+se piden dos juntas se pisan.
+
+Lo importante es cuándo **no** se borra: quedarse sin señal o que el servidor no conteste no echa a
+nadie, la sesión queda y se reintenta. Sólo se borra cuando el servidor responde que la llave ya no
+vale.
+
+Probado con un servidor de mentira: llave vencida sin red (sigue adentro), llave vencida con
+servidor (renueva una vez), servidor que rechaza la llave (pide entrar de nuevo y limpia), 401 en
+medio de un pedido (renueva y reintenta una vez) y tres pedidos simultáneos (una sola renovación).
+
 ### Que no se quede una versión vieja
 
 Los archivos se sirven con la versión pegada en la dirección, y `version.json` dice cuál es la

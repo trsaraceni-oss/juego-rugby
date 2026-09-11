@@ -8,6 +8,7 @@ RG.home = (function () {
   const M = RG.model;
   const SIN_CUENTA = 'rugbyboard.sinCuenta';
   const CODIGO_PENDIENTE = 'rugbyboard.codigoPendiente';
+  const ULTIMO_MAIL = 'rugbyboard.ultimoMail';
 
   let app = null, root = null, pendiente = null, cargando = true, errorCodigo = null;
   let estado = { user: null, clubs: [], club: null, teams: [], members: [] };
@@ -71,7 +72,8 @@ RG.home = (function () {
       '<p class="hm-note">Sin contraseña: te llega un link y entrás. Tus set ups y jugadas quedan ' +
       'en tu cuenta y los abrís desde cualquier dispositivo.</p>' +
       '<div id="hmForm" class="hm-form">' +
-      '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email"></label>' +
+      '<label>Mail<input type="email" id="hmEmail" placeholder="entrenador@club.com" autocomplete="email" ' +
+      'value="' + esc(localStorage.getItem(ULTIMO_MAIL) || '') + '"></label>' +
       '<label>Nombre <span class="hm-opt">(la primera vez)</span><input type="text" id="hmName" placeholder="Cómo te ven en el club"></label>' +
       '<label>Código del club <span class="hm-opt">(si te invitaron)</span>' +
       '<input type="text" id="hmJoinCode" placeholder="A1B2C3" maxlength="8" autocapitalize="characters"></label>' +
@@ -111,7 +113,11 @@ RG.home = (function () {
       (localStorage.getItem(CODIGO_PENDIENTE)
         ? '<p class="hm-note">Cuando vuelvas te sumamos al club del código <b>' +
           esc(localStorage.getItem(CODIGO_PENDIENTE)) + '</b>.</p>' : '') +
-      '<p class="hm-note">Si no llega en un par de minutos, mirá en spam. El link sirve una sola vez.</p>' +
+      '<p class="hm-note">Abrilo en <b>este mismo navegador</b>: si lo abrís desde el navegador que trae ' +
+      'la app de mail, la sesión queda ahí y no acá. Si no llega en un par de minutos, mirá en spam. ' +
+      'El link sirve una sola vez.</p>' +
+      '<p class="hm-note">Una vez adentro no hace falta volver a entrar: la sesión queda guardada en ' +
+      'este dispositivo y se renueva sola.</p>' +
       '<button class="btn" id="hmBack">Usar otro mail</button>' +
       '</div>';
   }
@@ -405,7 +411,10 @@ RG.home = (function () {
       const codigo = (q('#hmJoinCode') ? q('#hmJoinCode').value : '').trim().toUpperCase();
       if (codigo) localStorage.setItem(CODIGO_PENDIENTE, codigo);
       else localStorage.removeItem(CODIGO_PENDIENTE);
-      const r = await C.signIn(q('#hmEmail').value, q('#hmName').value);
+      const mail = q('#hmEmail').value;
+      const r = await C.signIn(mail, q('#hmName').value);
+      /* la próxima vez el mail ya está puesto: es un paso menos */
+      try { localStorage.setItem(ULTIMO_MAIL, String(mail || '').trim().toLowerCase()); } catch (e) { /* sin espacio */ }
       pendiente = r && r.pending ? r.email : null;
     }));
 

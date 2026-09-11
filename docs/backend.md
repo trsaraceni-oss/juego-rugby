@@ -101,6 +101,23 @@ Con el plan gratis, Supabase manda los mails desde su propio servidor con un lí
 por hora, suficiente para probar. Cuando lo abras al club conviene conectar un servicio de mail
 propio (Resend tiene plan gratis) para que no se demoren.
 
+## 3b. Que la sesión no se caiga
+
+Con el link del mail se entra una vez y la sesión queda guardada en ese dispositivo: se renueva
+sola antes de vencer, aguanta quedarse sin señal y sólo pide volver a entrar si el servidor dice
+que la llave ya no vale.
+
+Dos cosas la cortan y no dependen de la app:
+
+- **Abrir el link del mail en otro navegador.** Si el mail se abre desde la aplicación de Gmail, el
+  link puede abrirse en el navegador interno de esa app: la sesión queda ahí y no en el navegador
+  donde se usa la pizarra. Conviene abrir el link en el mismo navegador.
+- **Borrar los datos del sitio**, que también borra la sesión. Ya no hace falta hacerlo para forzar
+  una versión nueva: la app se actualiza sola.
+
+Si aun así se cae seguido, mirá en **Authentication** → **Sessions** que no haya un límite de
+tiempo o de inactividad puesto: de fábrica vienen sin límite.
+
 ## 4. Crear tu club
 
 No hace falta tocar la base: la primera vez que entres a la app te va a ofrecer crear el club y te
