@@ -246,7 +246,9 @@
       M.state.name = M.FORMATIONS[id] ? M.FORMATIONS[id].name : 'Jugada sin nombre';
       M.applyFormation(id, 0, true);
     } else {
-      M.newPlay(15, M.state.lastFormation || 'kickoff_for');
+      /* la jugada nueva arranca en el set up que se eligió en el inicio: así
+         nace adentro de su situación y no en la última que se usó */
+      M.newPlay(15, (id && M.FORMATIONS[id]) ? id : (M.state.lastFormation || 'kickoff_for'));
     }
     app.frameIdx = 0;
     app.time = 0;

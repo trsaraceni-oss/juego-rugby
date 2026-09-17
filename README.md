@@ -204,6 +204,24 @@ entrenador los dejó. Muestrear la jugada entera con treinta jugadores cuesta 0,
 Cada entrenador entra con su mail, sin contraseña, y sus set ups y jugadas quedan en su cuenta.
 Los pasos para montar el servidor están en [docs/backend.md](docs/backend.md).
 
+### El playbook: categorías, set ups y jugadas
+
+Tres niveles, de arriba a abajo:
+
+1. **Seis categorías fijas**, que son el esqueleto del playbook y no se crean ni se borran:
+   Salidas, Lines, Movimientos FF, Semiataques, Sistema y Drill. «Movimientos FF» es lo que pasa
+   después de una formación fija, line o scrum, con el equipo completo.
+2. **Set ups**, cada uno dentro de una categoría. Los que trae la app: las cuatro salidas, los
+   line de 7, 5, 4 y 3, los tres scrums y las dos estructuras de canal 3. El que crea uno elige en
+   cuál va.
+3. **Jugadas**, cada una dentro de un set up. Se elige «Line de 4» y ahí están sus jugadas; en la
+   pizarra, el desplegable de jugadas ofrece las de la situación abierta y no todas juntas.
+
+Las jugadas guardadas antes de que existiera esta relación se acomodan por su nombre, que es como
+las nombra el entrenador: las Sudáfrica al line de 4, las Niebla y las Leinster al de 5, y las
+Canapé al de 3. La que no entre en ninguna regla queda «sin set up» en la pantalla de inicio, con
+un botón para mandarla a la situación que corresponda.
+
 ### Las cuatro capas
 
 Un set up se arma sobre el anterior, y el de arriba tapa al de abajo sin borrarlo:
@@ -217,7 +235,8 @@ Un set up se arma sobre el anterior, y el de arriba tapa al de abajo sin borrarl
 
 Al guardar, la app pregunta en qué capa, y sólo ofrece las que esa cuenta puede escribir: un
 entrenador raso ni ve la pregunta. Sacar la versión de arriba deja a la vista la de abajo: nunca
-se pierde la base. En el selector, `✎` marca la versión propia, `★` la del club y `◆` la global.
+se pierde la base. De qué capa viene cada set up no se muestra: al entrenador le importa la
+situación, no de dónde salió.
 
 El dueño del club asciende a un entrenador a **admin del club** desde la pantalla de inicio; el
 administrador del producto se marca a mano en la base, a propósito.

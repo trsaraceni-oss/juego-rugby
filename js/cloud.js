@@ -209,6 +209,7 @@ RG.cloud = (function () {
 
       async savePlay(row) {
         await wait(120);
+        /* el set up al que pertenece viaja igual que el resto */
         const db = read();
         db.plays = db.plays || [];
         let fila = db.plays.find((r) => r.scope === row.scope && r.name === row.name &&
@@ -659,13 +660,16 @@ RG.cloud = (function () {
       },
 
       async listPlays() {
-        return await pedir('/rest/v1/plays?select=id,scope,club_id,name,data,owner_id') || [];
+        return await pedir('/rest/v1/plays?select=id,scope,club_id,name,data,setup_key,owner_id') || [];
       },
 
       async savePlay(row) {
         const r = await pedir('/rest/v1/rpc/save_play', {
           method: 'POST',
-          body: { p_scope: row.scope, p_club: row.club_id || null, p_name: row.name, p_data: row.data }
+          body: {
+            p_scope: row.scope, p_club: row.club_id || null, p_name: row.name, p_data: row.data,
+            p_setup_key: row.setup_key || null
+          }
         });
         return Array.isArray(r) ? r[0] : r;
       },

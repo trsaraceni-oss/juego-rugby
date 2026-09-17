@@ -215,7 +215,7 @@ kbd{
 .hm-card h3{margin:8px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
 .hm-narrow{max-width:420px}
 .hm-center{text-align:center;align-items:center}
-.hm-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.hm-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start}
 
 .hm-form{display:flex;flex-direction:column;gap:12px;margin-top:4px}
 .hm-card label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
@@ -261,6 +261,22 @@ kbd{
 .hm-x:hover{border-color:var(--danger);color:#ff9b91}
 .hm-inline{display:flex;gap:6px}
 .hm-inline input{flex:1;min-width:0}
+/* ---------- inicio: el playbook manda, el resto acompaña ---------- */
+.hm-izq{display:flex;flex-direction:column;gap:14px}
+.hm-playbook h3{margin:14px 0 6px}
+.hm-playbook h3:first-of-type{margin-top:4px}
+.hm-chicos{display:flex;gap:8px;flex-wrap:wrap}
+.hm-ensayo{
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--accent-2);border-radius:12px;
+  padding:16px 18px;color:var(--text);font:inherit;
+}
+.hm-ensayo:hover{background:#16301f}
+.hm-ensayo-icono{font-size:38px;line-height:1;flex:0 0 auto}
+.hm-ensayo-txt{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hm-ensayo-txt b{font-size:16px;color:var(--accent)}
+.hm-ensayo-txt span{font-size:12.5px;color:var(--muted);line-height:1.5}
+
 .hm-pick{display:flex;gap:6px;margin-bottom:6px}
 .hm-pick select{
   flex:1;min-width:0;max-width:none;background:var(--panel-2);border:1px solid var(--line);
@@ -828,6 +844,7 @@ RG.cloud = (function () {
 
       async savePlay(row) {
         await wait(120);
+        /* el set up al que pertenece viaja igual que el resto */
         const db = read();
         db.plays = db.plays || [];
         let fila = db.plays.find((r) => r.scope === row.scope && r.name === row.name &&
@@ -1278,13 +1295,16 @@ RG.cloud = (function () {
       },
 
       async listPlays() {
-        return await pedir('/rest/v1/plays?select=id,scope,club_id,name,data,owner_id') || [];
+        return await pedir('/rest/v1/plays?select=id,scope,club_id,name,data,setup_key,owner_id') || [];
       },
 
       async savePlay(row) {
         const r = await pedir('/rest/v1/rpc/save_play', {
           method: 'POST',
-          body: { p_scope: row.scope, p_club: row.club_id || null, p_name: row.name, p_data: row.data }
+          body: {
+            p_scope: row.scope, p_club: row.club_id || null, p_name: row.name, p_data: row.data,
+            p_setup_key: row.setup_key || null
+          }
         });
         return Array.isArray(r) ? r[0] : r;
       },
@@ -1649,7 +1669,7 @@ RG.model = (function () {
        abre hacia abajo. */
 
     scrum_left: {
-      name: 'Scrum de izquierda a derecha', group: 'Scrums', ballCarrier: 'a9',
+      name: 'Scrum de izquierda a derecha', group: 'Movimientos FF', ballCarrier: 'a9',
       note: 'Scrum sobre la touch izquierda, campo abierto a la derecha',
       a: {
         1: [48.5, 17.2], 2: [48.5, 15], 3: [48.5, 12.8],
@@ -1664,7 +1684,7 @@ RG.model = (function () {
     },
 
     scrum_right: {
-      name: 'Scrum de derecha a izquierda', group: 'Scrums', ballCarrier: 'a9',
+      name: 'Scrum de derecha a izquierda', group: 'Movimientos FF', ballCarrier: 'a9',
       note: 'Scrum sobre la touch derecha, campo abierto a la izquierda',
       a: {
         1: [48.5, 52.8], 2: [48.5, 55], 3: [48.5, 57.2],
@@ -1679,7 +1699,7 @@ RG.model = (function () {
     },
 
     scrum_mid: {
-      name: 'Scrum en mitad de cancha', group: 'Scrums', ballCarrier: 'a9',
+      name: 'Scrum en mitad de cancha', group: 'Movimientos FF', ballCarrier: 'a9',
       note: 'Scrum en el centro, con los dos lados abiertos',
       a: {
         1: [48.5, 37.2], 2: [48.5, 35], 3: [48.5, 32.8],
@@ -1698,7 +1718,7 @@ RG.model = (function () {
     /* ---------- line-outs (abren el escenario de line-out) ---------- */
 
     line7: {
-      name: 'Line de 7', group: 'Line-outs', only: true, stage: 'lineout', ballCarrier: 'a2',
+      name: 'Line de 7', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
       note: 'Siete saltadores, cada 1,5 m entre las marcas de 5 y 15',
       a: {
         2: [50, 0.5], 1: [49.5, 5.5], 3: [49.5, 7], 4: [49.5, 8.5], 5: [49.5, 10],
@@ -1711,7 +1731,7 @@ RG.model = (function () {
     },
 
     line5: {
-      name: 'Line de 5', group: 'Line-outs', only: true, stage: 'lineout', ballCarrier: 'a2',
+      name: 'Line de 5', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
       note: 'Cinco en la línea; 3 y 7 quedan fuera, a la altura del 9',
       a: {
         2: [50, 0.5], 1: [49.5, 5.5], 4: [49.5, 7.75], 5: [49.5, 10], 6: [49.5, 12.25], 8: [49.5, 14.5],
@@ -1724,7 +1744,7 @@ RG.model = (function () {
     },
 
     line4: {
-      name: 'Line de 4', group: 'Line-outs', only: true, stage: 'lineout', ballCarrier: 'a2',
+      name: 'Line de 4', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
       note: 'Cuatro en la línea, cada 3 m; el resto sale del line',
       a: {
         2: [50, 0.5], 1: [49.5, 5.5], 4: [49.5, 8.5], 5: [49.5, 11.5], 8: [49.5, 14.5],
@@ -1736,10 +1756,23 @@ RG.model = (function () {
       }
     },
 
+    line3: {
+      name: 'Line de 3', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
+      note: 'Tres en la línea; el resto sale del line',
+      a: {
+        2: [50, 0.5], 1: [49.5, 5.5], 4: [49.5, 9], 8: [49.5, 12.5],
+        9: [48.2, 9], 3: [47.2, 4.5], 5: [47.2, 12], 6: [47.2, 15.5], 7: [47.2, 19]
+      },
+      b: {
+        2: [51.6, 2.5], 1: [50.5, 5.5], 4: [50.5, 9], 8: [50.5, 12.5],
+        9: [51.8, 9], 3: [52.8, 4.5], 5: [52.8, 12], 6: [52.8, 15.5], 7: [52.8, 19]
+      }
+    },
+
     /* ---------- estructuras de ataque ---------- */
 
     canal3_fuego: {
-      name: 'Estructura de canal 3 · Fuego', group: 'Estructuras', ballCarrier: 'a9',
+      name: 'Estructura de canal 3 · Fuego', group: 'Sistema', ballCarrier: 'a9',
       note: 'Canal 3 directo: línea plana y pod cerrado atacando el hombro de adentro',
       a: {
         1: [45.5, 28], 2: [45.5, 32], 9: [43.8, 30], 10: [42, 36],
@@ -1755,7 +1788,7 @@ RG.model = (function () {
     },
 
     canal3_agua: {
-      name: 'Estructura de canal 3 · Agua', group: 'Estructuras', ballCarrier: 'a9',
+      name: 'Estructura de canal 3 · Agua', group: 'Sistema', ballCarrier: 'a9',
       note: 'Canal 3 con profundidad: 10 atrás, 15 entra por dentro y se busca el ancho',
       a: {
         1: [45.5, 28], 2: [45.5, 32], 9: [43.8, 30], 10: [39, 38],
@@ -1817,8 +1850,12 @@ RG.model = (function () {
   let playRows = [];    /* filas de jugadas */
   let avisar = null;    /* sync.js engancha acá para subir lo que cambió */
 
+  /* Las seis categorías del entrenador. Todo set up vive dentro de una, y toda
+     jugada vive dentro de un set up: eso es lo que le da orden al playbook. */
+  const CATEGORIAS = ['Salidas', 'Lines', 'Movimientos FF', 'Semiataques', 'Sistema', 'Drill'];
+
   const CAPA = { global: 1, club: 2, personal: 3 };
-  const GRUPO = { global: 'De la app', club: 'Del club', personal: 'Mis set ups' };
+  const GRUPO_POR_DEFECTO = 'Salidas';
 
   function suf() { return me.user === 'local' ? '' : '.' + me.user; }
   function bolsa(kind) { return kind === 'plays' ? playRows : rows; }
@@ -1856,8 +1893,9 @@ RG.model = (function () {
           name: BASE[k].name, group: BASE[k].group, edited: true, origen: r.scope, rowId: r.id
         });
       } else {
+        const cat = CATEGORIAS.indexOf(d.group) >= 0 ? d.group : GRUPO_POR_DEFECTO;
         FORMATIONS[k] = Object.assign({}, d, {
-          name: r.name, group: GRUPO[r.scope] || 'Mis set ups', user: true, origen: r.scope, rowId: r.id
+          name: r.name, group: cat, user: true, origen: r.scope, rowId: r.id
         });
       }
     }
@@ -1935,11 +1973,12 @@ RG.model = (function () {
       (baseKey ? r.base_key === baseKey : (!r.base_key && r.name === nombre)));
   }
 
-  /* guarda como set up nuevo, en la capa que se pida */
-  function saveFormation(name, frameIdx, scope) {
+  /* guarda como set up nuevo, en la capa y la categoría que se pidan */
+  function saveFormation(name, frameIdx, scope, categoria) {
     scope = scope || 'personal';
     if (!canWrite(scope)) return null;
     const f = captureSetup(name, frameIdx);
+    f.group = CATEGORIAS.indexOf(categoria) >= 0 ? categoria : GRUPO_POR_DEFECTO;
     const previa = filaDeSetup(scope, null, name);   /* mismo nombre: se corrige */
     const fila = previa
       ? tocar('setups', previa, { name: name, data: f })
@@ -2008,6 +2047,7 @@ RG.model = (function () {
       const suelto = localLeftovers(true);   /* lo que venía trabajando sin cuenta */
       mudado = adoptRows('setups', suelto.setups) + adoptRows('plays', suelto.plays);
     }
+    acomodarJugadas();
     rebuild();
     return mudado;
   }
@@ -2083,6 +2123,38 @@ RG.model = (function () {
       n++;
     }
     if (n) guardado(kind);
+    return n;
+  }
+
+  /* Las jugadas guardadas antes de que existiera esta relación no saben en qué
+     set up viven. Se deducen del nombre, que es como las nombra el entrenador:
+     las Sudáfrica son line de 4, las Niebla y las Leinster line de 5, y las
+     Canapé line de 3. La que no entre en ninguna queda sin set up hasta que él
+     la acomode. */
+
+  const POR_NOMBRE = [
+    { busca: 'sudafrica', setup: 'line4' },
+    { busca: 'niebla', setup: 'line5' },
+    { busca: 'leinster', setup: 'line5' },
+    { busca: 'canape', setup: 'line3' }
+  ];
+
+  const sinTildes = (t) => String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  function acomodarJugadas() {
+    let n = 0;
+    for (const r of playRows) {
+      if (r.deleted || r.setup_key || (r.data && r.data.setupKey)) continue;
+      const nombre = sinTildes((r.data && r.data.name) || r.name);
+      const regla = POR_NOMBRE.find((x) => nombre.indexOf(x.busca) >= 0);
+      if (!regla) continue;
+      r.setup_key = regla.setup;
+      r.data = Object.assign({}, r.data || {}, { setupKey: regla.setup });
+      r.dirty = true;
+      n++;
+    }
+    if (n) escribir('plays');
     return n;
   }
 
@@ -2647,7 +2719,8 @@ RG.model = (function () {
   function serialize() {
     return {
       v: 1, id: state.id, name: state.name, squad: state.squad, showB: state.showB,
-      colors: state.colors, players: state.players, frames: state.frames, stage: state.stage, saved: Date.now()
+      colors: state.colors, players: state.players, frames: state.frames, stage: state.stage,
+      setupKey: state.setupKey, saved: Date.now()
     };
   }
 
@@ -2658,6 +2731,7 @@ RG.model = (function () {
     state.squad = data.squad || 15;
     state.showB = data.showB !== false;
     state.stage = data.stage || 'field';
+    state.setupKey = data.setupKey || state.setupKey;
     state.colors = data.colors || { a: '#e8503a', b: '#3f7fe0' };
     state.players = data.players && data.players.length ? data.players : makePlayers(state.squad);
     state.frames = data.frames.map((f) => ({
@@ -2687,21 +2761,51 @@ RG.model = (function () {
     const data = serialize();
     const previa = filaDeJugada(scope, state.id, state.name);
     const fila = previa
-      ? tocar('plays', previa, { name: state.name, data: data })
-      : nuevaFila('plays', { scope: scope, club_id: scope === 'club' ? me.club : null, name: state.name, data: data });
+      ? tocar('plays', previa, { name: state.name, data: data, setup_key: data.setupKey || null })
+      : nuevaFila('plays', { scope: scope, club_id: scope === 'club' ? me.club : null, name: state.name,
+                             data: data, setup_key: data.setupKey || null });
     filaAbierta = fila.id;
     guardado('plays');
     return fila.id;
   }
 
-  function listPlays() {
+  /* En qué set up vive una jugada. La fila lo dice; si no, lo dice la jugada
+     guardada adentro, que es de donde salió cuando esto no existía. */
+  function setupDeJugada(r) {
+    const k = r.setup_key || (r.data && r.data.setupKey) || null;
+    return k && FORMATIONS[k] ? k : null;
+  }
+
+  /* Todas las jugadas, o sólo las de un set up. */
+  function listPlays(setupKey) {
     return playRows.filter(visible)
       .map((r) => ({
         id: r.id, name: (r.data && r.data.name) || r.name || '(sin nombre)',
         saved: (r.data && r.data.saved) || r.updated || 0,
+        setup: setupDeJugada(r),
         origen: r.scope, propia: r.scope === 'personal'
       }))
+      .filter((j) => !setupKey || j.setup === setupKey)
       .sort((x, y) => y.saved - x.saved);
+  }
+
+  /* cuántas jugadas tiene cada set up, para mostrarlo en la lista */
+  function playCounts() {
+    const cuenta = {};
+    for (const r of playRows.filter(visible)) {
+      const k = setupDeJugada(r);
+      if (k) cuenta[k] = (cuenta[k] || 0) + 1;
+    }
+    return cuenta;
+  }
+
+  /* mover una jugada a otro set up */
+  function setPlaySetup(id, setupKey) {
+    const r = playRows.find((x) => x.id === id);
+    if (!r || !canWrite(r.scope)) return false;
+    const data = Object.assign({}, r.data || {}, { setupKey: setupKey || null });
+    tocar('plays', r, { data: data, setup_key: setupKey || null });
+    return guardado('plays');
   }
 
   function loadPlay(id) {
@@ -2733,7 +2837,7 @@ RG.model = (function () {
     isUserFormation, isEditedSetup, isBaseSetup, setupOrigin, canEditSetup,
     canWrite, writableLevels, whoAmI, exportAll, importAll,
     useAccount, onChange, allRows, pending, adopt, forget, applyRemote,
-    localLeftovers, adoptRows, playOrigin, playRow,
+    localLeftovers, adoptRows, playOrigin, playRow, playCounts, setPlaySetup, CATEGORIAS,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,
@@ -4417,11 +4521,11 @@ RG.ui = (function () {
     global: { label: 'Base de la app', note: 'La ven todos los clubes. Sos administrador.' }
   };
 
-  /* Cuando el entrenador puede publicar en más de una capa, hay que preguntar
-     dónde guarda. Si sólo puede en la suya, no se le pregunta nada. */
-  function askLevel(mensaje) {
-    const niveles = M.writableLevels();
-    if (niveles.length < 2) return Promise.resolve(niveles[0] || 'personal');
+  /* Elegir de una lista de opciones con su explicación. Sirve para la capa donde
+     se guarda y para la categoría del set up nuevo. */
+  function askOpciones(mensaje, opciones) {
+    if (!opciones.length) return Promise.resolve(null);
+    if (opciones.length === 1) return Promise.resolve(opciones[0].id);
     return new Promise((resolve) => {
       const back = document.createElement('div');
       back.className = 'modal-back';
@@ -4429,8 +4533,9 @@ RG.ui = (function () {
         '<div class="modal" role="dialog" aria-modal="true">' +
         '<p>' + escapeAttr(mensaje) + '</p>' +
         '<div class="modal-levels">' +
-        niveles.map((n) => '<button class="lvl" data-lvl="' + n + '"><b>' + NIVEL[n].label +
-          '</b><span>' + NIVEL[n].note + '</span></button>').join('') +
+        opciones.map((o) => '<button class="lvl" data-op="' + escapeAttr(o.id) + '"><b>' +
+          escapeAttr(o.label) + '</b>' + (o.note ? '<span>' + escapeAttr(o.note) + '</span>' : '') +
+          '</button>').join('') +
         '</div>' +
         '<div class="modal-actions"><button class="btn" id="mdNo">Cancelar</button></div>' +
         '</div>';
@@ -4438,22 +4543,43 @@ RG.ui = (function () {
       const close = (v) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); };
       function onKey(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); close(null); } }
       document.addEventListener('keydown', onKey, true);
-      back.querySelectorAll('[data-lvl]').forEach((b) => b.addEventListener('click', () => close(b.dataset.lvl)));
+      back.querySelectorAll('[data-op]').forEach((b) => b.addEventListener('click', () => close(b.dataset.op)));
       back.querySelector('#mdNo').addEventListener('click', () => close(null));
       back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(null); });
     });
+  }
+
+  /* Cuando el entrenador puede publicar en más de una capa, hay que preguntar
+     dónde guarda. Si sólo puede en la suya, no se le pregunta nada. */
+  function askLevel(mensaje) {
+    const niveles = M.writableLevels().map((n) => ({ id: n, label: NIVEL[n].label, note: NIVEL[n].note }));
+    return askOpciones(mensaje, niveles);
+  }
+
+  /* Todo set up nuevo vive dentro de una de las seis categorías. */
+  const NOTA_CAT = {
+    'Salidas': 'Salidas de mitad de cancha y de 22',
+    'Lines': 'Las formaciones de line-out',
+    'Movimientos FF': 'Lo que pasa después de un line o un scrum, con el equipo completo',
+    'Semiataques': 'Ataques armados desde el juego',
+    'Sistema': 'La estructura general de ataque',
+    'Drill': 'Ejercicios de entrenamiento'
+  };
+  function askCategoria() {
+    return askOpciones('¿En qué categoría va este set up?',
+      M.CATEGORIAS.map((c) => ({ id: c, label: c, note: NOTA_CAT[c] })));
   }
 
   /* ---------- guardado ---------- */
 
   function refreshSaved() {
     const sel = $('savedPlays');
-    const plays = M.listPlays();
-    const marca = { club: ' ★', global: ' ◆' };
+    /* sólo las jugadas del set up que está abierto: la jugada vive adentro de su
+       situación, y mezclarlas todas era la bolsa de antes */
+    const plays = M.listPlays(M.state.setupKey);
     sel.innerHTML = plays.length
-      ? plays.map((p) => '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) +
-          (marca[p.origen] || '') + '</option>').join('')
-      : '<option value="">(sin jugadas guardadas)</option>';
+      ? plays.map((p) => '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) + '</option>').join('')
+      : '<option value="">(sin jugadas en este set up)</option>';
     const abierta = plays.find((p) => p.id === M.playRow());
     if (abierta) sel.value = abierta.id;
   }
@@ -4514,12 +4640,9 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
-    /* la marca dice de qué capa salió lo que se está viendo */
-    const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
+    const ORDEN = M.CATEGORIAS.concat(['Crear set up']);
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
-      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) +
-        (MARCA[f.origen] || '') + '</option>').join('');
+      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
@@ -4568,12 +4691,15 @@ RG.ui = (function () {
       const sugerido = M.state.name && M.state.name.indexOf('sin nombre') < 0 ? M.state.name : '';
       const nombre = await askText('Nombre del set up nuevo:', sugerido);
       if (!nombre) return;
+      /* todo set up vive dentro de una categoría: sin eso el playbook se desordena */
+      const categoria = await askCategoria();
+      if (!categoria) return;
       const nivel = await askLevel('¿Dónde guardás «' + nombre.trim() + '»?');
       if (!nivel) return;
-      const key = M.saveFormation(nombre.trim(), app.frameIdx, nivel);
+      const key = M.saveFormation(nombre.trim(), app.frameIdx, nivel, categoria);
       if (!key) return toast('No se pudo guardar');
       refreshPresets('f:' + key);
-      toast('Set up guardado ' + (nivel === 'personal' ? 'en "Mis set ups"' : 'como ' + NIVEL[nivel].label.toLowerCase()));
+      toast('Set up guardado en ' + categoria);
     }
 
     $('btnSaveFormation').addEventListener('click', async () => {
@@ -4702,6 +4828,8 @@ RG.ui = (function () {
       app.setStage((M.FORMATIONS[key] && M.FORMATIONS[key].stage) || 'field');
       app.selection = null;
       app.fitPlay();
+      /* las jugadas que se ofrecen son las de este set up */
+      refreshSaved();
       app.refreshAll();
       toast('Set up aplicado');
     });
@@ -5671,7 +5799,7 @@ RG.sync = (function () {
     }
     const cuerpo = kind === 'setups'
       ? { scope: r.scope, club_id: r.club_id, base_key: r.base_key, name: r.name, data: r.data }
-      : { scope: r.scope, club_id: r.club_id, name: r.name, data: r.data };
+      : { scope: r.scope, club_id: r.club_id, name: r.name, data: r.data, setup_key: r.setup_key || null };
     const srv = kind === 'setups' ? await C.saveSetup(cuerpo) : await C.savePlay(cuerpo);
     M.adopt(kind, r.id, srv && srv.id ? { id: srv.id, owner_id: srv.owner_id || cuentaActual } : {});
   }
@@ -5687,7 +5815,7 @@ RG.sync = (function () {
   function normalizar(r) {
     return {
       id: r.id, scope: r.scope || 'personal', club_id: r.club_id || null,
-      base_key: r.base_key || null, name: r.name, data: r.data,
+      base_key: r.base_key || null, setup_key: r.setup_key || null, name: r.name, data: r.data,
       owner_id: r.owner_id, updated: Date.parse(r.updated_at || '') || Date.now()
     };
   }
@@ -5819,9 +5947,16 @@ RG.home = (function () {
     return estado.teams.find((t) => t.id === id) || estado.teams[0] || null;
   }
 
-  const ETIQUETA = { club: 'del club', global: 'de la app', personal: '' };
+  /* El set up elegido manda: las jugadas que se ven son las suyas. Se recuerda
+     entre visitas para no tener que volver a buscarlo. */
+  const SETUP_ELEGIDO = 'rugbyboard.setupElegido';
 
-  function misJugadas() { return M.listPlays(); }
+  function setupElegido() {
+    const guardado = localStorage.getItem(SETUP_ELEGIDO);
+    if (guardado && M.FORMATIONS[guardado] && M.FORMATIONS[guardado].group !== 'Crear set up') return guardado;
+    const lista = M.formationList().filter((f) => f.group !== 'Crear set up');
+    return lista.length ? lista[0].key : null;
+  }
 
   /* ---------------------------------------------------------- pantallas ---- */
 
@@ -5953,36 +6088,93 @@ RG.home = (function () {
       '</div>';
   }
 
-  /* Un desplegable en vez de una lista: con veinte jugadas la pantalla se hacía
-     larguísima, y los set ups de partido tienen que estar siempre a mano. */
-  function listaJugadas() {
-    const js = misJugadas();
-    if (!js.length) return '<p class="hm-empty">Todavía no guardaste jugadas.</p>';
-    return '<div class="hm-pick">' +
-      '<select id="hmPlaySel">' + js.map((j) =>
-        '<option value="' + esc(j.id) + '">' + esc(j.name) +
-        (ETIQUETA[j.origen] ? ' · ' + ETIQUETA[j.origen] : '') + '</option>').join('') +
-      '</select><button class="btn" id="hmPlayGo">Abrir</button>' +
-      '<button class="btn" id="hmPlayEnsayo" title="Abrir la sala en vivo con esta jugada">Ensayar</button></div>';
+  /* ---------------------------------------------------------- playbook ----
+
+     La jugada vive adentro de su set up: se elige la situación y abajo están
+     sus jugadas. Antes eran dos listas sueltas y no se sabía qué iba con qué. */
+
+  function bloquePlaybook() {
+    const elegido = setupElegido();
+    const cuentas = M.playCounts();
+    const setups = M.formationList().filter((f) => f.group !== 'Crear set up');
+    /* las seis categorías están siempre, aunque estén vacías: son el esqueleto
+       del playbook, no una lista de lo que hay */
+    const porCategoria = M.CATEGORIAS.map((c) => {
+      const items = setups.filter((f) => f.group === c).map((f) =>
+        '<option value="' + esc(f.key) + '"' + (f.key === elegido ? ' selected' : '') + '>' +
+        esc(f.name) + (cuentas[f.key] ? ' (' + cuentas[f.key] + ')' : '') + '</option>').join('');
+      return '<optgroup label="' + c + '">' +
+        (items || '<option value="" disabled>(todavía sin set ups)</option>') + '</optgroup>';
+    }).join('');
+
+    const jugadas = elegido ? M.listPlays(elegido) : [];
+    const sueltas = M.listPlays().filter((j) => !j.setup);
+
+    return '' +
+      '<div class="hm-card hm-playbook">' +
+      '<h2>Playbook</h2>' +
+
+      '<h3>Set up</h3>' +
+      '<div class="hm-pick">' +
+      '<select id="hmSetupSel">' + porCategoria + '</select>' +
+      '<button class="btn" id="hmSetupGo">Abrir</button>' +
+      '</div>' +
+
+      '<h3>Jugadas de este set up</h3>' +
+      (jugadas.length
+        ? '<div class="hm-pick">' +
+          '<select id="hmPlaySel">' + jugadas.map((j) =>
+            '<option value="' + esc(j.id) + '">' + esc(j.name) + '</option>').join('') + '</select>' +
+          '<button class="btn" id="hmPlayGo">Abrir</button>' +
+          '<button class="btn" id="hmPlayEnsayo" title="Abrir la sala en vivo con esta jugada">Ensayar</button>' +
+          '</div>'
+        : '<p class="hm-empty">Todavía no hay jugadas en este set up. Abrilo y dibujá la primera.</p>') +
+
+      (sueltas.length
+        ? '<h3>Sin set up</h3>' +
+          '<p class="hm-note">Estas jugadas son de antes de que existiera el orden por set up. ' +
+          'Elegí una y mandala al set up de arriba.</p>' +
+          '<div class="hm-pick">' +
+          '<select id="hmHuerfanas">' + sueltas.map((j) =>
+            '<option value="' + esc(j.id) + '">' + esc(j.name) + '</option>').join('') + '</select>' +
+          '<button class="btn" id="hmAsignar">Mandar al set up elegido</button>' +
+          '</div>'
+        : '') +
+
+      '</div>';
   }
 
-  /* Acá van todos: las situaciones de partido que trae la app y las versiones
-     propias, del club o publicadas, con la marca de dónde sale cada una. */
-  const ORDEN_SETUPS = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras'];
-  const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
+  /* ------------------------------------------------------ administración ----
 
-  function listaSetups() {
-    const ss = M.formationList().filter((f) => f.group !== 'Crear set up');
-    const grupo = (g) => ss.filter((f) => f.group === g)
-      .map((f) => '<option value="' + esc(f.key) + '">' + esc(f.name) + (MARCA[f.origen] || '') + '</option>')
-      .join('');
-    return '<div class="hm-pick">' +
-      '<select id="hmSetupSel">' + ORDEN_SETUPS.map((g) => {
-        const items = grupo(g);
-        return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
-      }).join('') + '</select>' +
-      '<button class="btn" id="hmSetupGo">Abrir</button></div>' +
-      '<p class="hm-note">✎ tu versión · ★ del club · ◆ de la app</p>';
+     Sólo la ve el administrador del producto. Del otro lado, las reglas de
+     acceso de la base son las que de verdad dejan o no dejan (db/migration-4):
+     esconder el botón no alcanzaría. */
+
+  const admin = { abierto: false, clubes: [], elegido: null, teams: [], members: [], cargando: false };
+
+  async function cargarAdmin(clubId) {
+    admin.cargando = true;
+    admin.clubes = await C.allClubs();
+    if (clubId) admin.elegido = clubId;
+    if (!admin.clubes.some((c) => c.id === admin.elegido)) {
+      admin.elegido = admin.clubes.length ? admin.clubes[0].id : null;
+    }
+    admin.teams = admin.elegido ? await C.teams(admin.elegido) : [];
+    admin.members = admin.elegido ? await C.members(admin.elegido) : [];
+    admin.cargando = false;
+  }
+
+  const ROLES = { owner: 'dueño', admin: 'admin del club', coach: 'entrenador' };
+  const plural = (n, uno, muchos) => n + ' ' + (n === 1 ? uno : (muchos || uno + 's'));
+
+  /* en una línea: si está todo arriba, si falta subir algo o si falló */
+  function estadoSync() {
+    if (!RG.sync) return '';
+    const e = RG.sync.estado();
+    if (!e.activa) return 'Se guardan en este navegador.';
+    if (e.error) return 'Guardado en esta máquina. No se pudo sincronizar: ' + e.error;
+    if (e.pendientes) return 'Subiendo ' + e.pendientes + ' cambios a tu cuenta…';
+    return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
   }
 
   function vistaInicio() {
@@ -6005,27 +6197,30 @@ RG.home = (function () {
       '</div>' +
       '</div>' +
 
-      '<div class="hm-start">' +
-      '<button class="hm-big" id="hmNewPlay"><b>Nueva jugada</b>' +
-      '<span>Elegí la situación y dibujá el movimiento, frame por frame</span></button>' +
-      '<button class="hm-big alt" id="hmNewSetup"><b>Nueva situación</b>' +
-      '<span>Cancha vacía para armar un set up desde cero y guardarlo</span></button>' +
-      '<button class="hm-big alt" id="hmSala"><b>Modo ensayo</b>' +
-      '<span>La cancha en la pantalla grande y el plantel moviendo su ficha desde el teléfono</span></button>' +
+      '<div class="hm-cols">' +
+
+      '<div class="hm-izq">' + bloquePlaybook() +
+
+      /* el ensayo es lo que se hace con el plantel delante: va grande */
+      '<button class="hm-ensayo" id="hmSala">' +
+      '<span class="hm-ensayo-icono">🏉</span>' +
+      '<span class="hm-ensayo-txt"><b>Modo ensayo</b>' +
+      '<span>Se abre una sala con un código de cuatro caracteres. La cancha va en la pantalla ' +
+      'grande y cada jugador entra desde su teléfono, elige su número y mueve su ficha con un ' +
+      'joystick: se camina la jugada antes de llevarla al campo.</span></span>' +
+      '</button>' +
+
+      '<div class="hm-chicos">' +
+      '<button class="btn sm" id="hmNewPlay">+ Nueva jugada</button>' +
+      '<button class="btn sm" id="hmNewSetup">+ Nuevo set up</button>' +
       '</div>' +
+      '<p class="hm-note">' + (sinCuenta
+        ? 'Se guarda en este navegador. Al entrar con tu cuenta se sube solo.'
+        : esc(estadoSync())) + '</p>' +
       '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button>' +
       (M.whoAmI && M.whoAmI().admin
         ? ' · <button class="hm-link" id="hmAdmin">Administrar clubes y equipos</button>' : '') +
       '</p>' +
-
-      '<div class="hm-cols">' +
-
-      '<div class="hm-card">' +
-      '<h2>Jugadas</h2>' + listaJugadas() +
-      '<h2>Set ups</h2>' + listaSetups() +
-      '<p class="hm-note">' + (sinCuenta
-        ? 'Se guardan en este navegador. Al entrar con tu cuenta se suben solos.'
-        : esc(estadoSync())) + '</p>' +
       '</div>' +
 
       (sinCuenta ? '' :
@@ -6066,39 +6261,6 @@ RG.home = (function () {
 
       '</div>';
   }
-
-  /* en una línea: si está todo arriba, si falta subir algo o si falló */
-  function estadoSync() {
-    if (!RG.sync) return '';
-    const e = RG.sync.estado();
-    if (!e.activa) return 'Se guardan en este navegador.';
-    if (e.error) return 'Guardado en esta máquina. No se pudo sincronizar: ' + e.error;
-    if (e.pendientes) return 'Subiendo ' + e.pendientes + ' cambios a tu cuenta…';
-    return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
-  }
-
-  /* ------------------------------------------------------ administración ----
-
-     Sólo la ve el administrador del producto. Del otro lado, las reglas de
-     acceso de la base son las que de verdad dejan o no dejan (db/migration-4):
-     esconder el botón no alcanzaría. */
-
-  const admin = { abierto: false, clubes: [], elegido: null, teams: [], members: [], cargando: false };
-
-  async function cargarAdmin(clubId) {
-    admin.cargando = true;
-    admin.clubes = await C.allClubs();
-    if (clubId) admin.elegido = clubId;
-    if (!admin.clubes.some((c) => c.id === admin.elegido)) {
-      admin.elegido = admin.clubes.length ? admin.clubes[0].id : null;
-    }
-    admin.teams = admin.elegido ? await C.teams(admin.elegido) : [];
-    admin.members = admin.elegido ? await C.members(admin.elegido) : [];
-    admin.cargando = false;
-  }
-
-  const ROLES = { owner: 'dueño', admin: 'admin del club', coach: 'entrenador' };
-  const plural = (n, uno, muchos) => n + ' ' + (n === 1 ? uno : (muchos || uno + 's'));
 
   function vistaAdmin() {
     const club = admin.clubes.find((c) => c.id === admin.elegido) || null;
@@ -6346,7 +6508,10 @@ RG.home = (function () {
 
     /* arrancar a trabajar */
     const nuevaJugada = q('#hmNewPlay');
-    if (nuevaJugada) nuevaJugada.addEventListener('click', () => abrirPizarra('jugada'));
+    if (nuevaJugada) nuevaJugada.addEventListener('click', () => {
+      const setup = q('#hmSetupSel') && q('#hmSetupSel').value;
+      abrirPizarra('jugada', setup || null);
+    });
     const nuevoSetup = q('#hmNewSetup');
     if (nuevoSetup) nuevoSetup.addEventListener('click', () => abrirPizarra('setup'));
 
@@ -6361,6 +6526,23 @@ RG.home = (function () {
     }
     abridor('#hmPlaySel', '#hmPlayGo', 'abrir-jugada');
     abridor('#hmSetupSel', '#hmSetupGo', 'abrir-setup');
+
+    /* cambiar de set up cambia las jugadas que se ofrecen */
+    const setupSel = q('#hmSetupSel');
+    if (setupSel) setupSel.addEventListener('change', () => {
+      try { localStorage.setItem(SETUP_ELEGIDO, setupSel.value); } catch (e) { /* sin espacio */ }
+      pintar();
+    });
+
+    /* acomodar una jugada vieja adentro del set up elegido */
+    const asignar = q('#hmAsignar');
+    if (asignar) asignar.addEventListener('click', () => {
+      const cual = q('#hmHuerfanas') && q('#hmHuerfanas').value;
+      const destino = q('#hmSetupSel') && q('#hmSetupSel').value;
+      if (!cual || !destino) return;
+      if (!M.setPlaySetup(cual, destino)) return aviso('No se pudo mover esa jugada');
+      pintar();
+    });
 
     /* modo ensayo: la jugada elegida, o el set up si se entra por el botón grande */
     const ensayoJugada = q('#hmPlayEnsayo');
@@ -6460,6 +6642,12 @@ RG.home = (function () {
   function mostrar() {
     root.hidden = false;
     document.getElementById('app').hidden = true;
+    /* al volver de la pizarra, el playbook queda parado en el set up que se
+       estaba trabajando: ahí es donde uno vuelve a mirar */
+    const k = M.state.setupKey;
+    if (k && M.FORMATIONS[k] && M.FORMATIONS[k].group !== 'Crear set up') {
+      try { localStorage.setItem(SETUP_ELEGIDO, k); } catch (e) { /* sin espacio */ }
+    }
     pintar();
   }
 
@@ -6767,7 +6955,9 @@ RG.home = (function () {
       M.state.name = M.FORMATIONS[id] ? M.FORMATIONS[id].name : 'Jugada sin nombre';
       M.applyFormation(id, 0, true);
     } else {
-      M.newPlay(15, M.state.lastFormation || 'kickoff_for');
+      /* la jugada nueva arranca en el set up que se eligió en el inicio: así
+         nace adentro de su situación y no en la última que se usó */
+      M.newPlay(15, (id && M.FORMATIONS[id]) ? id : (M.state.lastFormation || 'kickoff_for'));
     }
     app.frameIdx = 0;
     app.time = 0;

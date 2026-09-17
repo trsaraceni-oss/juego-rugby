@@ -101,6 +101,19 @@ Con el plan gratis, Supabase manda los mails desde su propio servidor con un lí
 por hora, suficiente para probar. Cuando lo abras al club conviene conectar un servicio de mail
 propio (Resend tiene plan gratis) para que no se demoren.
 
+## 2f. Correr la quinta corrección: cada jugada dentro de su set up
+
+El playbook se ordena con la jugada colgando de la situación. Eso necesita una columna más en la
+tabla de jugadas y que la función de guardado la reciba. Pegá y corré
+[`db/migration-5.sql`](../db/migration-5.sql).
+
+La misma corrección acomoda las jugadas que ya estaban guardadas, por su nombre: las Sudáfrica al
+line de 4, las Niebla y las Leinster al de 5, y las Canapé al de 3. Las demás quedan sin set up y
+se acomodan desde la pantalla de inicio.
+
+Probado contra Postgres: la columna, el reparto por nombre, y que guardar una jugada con su set up
+la corrija en lugar de duplicarla.
+
 ## 3bis. Entrar con contraseña
 
 La app tiene dos caminos a la misma cuenta: **mail y contraseña**, que es el de todos los días, y

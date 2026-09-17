@@ -207,11 +207,11 @@ RG.ui = (function () {
     global: { label: 'Base de la app', note: 'La ven todos los clubes. Sos administrador.' }
   };
 
-  /* Cuando el entrenador puede publicar en más de una capa, hay que preguntar
-     dónde guarda. Si sólo puede en la suya, no se le pregunta nada. */
-  function askLevel(mensaje) {
-    const niveles = M.writableLevels();
-    if (niveles.length < 2) return Promise.resolve(niveles[0] || 'personal');
+  /* Elegir de una lista de opciones con su explicación. Sirve para la capa donde
+     se guarda y para la categoría del set up nuevo. */
+  function askOpciones(mensaje, opciones) {
+    if (!opciones.length) return Promise.resolve(null);
+    if (opciones.length === 1) return Promise.resolve(opciones[0].id);
     return new Promise((resolve) => {
       const back = document.createElement('div');
       back.className = 'modal-back';
@@ -219,8 +219,9 @@ RG.ui = (function () {
         '<div class="modal" role="dialog" aria-modal="true">' +
         '<p>' + escapeAttr(mensaje) + '</p>' +
         '<div class="modal-levels">' +
-        niveles.map((n) => '<button class="lvl" data-lvl="' + n + '"><b>' + NIVEL[n].label +
-          '</b><span>' + NIVEL[n].note + '</span></button>').join('') +
+        opciones.map((o) => '<button class="lvl" data-op="' + escapeAttr(o.id) + '"><b>' +
+          escapeAttr(o.label) + '</b>' + (o.note ? '<span>' + escapeAttr(o.note) + '</span>' : '') +
+          '</button>').join('') +
         '</div>' +
         '<div class="modal-actions"><button class="btn" id="mdNo">Cancelar</button></div>' +
         '</div>';
@@ -228,22 +229,43 @@ RG.ui = (function () {
       const close = (v) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); };
       function onKey(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); close(null); } }
       document.addEventListener('keydown', onKey, true);
-      back.querySelectorAll('[data-lvl]').forEach((b) => b.addEventListener('click', () => close(b.dataset.lvl)));
+      back.querySelectorAll('[data-op]').forEach((b) => b.addEventListener('click', () => close(b.dataset.op)));
       back.querySelector('#mdNo').addEventListener('click', () => close(null));
       back.addEventListener('mousedown', (ev) => { if (ev.target === back) close(null); });
     });
+  }
+
+  /* Cuando el entrenador puede publicar en más de una capa, hay que preguntar
+     dónde guarda. Si sólo puede en la suya, no se le pregunta nada. */
+  function askLevel(mensaje) {
+    const niveles = M.writableLevels().map((n) => ({ id: n, label: NIVEL[n].label, note: NIVEL[n].note }));
+    return askOpciones(mensaje, niveles);
+  }
+
+  /* Todo set up nuevo vive dentro de una de las seis categorías. */
+  const NOTA_CAT = {
+    'Salidas': 'Salidas de mitad de cancha y de 22',
+    'Lines': 'Las formaciones de line-out',
+    'Movimientos FF': 'Lo que pasa después de un line o un scrum, con el equipo completo',
+    'Semiataques': 'Ataques armados desde el juego',
+    'Sistema': 'La estructura general de ataque',
+    'Drill': 'Ejercicios de entrenamiento'
+  };
+  function askCategoria() {
+    return askOpciones('¿En qué categoría va este set up?',
+      M.CATEGORIAS.map((c) => ({ id: c, label: c, note: NOTA_CAT[c] })));
   }
 
   /* ---------- guardado ---------- */
 
   function refreshSaved() {
     const sel = $('savedPlays');
-    const plays = M.listPlays();
-    const marca = { club: ' ★', global: ' ◆' };
+    /* sólo las jugadas del set up que está abierto: la jugada vive adentro de su
+       situación, y mezclarlas todas era la bolsa de antes */
+    const plays = M.listPlays(M.state.setupKey);
     sel.innerHTML = plays.length
-      ? plays.map((p) => '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) +
-          (marca[p.origen] || '') + '</option>').join('')
-      : '<option value="">(sin jugadas guardadas)</option>';
+      ? plays.map((p) => '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) + '</option>').join('')
+      : '<option value="">(sin jugadas en este set up)</option>';
     const abierta = plays.find((p) => p.id === M.playRow());
     if (abierta) sel.value = abierta.id;
   }
@@ -304,12 +326,9 @@ RG.ui = (function () {
     app = _app;
 
     const presets = $('presetSelect');
-    const ORDEN = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras', 'Crear set up'];
-    /* la marca dice de qué capa salió lo que se está viendo */
-    const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
+    const ORDEN = M.CATEGORIAS.concat(['Crear set up']);
     const porGrupo = (g) => M.formationList().filter((f) => f.group === g)
-      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) +
-        (MARCA[f.origen] || '') + '</option>').join('');
+      .map((f) => '<option value="f:' + f.key + '">' + escapeAttr(f.name) + '</option>').join('');
 
     function refreshPresets(sel) {
       presets.innerHTML =
@@ -358,12 +377,15 @@ RG.ui = (function () {
       const sugerido = M.state.name && M.state.name.indexOf('sin nombre') < 0 ? M.state.name : '';
       const nombre = await askText('Nombre del set up nuevo:', sugerido);
       if (!nombre) return;
+      /* todo set up vive dentro de una categoría: sin eso el playbook se desordena */
+      const categoria = await askCategoria();
+      if (!categoria) return;
       const nivel = await askLevel('¿Dónde guardás «' + nombre.trim() + '»?');
       if (!nivel) return;
-      const key = M.saveFormation(nombre.trim(), app.frameIdx, nivel);
+      const key = M.saveFormation(nombre.trim(), app.frameIdx, nivel, categoria);
       if (!key) return toast('No se pudo guardar');
       refreshPresets('f:' + key);
-      toast('Set up guardado ' + (nivel === 'personal' ? 'en "Mis set ups"' : 'como ' + NIVEL[nivel].label.toLowerCase()));
+      toast('Set up guardado en ' + categoria);
     }
 
     $('btnSaveFormation').addEventListener('click', async () => {
@@ -492,6 +514,8 @@ RG.ui = (function () {
       app.setStage((M.FORMATIONS[key] && M.FORMATIONS[key].stage) || 'field');
       app.selection = null;
       app.fitPlay();
+      /* las jugadas que se ofrecen son las de este set up */
+      refreshSaved();
       app.refreshAll();
       toast('Set up aplicado');
     });

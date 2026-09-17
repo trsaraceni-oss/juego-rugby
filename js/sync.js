@@ -37,7 +37,7 @@ RG.sync = (function () {
     }
     const cuerpo = kind === 'setups'
       ? { scope: r.scope, club_id: r.club_id, base_key: r.base_key, name: r.name, data: r.data }
-      : { scope: r.scope, club_id: r.club_id, name: r.name, data: r.data };
+      : { scope: r.scope, club_id: r.club_id, name: r.name, data: r.data, setup_key: r.setup_key || null };
     const srv = kind === 'setups' ? await C.saveSetup(cuerpo) : await C.savePlay(cuerpo);
     M.adopt(kind, r.id, srv && srv.id ? { id: srv.id, owner_id: srv.owner_id || cuentaActual } : {});
   }
@@ -53,7 +53,7 @@ RG.sync = (function () {
   function normalizar(r) {
     return {
       id: r.id, scope: r.scope || 'personal', club_id: r.club_id || null,
-      base_key: r.base_key || null, name: r.name, data: r.data,
+      base_key: r.base_key || null, setup_key: r.setup_key || null, name: r.name, data: r.data,
       owner_id: r.owner_id, updated: Date.parse(r.updated_at || '') || Date.now()
     };
   }

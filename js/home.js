@@ -50,9 +50,16 @@ RG.home = (function () {
     return estado.teams.find((t) => t.id === id) || estado.teams[0] || null;
   }
 
-  const ETIQUETA = { club: 'del club', global: 'de la app', personal: '' };
+  /* El set up elegido manda: las jugadas que se ven son las suyas. Se recuerda
+     entre visitas para no tener que volver a buscarlo. */
+  const SETUP_ELEGIDO = 'rugbyboard.setupElegido';
 
-  function misJugadas() { return M.listPlays(); }
+  function setupElegido() {
+    const guardado = localStorage.getItem(SETUP_ELEGIDO);
+    if (guardado && M.FORMATIONS[guardado] && M.FORMATIONS[guardado].group !== 'Crear set up') return guardado;
+    const lista = M.formationList().filter((f) => f.group !== 'Crear set up');
+    return lista.length ? lista[0].key : null;
+  }
 
   /* ---------------------------------------------------------- pantallas ---- */
 
@@ -184,36 +191,93 @@ RG.home = (function () {
       '</div>';
   }
 
-  /* Un desplegable en vez de una lista: con veinte jugadas la pantalla se hacía
-     larguísima, y los set ups de partido tienen que estar siempre a mano. */
-  function listaJugadas() {
-    const js = misJugadas();
-    if (!js.length) return '<p class="hm-empty">Todavía no guardaste jugadas.</p>';
-    return '<div class="hm-pick">' +
-      '<select id="hmPlaySel">' + js.map((j) =>
-        '<option value="' + esc(j.id) + '">' + esc(j.name) +
-        (ETIQUETA[j.origen] ? ' · ' + ETIQUETA[j.origen] : '') + '</option>').join('') +
-      '</select><button class="btn" id="hmPlayGo">Abrir</button>' +
-      '<button class="btn" id="hmPlayEnsayo" title="Abrir la sala en vivo con esta jugada">Ensayar</button></div>';
+  /* ---------------------------------------------------------- playbook ----
+
+     La jugada vive adentro de su set up: se elige la situación y abajo están
+     sus jugadas. Antes eran dos listas sueltas y no se sabía qué iba con qué. */
+
+  function bloquePlaybook() {
+    const elegido = setupElegido();
+    const cuentas = M.playCounts();
+    const setups = M.formationList().filter((f) => f.group !== 'Crear set up');
+    /* las seis categorías están siempre, aunque estén vacías: son el esqueleto
+       del playbook, no una lista de lo que hay */
+    const porCategoria = M.CATEGORIAS.map((c) => {
+      const items = setups.filter((f) => f.group === c).map((f) =>
+        '<option value="' + esc(f.key) + '"' + (f.key === elegido ? ' selected' : '') + '>' +
+        esc(f.name) + (cuentas[f.key] ? ' (' + cuentas[f.key] + ')' : '') + '</option>').join('');
+      return '<optgroup label="' + c + '">' +
+        (items || '<option value="" disabled>(todavía sin set ups)</option>') + '</optgroup>';
+    }).join('');
+
+    const jugadas = elegido ? M.listPlays(elegido) : [];
+    const sueltas = M.listPlays().filter((j) => !j.setup);
+
+    return '' +
+      '<div class="hm-card hm-playbook">' +
+      '<h2>Playbook</h2>' +
+
+      '<h3>Set up</h3>' +
+      '<div class="hm-pick">' +
+      '<select id="hmSetupSel">' + porCategoria + '</select>' +
+      '<button class="btn" id="hmSetupGo">Abrir</button>' +
+      '</div>' +
+
+      '<h3>Jugadas de este set up</h3>' +
+      (jugadas.length
+        ? '<div class="hm-pick">' +
+          '<select id="hmPlaySel">' + jugadas.map((j) =>
+            '<option value="' + esc(j.id) + '">' + esc(j.name) + '</option>').join('') + '</select>' +
+          '<button class="btn" id="hmPlayGo">Abrir</button>' +
+          '<button class="btn" id="hmPlayEnsayo" title="Abrir la sala en vivo con esta jugada">Ensayar</button>' +
+          '</div>'
+        : '<p class="hm-empty">Todavía no hay jugadas en este set up. Abrilo y dibujá la primera.</p>') +
+
+      (sueltas.length
+        ? '<h3>Sin set up</h3>' +
+          '<p class="hm-note">Estas jugadas son de antes de que existiera el orden por set up. ' +
+          'Elegí una y mandala al set up de arriba.</p>' +
+          '<div class="hm-pick">' +
+          '<select id="hmHuerfanas">' + sueltas.map((j) =>
+            '<option value="' + esc(j.id) + '">' + esc(j.name) + '</option>').join('') + '</select>' +
+          '<button class="btn" id="hmAsignar">Mandar al set up elegido</button>' +
+          '</div>'
+        : '') +
+
+      '</div>';
   }
 
-  /* Acá van todos: las situaciones de partido que trae la app y las versiones
-     propias, del club o publicadas, con la marca de dónde sale cada una. */
-  const ORDEN_SETUPS = ['Mis set ups', 'Del club', 'De la app', 'Salidas', 'Scrums', 'Line-outs', 'Estructuras'];
-  const MARCA = { personal: ' ✎', club: ' ★', global: ' ◆' };
+  /* ------------------------------------------------------ administración ----
 
-  function listaSetups() {
-    const ss = M.formationList().filter((f) => f.group !== 'Crear set up');
-    const grupo = (g) => ss.filter((f) => f.group === g)
-      .map((f) => '<option value="' + esc(f.key) + '">' + esc(f.name) + (MARCA[f.origen] || '') + '</option>')
-      .join('');
-    return '<div class="hm-pick">' +
-      '<select id="hmSetupSel">' + ORDEN_SETUPS.map((g) => {
-        const items = grupo(g);
-        return items ? '<optgroup label="' + g + '">' + items + '</optgroup>' : '';
-      }).join('') + '</select>' +
-      '<button class="btn" id="hmSetupGo">Abrir</button></div>' +
-      '<p class="hm-note">✎ tu versión · ★ del club · ◆ de la app</p>';
+     Sólo la ve el administrador del producto. Del otro lado, las reglas de
+     acceso de la base son las que de verdad dejan o no dejan (db/migration-4):
+     esconder el botón no alcanzaría. */
+
+  const admin = { abierto: false, clubes: [], elegido: null, teams: [], members: [], cargando: false };
+
+  async function cargarAdmin(clubId) {
+    admin.cargando = true;
+    admin.clubes = await C.allClubs();
+    if (clubId) admin.elegido = clubId;
+    if (!admin.clubes.some((c) => c.id === admin.elegido)) {
+      admin.elegido = admin.clubes.length ? admin.clubes[0].id : null;
+    }
+    admin.teams = admin.elegido ? await C.teams(admin.elegido) : [];
+    admin.members = admin.elegido ? await C.members(admin.elegido) : [];
+    admin.cargando = false;
+  }
+
+  const ROLES = { owner: 'dueño', admin: 'admin del club', coach: 'entrenador' };
+  const plural = (n, uno, muchos) => n + ' ' + (n === 1 ? uno : (muchos || uno + 's'));
+
+  /* en una línea: si está todo arriba, si falta subir algo o si falló */
+  function estadoSync() {
+    if (!RG.sync) return '';
+    const e = RG.sync.estado();
+    if (!e.activa) return 'Se guardan en este navegador.';
+    if (e.error) return 'Guardado en esta máquina. No se pudo sincronizar: ' + e.error;
+    if (e.pendientes) return 'Subiendo ' + e.pendientes + ' cambios a tu cuenta…';
+    return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
   }
 
   function vistaInicio() {
@@ -236,27 +300,30 @@ RG.home = (function () {
       '</div>' +
       '</div>' +
 
-      '<div class="hm-start">' +
-      '<button class="hm-big" id="hmNewPlay"><b>Nueva jugada</b>' +
-      '<span>Elegí la situación y dibujá el movimiento, frame por frame</span></button>' +
-      '<button class="hm-big alt" id="hmNewSetup"><b>Nueva situación</b>' +
-      '<span>Cancha vacía para armar un set up desde cero y guardarlo</span></button>' +
-      '<button class="hm-big alt" id="hmSala"><b>Modo ensayo</b>' +
-      '<span>La cancha en la pantalla grande y el plantel moviendo su ficha desde el teléfono</span></button>' +
+      '<div class="hm-cols">' +
+
+      '<div class="hm-izq">' + bloquePlaybook() +
+
+      /* el ensayo es lo que se hace con el plantel delante: va grande */
+      '<button class="hm-ensayo" id="hmSala">' +
+      '<span class="hm-ensayo-icono">🏉</span>' +
+      '<span class="hm-ensayo-txt"><b>Modo ensayo</b>' +
+      '<span>Se abre una sala con un código de cuatro caracteres. La cancha va en la pantalla ' +
+      'grande y cada jugador entra desde su teléfono, elige su número y mueve su ficha con un ' +
+      'joystick: se camina la jugada antes de llevarla al campo.</span></span>' +
+      '</button>' +
+
+      '<div class="hm-chicos">' +
+      '<button class="btn sm" id="hmNewPlay">+ Nueva jugada</button>' +
+      '<button class="btn sm" id="hmNewSetup">+ Nuevo set up</button>' +
       '</div>' +
+      '<p class="hm-note">' + (sinCuenta
+        ? 'Se guarda en este navegador. Al entrar con tu cuenta se sube solo.'
+        : esc(estadoSync())) + '</p>' +
       '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button>' +
       (M.whoAmI && M.whoAmI().admin
         ? ' · <button class="hm-link" id="hmAdmin">Administrar clubes y equipos</button>' : '') +
       '</p>' +
-
-      '<div class="hm-cols">' +
-
-      '<div class="hm-card">' +
-      '<h2>Jugadas</h2>' + listaJugadas() +
-      '<h2>Set ups</h2>' + listaSetups() +
-      '<p class="hm-note">' + (sinCuenta
-        ? 'Se guardan en este navegador. Al entrar con tu cuenta se suben solos.'
-        : esc(estadoSync())) + '</p>' +
       '</div>' +
 
       (sinCuenta ? '' :
@@ -297,39 +364,6 @@ RG.home = (function () {
 
       '</div>';
   }
-
-  /* en una línea: si está todo arriba, si falta subir algo o si falló */
-  function estadoSync() {
-    if (!RG.sync) return '';
-    const e = RG.sync.estado();
-    if (!e.activa) return 'Se guardan en este navegador.';
-    if (e.error) return 'Guardado en esta máquina. No se pudo sincronizar: ' + e.error;
-    if (e.pendientes) return 'Subiendo ' + e.pendientes + ' cambios a tu cuenta…';
-    return 'Todo guardado en tu cuenta' + (estado.club ? ', junto a la base de ' + estado.club.name : '') + '.';
-  }
-
-  /* ------------------------------------------------------ administración ----
-
-     Sólo la ve el administrador del producto. Del otro lado, las reglas de
-     acceso de la base son las que de verdad dejan o no dejan (db/migration-4):
-     esconder el botón no alcanzaría. */
-
-  const admin = { abierto: false, clubes: [], elegido: null, teams: [], members: [], cargando: false };
-
-  async function cargarAdmin(clubId) {
-    admin.cargando = true;
-    admin.clubes = await C.allClubs();
-    if (clubId) admin.elegido = clubId;
-    if (!admin.clubes.some((c) => c.id === admin.elegido)) {
-      admin.elegido = admin.clubes.length ? admin.clubes[0].id : null;
-    }
-    admin.teams = admin.elegido ? await C.teams(admin.elegido) : [];
-    admin.members = admin.elegido ? await C.members(admin.elegido) : [];
-    admin.cargando = false;
-  }
-
-  const ROLES = { owner: 'dueño', admin: 'admin del club', coach: 'entrenador' };
-  const plural = (n, uno, muchos) => n + ' ' + (n === 1 ? uno : (muchos || uno + 's'));
 
   function vistaAdmin() {
     const club = admin.clubes.find((c) => c.id === admin.elegido) || null;
@@ -577,7 +611,10 @@ RG.home = (function () {
 
     /* arrancar a trabajar */
     const nuevaJugada = q('#hmNewPlay');
-    if (nuevaJugada) nuevaJugada.addEventListener('click', () => abrirPizarra('jugada'));
+    if (nuevaJugada) nuevaJugada.addEventListener('click', () => {
+      const setup = q('#hmSetupSel') && q('#hmSetupSel').value;
+      abrirPizarra('jugada', setup || null);
+    });
     const nuevoSetup = q('#hmNewSetup');
     if (nuevoSetup) nuevoSetup.addEventListener('click', () => abrirPizarra('setup'));
 
@@ -592,6 +629,23 @@ RG.home = (function () {
     }
     abridor('#hmPlaySel', '#hmPlayGo', 'abrir-jugada');
     abridor('#hmSetupSel', '#hmSetupGo', 'abrir-setup');
+
+    /* cambiar de set up cambia las jugadas que se ofrecen */
+    const setupSel = q('#hmSetupSel');
+    if (setupSel) setupSel.addEventListener('change', () => {
+      try { localStorage.setItem(SETUP_ELEGIDO, setupSel.value); } catch (e) { /* sin espacio */ }
+      pintar();
+    });
+
+    /* acomodar una jugada vieja adentro del set up elegido */
+    const asignar = q('#hmAsignar');
+    if (asignar) asignar.addEventListener('click', () => {
+      const cual = q('#hmHuerfanas') && q('#hmHuerfanas').value;
+      const destino = q('#hmSetupSel') && q('#hmSetupSel').value;
+      if (!cual || !destino) return;
+      if (!M.setPlaySetup(cual, destino)) return aviso('No se pudo mover esa jugada');
+      pintar();
+    });
 
     /* modo ensayo: la jugada elegida, o el set up si se entra por el botón grande */
     const ensayoJugada = q('#hmPlayEnsayo');
@@ -691,6 +745,12 @@ RG.home = (function () {
   function mostrar() {
     root.hidden = false;
     document.getElementById('app').hidden = true;
+    /* al volver de la pizarra, el playbook queda parado en el set up que se
+       estaba trabajando: ahí es donde uno vuelve a mirar */
+    const k = M.state.setupKey;
+    if (k && M.FORMATIONS[k] && M.FORMATIONS[k].group !== 'Crear set up') {
+      try { localStorage.setItem(SETUP_ELEGIDO, k); } catch (e) { /* sin espacio */ }
+    }
     pintar();
   }
 

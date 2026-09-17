@@ -117,7 +117,7 @@ RG.model = (function () {
        abre hacia abajo. */
 
     scrum_left: {
-      name: 'Scrum de izquierda a derecha', group: 'Scrums', ballCarrier: 'a9',
+      name: 'Scrum de izquierda a derecha', group: 'Movimientos FF', ballCarrier: 'a9',
       note: 'Scrum sobre la touch izquierda, campo abierto a la derecha',
       a: {
         1: [48.5, 17.2], 2: [48.5, 15], 3: [48.5, 12.8],
@@ -132,7 +132,7 @@ RG.model = (function () {
     },
 
     scrum_right: {
-      name: 'Scrum de derecha a izquierda', group: 'Scrums', ballCarrier: 'a9',
+      name: 'Scrum de derecha a izquierda', group: 'Movimientos FF', ballCarrier: 'a9',
       note: 'Scrum sobre la touch derecha, campo abierto a la izquierda',
       a: {
         1: [48.5, 52.8], 2: [48.5, 55], 3: [48.5, 57.2],
@@ -147,7 +147,7 @@ RG.model = (function () {
     },
 
     scrum_mid: {
-      name: 'Scrum en mitad de cancha', group: 'Scrums', ballCarrier: 'a9',
+      name: 'Scrum en mitad de cancha', group: 'Movimientos FF', ballCarrier: 'a9',
       note: 'Scrum en el centro, con los dos lados abiertos',
       a: {
         1: [48.5, 37.2], 2: [48.5, 35], 3: [48.5, 32.8],
@@ -166,7 +166,7 @@ RG.model = (function () {
     /* ---------- line-outs (abren el escenario de line-out) ---------- */
 
     line7: {
-      name: 'Line de 7', group: 'Line-outs', only: true, stage: 'lineout', ballCarrier: 'a2',
+      name: 'Line de 7', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
       note: 'Siete saltadores, cada 1,5 m entre las marcas de 5 y 15',
       a: {
         2: [50, 0.5], 1: [49.5, 5.5], 3: [49.5, 7], 4: [49.5, 8.5], 5: [49.5, 10],
@@ -179,7 +179,7 @@ RG.model = (function () {
     },
 
     line5: {
-      name: 'Line de 5', group: 'Line-outs', only: true, stage: 'lineout', ballCarrier: 'a2',
+      name: 'Line de 5', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
       note: 'Cinco en la línea; 3 y 7 quedan fuera, a la altura del 9',
       a: {
         2: [50, 0.5], 1: [49.5, 5.5], 4: [49.5, 7.75], 5: [49.5, 10], 6: [49.5, 12.25], 8: [49.5, 14.5],
@@ -192,7 +192,7 @@ RG.model = (function () {
     },
 
     line4: {
-      name: 'Line de 4', group: 'Line-outs', only: true, stage: 'lineout', ballCarrier: 'a2',
+      name: 'Line de 4', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
       note: 'Cuatro en la línea, cada 3 m; el resto sale del line',
       a: {
         2: [50, 0.5], 1: [49.5, 5.5], 4: [49.5, 8.5], 5: [49.5, 11.5], 8: [49.5, 14.5],
@@ -204,10 +204,23 @@ RG.model = (function () {
       }
     },
 
+    line3: {
+      name: 'Line de 3', group: 'Lines', only: true, stage: 'lineout', ballCarrier: 'a2',
+      note: 'Tres en la línea; el resto sale del line',
+      a: {
+        2: [50, 0.5], 1: [49.5, 5.5], 4: [49.5, 9], 8: [49.5, 12.5],
+        9: [48.2, 9], 3: [47.2, 4.5], 5: [47.2, 12], 6: [47.2, 15.5], 7: [47.2, 19]
+      },
+      b: {
+        2: [51.6, 2.5], 1: [50.5, 5.5], 4: [50.5, 9], 8: [50.5, 12.5],
+        9: [51.8, 9], 3: [52.8, 4.5], 5: [52.8, 12], 6: [52.8, 15.5], 7: [52.8, 19]
+      }
+    },
+
     /* ---------- estructuras de ataque ---------- */
 
     canal3_fuego: {
-      name: 'Estructura de canal 3 · Fuego', group: 'Estructuras', ballCarrier: 'a9',
+      name: 'Estructura de canal 3 · Fuego', group: 'Sistema', ballCarrier: 'a9',
       note: 'Canal 3 directo: línea plana y pod cerrado atacando el hombro de adentro',
       a: {
         1: [45.5, 28], 2: [45.5, 32], 9: [43.8, 30], 10: [42, 36],
@@ -223,7 +236,7 @@ RG.model = (function () {
     },
 
     canal3_agua: {
-      name: 'Estructura de canal 3 · Agua', group: 'Estructuras', ballCarrier: 'a9',
+      name: 'Estructura de canal 3 · Agua', group: 'Sistema', ballCarrier: 'a9',
       note: 'Canal 3 con profundidad: 10 atrás, 15 entra por dentro y se busca el ancho',
       a: {
         1: [45.5, 28], 2: [45.5, 32], 9: [43.8, 30], 10: [39, 38],
@@ -285,8 +298,12 @@ RG.model = (function () {
   let playRows = [];    /* filas de jugadas */
   let avisar = null;    /* sync.js engancha acá para subir lo que cambió */
 
+  /* Las seis categorías del entrenador. Todo set up vive dentro de una, y toda
+     jugada vive dentro de un set up: eso es lo que le da orden al playbook. */
+  const CATEGORIAS = ['Salidas', 'Lines', 'Movimientos FF', 'Semiataques', 'Sistema', 'Drill'];
+
   const CAPA = { global: 1, club: 2, personal: 3 };
-  const GRUPO = { global: 'De la app', club: 'Del club', personal: 'Mis set ups' };
+  const GRUPO_POR_DEFECTO = 'Salidas';
 
   function suf() { return me.user === 'local' ? '' : '.' + me.user; }
   function bolsa(kind) { return kind === 'plays' ? playRows : rows; }
@@ -324,8 +341,9 @@ RG.model = (function () {
           name: BASE[k].name, group: BASE[k].group, edited: true, origen: r.scope, rowId: r.id
         });
       } else {
+        const cat = CATEGORIAS.indexOf(d.group) >= 0 ? d.group : GRUPO_POR_DEFECTO;
         FORMATIONS[k] = Object.assign({}, d, {
-          name: r.name, group: GRUPO[r.scope] || 'Mis set ups', user: true, origen: r.scope, rowId: r.id
+          name: r.name, group: cat, user: true, origen: r.scope, rowId: r.id
         });
       }
     }
@@ -403,11 +421,12 @@ RG.model = (function () {
       (baseKey ? r.base_key === baseKey : (!r.base_key && r.name === nombre)));
   }
 
-  /* guarda como set up nuevo, en la capa que se pida */
-  function saveFormation(name, frameIdx, scope) {
+  /* guarda como set up nuevo, en la capa y la categoría que se pidan */
+  function saveFormation(name, frameIdx, scope, categoria) {
     scope = scope || 'personal';
     if (!canWrite(scope)) return null;
     const f = captureSetup(name, frameIdx);
+    f.group = CATEGORIAS.indexOf(categoria) >= 0 ? categoria : GRUPO_POR_DEFECTO;
     const previa = filaDeSetup(scope, null, name);   /* mismo nombre: se corrige */
     const fila = previa
       ? tocar('setups', previa, { name: name, data: f })
@@ -476,6 +495,7 @@ RG.model = (function () {
       const suelto = localLeftovers(true);   /* lo que venía trabajando sin cuenta */
       mudado = adoptRows('setups', suelto.setups) + adoptRows('plays', suelto.plays);
     }
+    acomodarJugadas();
     rebuild();
     return mudado;
   }
@@ -551,6 +571,38 @@ RG.model = (function () {
       n++;
     }
     if (n) guardado(kind);
+    return n;
+  }
+
+  /* Las jugadas guardadas antes de que existiera esta relación no saben en qué
+     set up viven. Se deducen del nombre, que es como las nombra el entrenador:
+     las Sudáfrica son line de 4, las Niebla y las Leinster line de 5, y las
+     Canapé line de 3. La que no entre en ninguna queda sin set up hasta que él
+     la acomode. */
+
+  const POR_NOMBRE = [
+    { busca: 'sudafrica', setup: 'line4' },
+    { busca: 'niebla', setup: 'line5' },
+    { busca: 'leinster', setup: 'line5' },
+    { busca: 'canape', setup: 'line3' }
+  ];
+
+  const sinTildes = (t) => String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  function acomodarJugadas() {
+    let n = 0;
+    for (const r of playRows) {
+      if (r.deleted || r.setup_key || (r.data && r.data.setupKey)) continue;
+      const nombre = sinTildes((r.data && r.data.name) || r.name);
+      const regla = POR_NOMBRE.find((x) => nombre.indexOf(x.busca) >= 0);
+      if (!regla) continue;
+      r.setup_key = regla.setup;
+      r.data = Object.assign({}, r.data || {}, { setupKey: regla.setup });
+      r.dirty = true;
+      n++;
+    }
+    if (n) escribir('plays');
     return n;
   }
 
@@ -1115,7 +1167,8 @@ RG.model = (function () {
   function serialize() {
     return {
       v: 1, id: state.id, name: state.name, squad: state.squad, showB: state.showB,
-      colors: state.colors, players: state.players, frames: state.frames, stage: state.stage, saved: Date.now()
+      colors: state.colors, players: state.players, frames: state.frames, stage: state.stage,
+      setupKey: state.setupKey, saved: Date.now()
     };
   }
 
@@ -1126,6 +1179,7 @@ RG.model = (function () {
     state.squad = data.squad || 15;
     state.showB = data.showB !== false;
     state.stage = data.stage || 'field';
+    state.setupKey = data.setupKey || state.setupKey;
     state.colors = data.colors || { a: '#e8503a', b: '#3f7fe0' };
     state.players = data.players && data.players.length ? data.players : makePlayers(state.squad);
     state.frames = data.frames.map((f) => ({
@@ -1155,21 +1209,51 @@ RG.model = (function () {
     const data = serialize();
     const previa = filaDeJugada(scope, state.id, state.name);
     const fila = previa
-      ? tocar('plays', previa, { name: state.name, data: data })
-      : nuevaFila('plays', { scope: scope, club_id: scope === 'club' ? me.club : null, name: state.name, data: data });
+      ? tocar('plays', previa, { name: state.name, data: data, setup_key: data.setupKey || null })
+      : nuevaFila('plays', { scope: scope, club_id: scope === 'club' ? me.club : null, name: state.name,
+                             data: data, setup_key: data.setupKey || null });
     filaAbierta = fila.id;
     guardado('plays');
     return fila.id;
   }
 
-  function listPlays() {
+  /* En qué set up vive una jugada. La fila lo dice; si no, lo dice la jugada
+     guardada adentro, que es de donde salió cuando esto no existía. */
+  function setupDeJugada(r) {
+    const k = r.setup_key || (r.data && r.data.setupKey) || null;
+    return k && FORMATIONS[k] ? k : null;
+  }
+
+  /* Todas las jugadas, o sólo las de un set up. */
+  function listPlays(setupKey) {
     return playRows.filter(visible)
       .map((r) => ({
         id: r.id, name: (r.data && r.data.name) || r.name || '(sin nombre)',
         saved: (r.data && r.data.saved) || r.updated || 0,
+        setup: setupDeJugada(r),
         origen: r.scope, propia: r.scope === 'personal'
       }))
+      .filter((j) => !setupKey || j.setup === setupKey)
       .sort((x, y) => y.saved - x.saved);
+  }
+
+  /* cuántas jugadas tiene cada set up, para mostrarlo en la lista */
+  function playCounts() {
+    const cuenta = {};
+    for (const r of playRows.filter(visible)) {
+      const k = setupDeJugada(r);
+      if (k) cuenta[k] = (cuenta[k] || 0) + 1;
+    }
+    return cuenta;
+  }
+
+  /* mover una jugada a otro set up */
+  function setPlaySetup(id, setupKey) {
+    const r = playRows.find((x) => x.id === id);
+    if (!r || !canWrite(r.scope)) return false;
+    const data = Object.assign({}, r.data || {}, { setupKey: setupKey || null });
+    tocar('plays', r, { data: data, setup_key: setupKey || null });
+    return guardado('plays');
   }
 
   function loadPlay(id) {
@@ -1201,7 +1285,7 @@ RG.model = (function () {
     isUserFormation, isEditedSetup, isBaseSetup, setupOrigin, canEditSetup,
     canWrite, writableLevels, whoAmI, exportAll, importAll,
     useAccount, onChange, allRows, pending, adopt, forget, applyRemote,
-    localLeftovers, adoptRows, playOrigin, playRow,
+    localLeftovers, adoptRows, playOrigin, playRow, playCounts, setPlaySetup, CATEGORIAS,
     addFrame, duplicateFrame, deleteFrame,
     setPos, setRoute, clearRoute,
     ballStatic, setCarrier, carryPos,
