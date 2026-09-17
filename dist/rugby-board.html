@@ -1195,8 +1195,19 @@ RG.cloud = (function () {
             body: { email: clean, password: password, data: name ? { name: String(name).trim() } : {} }
           });
         } catch (e) { throw new Error(explicar(e)); }
-        /* si el proyecto pide confirmar el mail no viene sesión: hay que ir al mail */
-        if (!data || !data.access_token) return { user: null, confirmar: true, email: clean };
+        if (!data || !data.access_token) {
+          /* El servidor no dice «ese mail ya existe», para no contarle a nadie
+             quién tiene cuenta: devuelve un alta vacía, sin identidades. Si no,
+             mandábamos a revisar un mail que nunca se iba a mandar. */
+          const yaEsta = data && data.user && Array.isArray(data.user.identities) &&
+            data.user.identities.length === 0;
+          if (yaEsta) {
+            throw new Error('Ya hay una cuenta con ese mail. Entrá con tu contraseña, o pedí un ' +
+              'link si no la tenés.');
+          }
+          /* el proyecto pide confirmar el mail: recién ahí hay que ir al correo */
+          return { user: null, confirmar: true, email: clean };
+        }
         return { user: guardarSesion(data), listo: true };
       },
 
