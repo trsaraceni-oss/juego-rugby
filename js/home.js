@@ -10,7 +10,8 @@ RG.home = (function () {
   const CODIGO_PENDIENTE = 'rugbyboard.codigoPendiente';
   const ULTIMO_MAIL = 'rugbyboard.ultimoMail';
 
-  let app = null, root = null, pendiente = null, cargando = true, errorCodigo = null;
+  let app = null, root = null, pendiente = null, cargando = true, errorCodigo = null
+  let sinServidor = null, igualmente = false, lento = false;
   let estado = { user: null, clubs: [], club: null, teams: [], members: [] };
 
   const esc = (s) => String(s == null ? '' : s)
@@ -18,7 +19,7 @@ RG.home = (function () {
 
   /* ------------------------------------------------------------- datos ---- */
 
-  async function refrescar() {
+  async function traer() {
     estado.user = await C.session();
     estado.clubs = estado.user ? await C.myClubs() : [];
 
@@ -43,6 +44,19 @@ RG.home = (function () {
     if (RG.sync) await RG.sync.cuenta(estado.user, estado.club);
   }
 
+  /* El servidor puede estar caído, dormido o sin red del lado del usuario. Nada
+     de eso puede dejar la pantalla clavada en "Cargando…": se sigue con lo
+     último que se sabía, se avisa arriba y se ofrece reintentar. */
+  async function refrescar() {
+    try {
+      await traer();
+      sinServidor = null;
+      igualmente = false;
+    } catch (e) {
+      sinServidor = (e && e.message) || 'No se pudo conectar con el servidor';
+    }
+  }
+
   const soyDueño = () => !!(estado.club && estado.club.role === 'owner');
 
   function equipoActual() {
@@ -64,7 +78,26 @@ RG.home = (function () {
   /* ---------------------------------------------------------- pantallas ---- */
 
   function vistaCargando() {
-    return '<div class="hm-card hm-center"><p class="hm-lead">Cargando…</p></div>';
+    return '<div class="hm-card hm-center"><p class="hm-lead">Cargando…</p>' +
+      (lento ? '<p class="hm-note">Está tardando más de lo normal. Si el proyecto de Supabase ' +
+        'estuvo pausado, tarda unos minutos en despertar.</p>' : '') +
+      '</div>';
+  }
+
+  function vistaSinServidor() {
+    return '<div class="hm-card hm-center">' +
+      '<p class="hm-lead">No se pudo conectar con el servidor</p>' +
+      '<p class="hm-note">' + esc(sinServidor) + '</p>' +
+      '<p class="hm-note">En el plan gratis de Supabase el proyecto se pausa solo ' +
+      'después de una semana sin uso. Si lo acabás de despertar, tarda unos minutos ' +
+      'en volver.</p>' +
+      '<div class="hm-row-btns">' +
+      '<button class="btn primary" id="hmReintentar">Reintentar</button>' +
+      '<button class="btn" id="hmIgual">Abrir el pizarrón igual</button>' +
+      '</div>' +
+      '<p class="hm-note">Sin servidor se trabaja con lo guardado en este ' +
+      'dispositivo. Lo que hagas se sube solo cuando vuelva.</p>' +
+      '</div>';
   }
 
   /* ------------------------------------------------------------- entrar ----
@@ -283,12 +316,16 @@ RG.home = (function () {
   function vistaInicio() {
     const eq = equipoActual();
     const sinCuenta = !estado.user;
+    /* se entró igual con el servidor caído: hay cuenta pero no se pudo traer el club */
+    const sinClub = !sinCuenta && !estado.club;
     return '' +
       '<div class="hm-hero hm-row">' +
       '<div>' +
-      '<h1>' + esc(sinCuenta ? 'Rugby Board' : estado.club.name) + '</h1>' +
+      '<h1>' + esc(sinCuenta || sinClub ? 'Rugby Board' : estado.club.name) + '</h1>' +
       '<p class="hm-lead">' + (sinCuenta
         ? 'Estás trabajando sin cuenta: todo se guarda en este navegador.'
+        : sinClub
+        ? esc(estado.user.name) + ' · sin conexión con el club'
         : esc(estado.user.name) + ' · ' + (estado.club.role === 'owner' ? 'dueño del club'
           : estado.club.role === 'admin' ? 'admin del club' : 'entrenador') +
           (eq ? ' · ' + esc(eq.name) : '')) + '</p>' +
@@ -319,6 +356,8 @@ RG.home = (function () {
       '</div>' +
       '<p class="hm-note">' + (sinCuenta
         ? 'Se guarda en este navegador. Al entrar con tu cuenta se sube solo.'
+        : sinClub
+        ? 'Sin conexión con el servidor: se trabaja con lo guardado en este dispositivo y se sube cuando vuelva.'
         : esc(estadoSync())) + '</p>' +
       '<p class="hm-alt"><button class="hm-link" id="hmJugador">Entrar a una sala como jugador</button>' +
       (M.whoAmI && M.whoAmI().admin
@@ -326,7 +365,7 @@ RG.home = (function () {
       '</p>' +
       '</div>' +
 
-      (sinCuenta ? '' :
+      (sinCuenta || sinClub ? '' :
       '<div class="hm-card">' +
       '<h2>Mi club</h2>' +
       '<h3>Equipos</h3>' +
@@ -446,11 +485,14 @@ RG.home = (function () {
     if (admin.abierto) cuerpo.innerHTML = vistaAdmin();
     else if (modoJugador) cuerpo.innerHTML = vistaJugador();
     else if (cargando) cuerpo.innerHTML = vistaCargando();
-    else if (estado.user) cuerpo.innerHTML = estado.club ? vistaInicio() : vistaSinClub();
+    else if (sinServidor && !igualmente && !estado.club && !localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaSinServidor();
+    else if (estado.user) cuerpo.innerHTML = (estado.club || igualmente) ? vistaInicio() : vistaSinClub();
     else if (pendiente) cuerpo.innerHTML = vistaPendiente();
     else if (localStorage.getItem(SIN_CUENTA)) cuerpo.innerHTML = vistaInicio();
     else cuerpo.innerHTML = vistaEntrar();
     enganchar();
+    /* si la pantalla es otra, el problema de conexión va como aviso arriba */
+    if (sinServidor && !root.querySelector('#hmReintentar')) aviso(sinServidor);
     if (errorCodigo) { aviso(errorCodigo); errorCodigo = null; }
   }
 
@@ -497,6 +539,14 @@ RG.home = (function () {
 
   function enganchar() {
     const q = (sel) => root.querySelector(sel);
+
+    const reintentar = q('#hmReintentar');
+    if (reintentar) reintentar.addEventListener('click', () => trabajando('#hmReintentar', 'Probando…', async () => {
+      await refrescar();
+      pintar();
+    }));
+    const igual = q('#hmIgual');
+    if (igual) igual.addEventListener('click', () => { igualmente = true; pintar(); });
 
     const cambiarModo = (m) => { modoEntrar = m; pintar(); };
     ['#hmModoClave:clave', '#hmModoAlta:alta', '#hmModoLink:link'].forEach((par) => {
@@ -801,9 +851,8 @@ RG.home = (function () {
     });
 
     mostrar();
-    await refrescar();
-    cargando = false;
-    pintar();
+    setTimeout(() => { if (cargando) { lento = true; pintar(); } }, 4000);
+    try { await refrescar(); } finally { cargando = false; lento = false; pintar(); }
   }
 
   return { init, mostrar, refrescar, get estado() { return estado; } };

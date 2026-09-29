@@ -336,11 +336,25 @@ RG.cloud = (function () {
         const s = leer();
         headers.Authorization = 'Bearer ' + ((s && s.access_token) || key);
       }
+      /* Un proyecto que estuvo pausado acepta la conexión pero puede tardar
+         minutos en contestar. Sin corte, el pedido queda colgado para siempre y
+         la pantalla se queda en "Cargando…". */
       let res;
+      const corte = typeof AbortController === 'function' ? new AbortController() : null;
+      const reloj = corte ? setTimeout(() => corte.abort(), o.espera || 15000) : 0;
       try {
-        res = await fetch(base + url, { method: o.method || 'GET', headers: headers, body: o.body ? JSON.stringify(o.body) : undefined });
+        res = await fetch(base + url, {
+          method: o.method || 'GET', headers: headers,
+          body: o.body ? JSON.stringify(o.body) : undefined,
+          signal: corte ? corte.signal : undefined
+        });
       } catch (e) {
+        if (corte && corte.signal.aborted) {
+          throw new Error('El servidor no contestó a tiempo. Si el proyecto estuvo pausado puede estar despertando: probá de nuevo en un minuto.');
+        }
         throw new Error('No se pudo conectar con el servidor');
+      } finally {
+        clearTimeout(reloj);
       }
       const texto = await res.text();
       let data = null;

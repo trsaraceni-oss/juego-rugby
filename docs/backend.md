@@ -218,3 +218,19 @@ máquina, no se le copian.
 Ojo con una cosa: lo guardado es de cada dirección web. Lo que armaste abriendo la app desde el
 visor de Claude no aparece en `github.io`, porque para el navegador son dos lugares distintos. Para
 llevarlo de uno a otro, en la pizarra: **Exportar set ups** de un lado, **Importar** del otro.
+
+## Si el proyecto de Supabase se pausa
+
+En el plan gratis, Supabase pausa el proyecto después de **una semana sin actividad** y manda un
+mail avisando. Se despierta desde el panel (**Restore project**) y tarda unos minutos en volver a
+contestar; los datos no se pierden (hay 90 días para restaurarlo).
+
+Para que no vuelva a pasar alcanza con abrir la app una vez por semana: cualquier pedido cuenta
+como actividad. Si querés despreocuparte, el plan Pro no pausa nada.
+
+Del lado de la app, un servidor que no contesta ya no deja la pantalla clavada en "Cargando…":
+
+- cada pedido se corta a los 15 segundos (`pedir(..., { espera })` en `js/cloud.js`);
+- si falla, la pantalla de inicio muestra qué pasó, un botón **Reintentar** y otro para **abrir el
+  pizarrón igual**, que trabaja con lo guardado en el dispositivo;
+- lo que hagas sin conexión se sube solo cuando el servidor vuelve.
