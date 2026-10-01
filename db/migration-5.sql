@@ -45,6 +45,10 @@ end $$;
 
 grant execute on function save_play(text, uuid, text, jsonb, text) to authenticated;
 
+-- La versión vieja, sin set up, queda dando vueltas y una pestaña que no se haya
+-- actualizado todavía guardaría por ahí, perdiendo el set up sin avisar.
+drop function if exists save_play(text, uuid, text, jsonb);
+
 -- Las jugadas que ya estaban guardadas no lo saben, pero su nombre sí: así las
 -- nombra el entrenador. El resto queda sin set up hasta que las acomode.
 update plays set setup_key = 'line4'
